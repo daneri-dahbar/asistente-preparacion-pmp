@@ -9,9 +9,17 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@langchain/core": "^1.1.12",
+    "@langchain/openai": "^1.2.1",
+    "@tailwindcss/typography": "^0.5.19",
     "next": "16.1.1",
+    "pocketbase": "^0.26.5",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "react-markdown": "^10.1.0",
+    "remark-breaks": "^4.0.0",
+    "remark-gfm": "^4.0.1",
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
