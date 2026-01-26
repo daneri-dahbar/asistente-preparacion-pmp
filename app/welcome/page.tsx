@@ -136,7 +136,7 @@ export default function WelcomePage() {
                 try {
                     const progress = await getUserProgress(user.id);
                     if (progress?.stats?.accuracy) {
-                        setStats(prev => ({ ...prev, accuracy: progress.stats.accuracy }));
+                        setStats(prev => ({ ...prev, accuracy: progress.stats!.accuracy as string }));
                     }
                 } catch (e) {
                     console.error("Error fetching stats:", e);
@@ -303,7 +303,7 @@ export default function WelcomePage() {
             setMessages(formattedMessages);
             return formattedMessages;
         } catch (error: any) {
-            if (error.isAbort || error.status === 0) return;
+            if (error.isAbort || error.status === 0) return [];
 
             // Ignore 404/400 errors which might happen if chat is deleted or invalid
             if (error.status !== 404 && error.status !== 400) {
