@@ -9,9 +9,10 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@langchain/core": "^1.1.12",
-    "@langchain/openai": "^1.2.1",
+    "@langchain/core": "^1.1.17",
+    "@langchain/openai": "^1.2.3",
     "@tailwindcss/typography": "^0.5.19",
+    "ai": "^6.0.58",
     "next": "16.1.1",
     "pocketbase": "^0.26.5",
     "react": "19.2.3",

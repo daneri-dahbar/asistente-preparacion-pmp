@@ -592,20 +592,55 @@ export default function WelcomePage() {
                 setCurrentSessionId(targetSessionId);
             } else if (user) {
                 // Auto-create a session
-                try {
-                    const newSession = await pb.collection('study_sessions').create({
-                        name: `Sesión ${new Date().toLocaleDateString()}`,
-                        user: user.id
-                    });
-                    setSessions(prev => [newSession, ...prev]);
-                    targetSessionId = newSession.id;
-                    setCurrentSessionId(targetSessionId);
-                    setChats(prev => ({ ...prev, [newSession.id]: [] }));
-                } catch (error) {
-                    console.error("Error auto-creating session:", error);
-                    alert("No se pudo iniciar una sesión automáticamente.");
-                    return;
-                }
+                    // Fix: Added robust session creation with fallback for 400 errors
+                    try {
+                        const sessionName = `Sesión ${new Date().toLocaleString()}`;
+                        console.log("Creating session with name:", sessionName, "for user:", user.id);
+                        
+                        const newSession = await pb.collection('study_sessions').create({
+                            name: sessionName,
+                            user: user.id
+                        });
+                        setSessions(prev => [newSession, ...prev]);
+                        targetSessionId = newSession.id;
+                        setCurrentSessionId(targetSessionId);
+                        setChats(prev => ({ ...prev, [newSession.id]: [] }));
+                    } catch (error: any) {
+                        console.error("Error auto-creating session (attempting fallback):", error);
+                        if (error.data) console.error("Validation errors:", error.data);
+                        
+                        // Fallback: Try to reload sessions and use the first one if it exists
+                        // This handles cases where a session might have been created but state wasn't updated,
+                        // or if there was a race condition.
+                        try {
+                            const latestSessions = await pb.collection('study_sessions').getList(1, 1, {
+                                sort: '-created',
+                                filter: `user="${user.id}"`
+                            });
+                            
+                            if (latestSessions.items.length > 0) {
+                                const recoveredSession = latestSessions.items[0];
+                                console.log("Recovered existing session successfully:", recoveredSession.id);
+                                // Update state
+                                setSessions(prev => {
+                                    // Avoid duplicates
+                                    if (prev.some(s => s.id === recoveredSession.id)) return prev;
+                                    return [recoveredSession, ...prev];
+                                });
+                                targetSessionId = recoveredSession.id;
+                                setCurrentSessionId(targetSessionId);
+                                // Continue with this session
+                            } else {
+                                console.error("Fallback failed: No existing sessions found.");
+                                alert(`No se pudo iniciar una sesión automáticamente. Por favor crea una sesión manualmente desde la barra lateral.`);
+                                return;
+                            }
+                        } catch (retryError: any) {
+                             console.error("Fallback failed with error:", retryError);
+                             alert(`Error crítico al iniciar sesión: ${error.message}`);
+                             return;
+                        }
+                    }
             }
         }
         
