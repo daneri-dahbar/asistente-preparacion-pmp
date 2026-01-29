@@ -515,19 +515,23 @@ export default function WelcomePage() {
             return;
         }
 
-        // Intercept Simulation Mode
+        // Intercept Simulation Mode (Only for full exams, not "Prueba de Fuego")
         if (mode.startsWith('level_exam:')) {
             const topic = mode.split(':')[1];
-            let count = 45; // Default
-            if (topic.includes('45')) count = 45;
-            if (topic.includes('90')) count = 90;
-            if (topic.includes('135')) count = 135;
-            if (topic.includes('180')) count = 180;
             
-            setExamConfig({ count, topic });
-            setIsExamMode(true);
-            setIsChatViewOpen(true);
-            return;
+            // Check if it's a full simulation based on topic name conventions
+            // If it's just "level_exam:TopicName" (Prueba de Fuego), fall through to Chat Mode
+            if (topic.includes('45') || topic.includes('90') || topic.includes('135') || topic.includes('180')) {
+                 let count = 45;
+                 if (topic.includes('90')) count = 90;
+                 if (topic.includes('135')) count = 135;
+                 if (topic.includes('180')) count = 180;
+                 
+                 setExamConfig({ count, topic });
+                 setIsExamMode(true);
+                 setIsChatViewOpen(true);
+                 return;
+            }
         }
 
         setChatMode(mode);
@@ -777,6 +781,12 @@ export default function WelcomePage() {
                     setExamConfig(null);
                     setIsChatViewOpen(false);
                     setDashboardLevel(null);
+                }}
+                onComplete={(score, total) => {
+                    // If it's a "Prueba de Fuego" (small exam <= 10 questions), mark the level as completed
+                    if (examConfig.count <= 10) {
+                        markLevelCompleted(examConfig.topic);
+                    }
                 }}
             />
         );

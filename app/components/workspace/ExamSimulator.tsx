@@ -33,9 +33,10 @@ interface ExamSimulatorProps {
     topic: string;
     userId: string;
     onExit: () => void;
+    onComplete?: (score: number, total: number) => void;
 }
 
-export default function ExamSimulator({ simulationId, initialQuestionCount, topic, userId, onExit }: ExamSimulatorProps) {
+export default function ExamSimulator({ simulationId, initialQuestionCount, topic, userId, onExit, onComplete }: ExamSimulatorProps) {
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
     const [record, setRecord] = useState<SimulationRecord | null>(null);
@@ -194,6 +195,12 @@ export default function ExamSimulator({ simulationId, initialQuestionCount, topi
                 if (newAnswers[q.id] === q.correctAnswer) score++;
             });
             updates.score = score;
+
+            // Check for passing score (>= 70%)
+            const percentage = Math.round((score / record.total_questions) * 100);
+            if (percentage >= 70 && onComplete) {
+                onComplete(score, record.total_questions);
+            }
         }
 
         try {
