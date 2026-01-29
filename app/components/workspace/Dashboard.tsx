@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import pb from '@/lib/pocketbase';
+import { BarChart2, CheckCircle, XCircle, TrendingUp, Award, BookOpen, Trash2 } from 'lucide-react';
 import { WORLDS, PHASE1_WORLDS, PHASE2_WORLDS, PHASE3_WORLDS, PHASE4_WORLDS, PHASE_ECO_WORLDS, PHASE5_WORLDS } from '@/lib/gameData';
 
 interface LevelData {
@@ -10,6 +12,28 @@ interface LevelData {
     color: string;
     headerColor?: string;
     levelNumber?: number;
+}
+
+interface Question {
+    id: string;
+    text: string;
+    options: { id: string; text: string }[];
+    correctAnswer: string;
+    explanation: string;
+    domain: string;
+}
+
+interface SimulationRecord {
+    id: string;
+    status: 'in_progress' | 'completed';
+    type: string;
+    total_questions: number;
+    current_index: number;
+    score: number;
+    created: string;
+    updated: string;
+    questions: Question[];
+    answers: Record<string, string>;
 }
 
 interface DashboardProps {
@@ -38,12 +62,42 @@ export default function Dashboard({
 }: DashboardProps) {
     const [localSelectedLevel, setLocalSelectedLevel] = useState<LevelData | null>(null);
     const [activePhaseIndex, setActivePhaseIndex] = useState(0);
-    const [viewMode, setViewMode] = useState<'guided' | 'free' | 'guided_unlocked'>('guided');
+    const [viewMode, setViewMode] = useState<'guided' | 'free' | 'guided_unlocked' | 'simulation'>('guided');
     const [expandedWorlds, setExpandedWorlds] = useState<Record<number, boolean>>({});
     const [levelFilter, setLevelFilter] = useState<'all' | 'completed' | 'todo'>('all');
     const [searchQuery, setSearchQuery] = useState('');
+    const [userSimulations, setUserSimulations] = useState<SimulationRecord[]>([]);
 
-    const phases = [
+    useEffect(() => {
+        if (viewMode === 'simulation' && pb.authStore.isValid) {
+            const fetchSimulations = async () => {
+                try {
+                    const records = await pb.collection('simulations').getFullList({
+                        sort: '-created',
+                        filter: `user="${pb.authStore.model?.id}"`,
+                    });
+                    setUserSimulations(records as unknown as SimulationRecord[]);
+                } catch (err) {
+                    console.error("Error fetching simulations:", err);
+                }
+            };
+            fetchSimulations();
+        }
+    }, [viewMode]);
+
+    const handleDeleteSimulation = async (id: string) => {
+        if (!confirm('¿Estás seguro de que quieres cancelar y eliminar esta simulación? Esta acción no se puede deshacer.')) return;
+        
+        try {
+            await pb.collection('simulations').delete(id);
+            setUserSimulations(prev => prev.filter(s => s.id !== id));
+        } catch (err) {
+            console.error("Error deleting simulation:", err);
+            alert("Error al eliminar la simulación");
+        }
+    };
+
+    const allPhases = [
         { title: 'Fase 1: El Estándar para la Dirección de Proyectos 📘', worlds: PHASE1_WORLDS, prevPhaseLastWorld: null },
         { title: 'Fase 2: Guía de los Fundamentos (PMBOK®) 📙', worlds: PHASE2_WORLDS, prevPhaseLastWorld: PHASE1_WORLDS[PHASE1_WORLDS.length - 1] },
         { title: 'Fase 3: Dominios de Desempeño 🚀', worlds: PHASE3_WORLDS, prevPhaseLastWorld: PHASE2_WORLDS[PHASE2_WORLDS.length - 1] },
@@ -51,12 +105,17 @@ export default function Dashboard({
         { title: 'Fase 5: Esquema de Contenido (ECO) 📋', worlds: PHASE_ECO_WORLDS, prevPhaseLastWorld: PHASE4_WORLDS[PHASE4_WORLDS.length - 1] },
         { title: 'Fase 6: Simulación de Exámenes 🎓', worlds: PHASE5_WORLDS, prevPhaseLastWorld: PHASE_ECO_WORLDS[PHASE_ECO_WORLDS.length - 1] }
     ];
+
+    const guidedPhases = allPhases.slice(0, 5);
+    const simulationPhases = allPhases.slice(5);
+
+    const activePhases = guidedPhases;
     
     const selectedLevel = controlledSelectedLevel !== undefined ? controlledSelectedLevel : localSelectedLevel;
     const setSelectedLevel = controlledSetSelectedLevel || setLocalSelectedLevel;
 
-    // Calculate Next Level
-    const allLevelsFlat = phases.flatMap(phase => 
+    // Calculate Next Level (only for guided progression)
+    const allLevelsFlat = guidedPhases.flatMap(phase => 
         phase.worlds.flatMap((world) => 
             world.levels.map((lvl, lIdx) => ({
                 id: `${world.id}-${lIdx}`,
@@ -103,7 +162,7 @@ export default function Dashboard({
                     {/* Mode Switcher */}
                     <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl w-fit">
                         <button
-                            onClick={() => setViewMode('guided')}
+                            onClick={() => { setViewMode('guided'); setActivePhaseIndex(0); }}
                             className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
                                 viewMode === 'guided'
                                     ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
@@ -113,7 +172,7 @@ export default function Dashboard({
                             🗺️ Modo Guiado
                         </button>
                         <button
-                            onClick={() => setViewMode('guided_unlocked')}
+                            onClick={() => { setViewMode('guided_unlocked'); setActivePhaseIndex(0); }}
                             className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
                                 viewMode === 'guided_unlocked'
                                     ? 'bg-white dark:bg-gray-700 text-green-600 dark:text-green-400 shadow-sm'
@@ -132,12 +191,22 @@ export default function Dashboard({
                         >
                             ♾️ Modo Libre
                         </button>
+                        <button
+                            onClick={() => { setViewMode('simulation'); setActivePhaseIndex(0); }}
+                            className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                                viewMode === 'simulation'
+                                    ? 'bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 shadow-sm'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                            }`}
+                        >
+                            🎓 Simulación Examen
+                        </button>
                     </div>
                 </div>
 
                 {viewMode === 'guided' || viewMode === 'guided_unlocked' ? (
                     <div className="space-y-12">
-                        {/* CURRENT LEVEL HERO SECTION */}
+                        {/* CURRENT LEVEL HERO SECTION - Only for guided mode */}
                         {nextLevel && (
                     <div className="relative overflow-hidden rounded-3xl shadow-lg group cursor-pointer" onClick={() => setSelectedLevel({ id: nextLevel.id, name: nextLevel.name, worldId: nextLevel.worldId, color: nextLevel.color, levelNumber: nextLevel.levelNumber })}>
                         <div className={`absolute inset-0 bg-gradient-to-r ${nextLevel.color || 'from-blue-500 to-indigo-600'} opacity-90 transition-opacity group-hover:opacity-100`}></div>
@@ -171,7 +240,7 @@ export default function Dashboard({
                         {/* Phase Navigation */}
                         <div className="w-full">
                             <nav className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" aria-label="Tabs">
-                                {phases.map((phase, idx) => {
+                                {activePhases.map((phase, idx) => {
                                      // Determine if phase is unlocked
                                     let isPhaseUnlocked = false;
                                     if (viewMode === 'guided_unlocked') {
@@ -179,7 +248,7 @@ export default function Dashboard({
                                     } else if (idx === 0) {
                                         isPhaseUnlocked = true;
                                     } else {
-                                        const prevPhaseLastWorld = phases[idx - 1].worlds[phases[idx - 1].worlds.length - 1];
+                                        const prevPhaseLastWorld = activePhases[idx - 1].worlds[activePhases[idx - 1].worlds.length - 1];
                                         const prevPhaseLastLevelId = `${prevPhaseLastWorld.id}-${prevPhaseLastWorld.levels.length - 1}`;
                                         if (completedLevels.includes(prevPhaseLastLevelId)) {
                                             isPhaseUnlocked = true;
@@ -222,7 +291,7 @@ export default function Dashboard({
 
                     {/* Active Phase Worlds */}
                     <div className="flex flex-col gap-6">
-                        {phases[activePhaseIndex].worlds.map((world, wIdx) => {
+                        {activePhases[activePhaseIndex]?.worlds.map((world, wIdx) => {
                             // Filter levels logic
                             const filteredLevels = world.levels.map((lvl, idx) => {
                                 const levelId = `${world.id}-${idx}`;
@@ -254,10 +323,10 @@ export default function Dashboard({
                             } else {
                                 let prevWorldLastLevelId = null;
                                 if (wIdx > 0) {
-                                    const prevWorld = phases[activePhaseIndex].worlds[wIdx - 1];
+                                    const prevWorld = activePhases[activePhaseIndex].worlds[wIdx - 1];
                                     prevWorldLastLevelId = `${prevWorld.id}-${prevWorld.levels.length - 1}`;
-                                } else if (phases[activePhaseIndex].prevPhaseLastWorld) {
-                                    const prevWorld = phases[activePhaseIndex].prevPhaseLastWorld!;
+                                } else if (activePhases[activePhaseIndex].prevPhaseLastWorld) {
+                                    const prevWorld = activePhases[activePhaseIndex].prevPhaseLastWorld!;
                                     prevWorldLastLevelId = `${prevWorld.id}-${prevWorld.levels.length - 1}`;
                                 }
                                 if (prevWorldLastLevelId && completedLevels.includes(prevWorldLastLevelId)) {
@@ -343,10 +412,10 @@ export default function Dashboard({
                                                             let prevLevelId = null;
                                                             if (idx === 0) {
                                                                 if (wIdx > 0) {
-                                                                    const prevWorld = phases[activePhaseIndex].worlds[wIdx - 1];
+                                                                    const prevWorld = activePhases[activePhaseIndex].worlds[wIdx - 1];
                                                                     prevLevelId = `${prevWorld.id}-${prevWorld.levels.length - 1}`;
-                                                                } else if (phases[activePhaseIndex].prevPhaseLastWorld) {
-                                                                    const prevWorld = phases[activePhaseIndex].prevPhaseLastWorld!;
+                                                                } else if (activePhases[activePhaseIndex].prevPhaseLastWorld) {
+                                                                    const prevWorld = activePhases[activePhaseIndex].prevPhaseLastWorld!;
                                                                     prevLevelId = `${prevWorld.id}-${prevWorld.levels.length - 1}`;
                                                                 }
                                                             } else {
@@ -405,7 +474,199 @@ export default function Dashboard({
             </div>
             ) : null}
 
+                {/* Simulation Mode View */}
+                {viewMode === 'simulation' ? (
+                    <div className="space-y-12">
+                        {/* Progress Report Section */}
+                        {userSimulations.length > 0 && (() => {
+                            const completedSimulations = userSimulations.filter(s => s.status === 'completed');
+                            const totalSimulations = completedSimulations.length;
+                            const totalQuestions = completedSimulations.reduce((acc, curr) => acc + curr.total_questions, 0);
+                            const totalCorrect = completedSimulations.reduce((acc, curr) => acc + curr.score, 0);
+                            const averageScore = totalSimulations > 0 && totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
+                            
+                            const domainStats = completedSimulations.reduce((acc, sim) => {
+                                sim.questions?.forEach(q => {
+                                    const domain = q.domain || 'General';
+                                    if (!acc[domain]) acc[domain] = { total: 0, correct: 0 };
+                                    acc[domain].total++;
+                                    if (sim.answers && sim.answers[q.id] === q.correctAnswer) {
+                                        acc[domain].correct++;
+                                    }
+                                });
+                                return acc;
+                            }, {} as Record<string, { total: 0, correct: 0 }>);
 
+                            return (
+                                <section className="space-y-6">
+                                    <div className="flex items-center gap-3">
+                                        <BarChart2 className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Reporte de Progreso</h3>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        {/* General Stats Card */}
+                                        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                                            <h4 className="text-sm font-bold text-gray-500 uppercase mb-4">Rendimiento General</h4>
+                                            <div className="flex items-center justify-between mb-4">
+                                                <div className="text-4xl font-bold text-gray-900 dark:text-white">{averageScore}%</div>
+                                                <div className={`p-3 rounded-full ${averageScore >= 70 ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
+                                                    <TrendingUp className="w-6 h-6" />
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                                                <div className="flex justify-between">
+                                                    <span>Simulaciones Completadas:</span>
+                                                    <span className="font-bold">{totalSimulations}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span>Preguntas Respondidas:</span>
+                                                    <span className="font-bold">{totalQuestions}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Domain Stats */}
+                                        <div className="md:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                                            <h4 className="text-sm font-bold text-gray-500 uppercase mb-4">Dominio por Áreas</h4>
+                                            <div className="space-y-4">
+                                                {Object.entries(domainStats).map(([domain, stats]) => {
+                                                    const percent = Math.round((stats.correct / stats.total) * 100);
+                                                    let colorClass = 'bg-red-500';
+                                                    if (percent >= 80) colorClass = 'bg-green-500';
+                                                    else if (percent >= 60) colorClass = 'bg-yellow-500';
+
+                                                    return (
+                                                        <div key={domain}>
+                                                            <div className="flex justify-between text-sm mb-1">
+                                                                <span className="font-medium text-gray-700 dark:text-gray-300">{domain}</span>
+                                                                <span className="font-bold text-gray-900 dark:text-white">{percent}% ({stats.correct}/{stats.total})</span>
+                                                            </div>
+                                                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                                                                <div className={`h-2.5 rounded-full ${colorClass}`} style={{ width: `${percent}%` }}></div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                                {Object.keys(domainStats).length === 0 && (
+                                                    <p className="text-gray-500 text-sm italic">Completa al menos una simulación para ver estadísticas por dominio.</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
+                            );
+                        })()}
+
+                        {/* My Attempts Section */}
+                        {userSimulations.length > 0 && (
+                            <section className="space-y-6">
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Mis Intentos Recientes</h3>
+                                <div className="space-y-4">
+                                    {userSimulations.map((sim) => (
+                                        <div key={sim.id} className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col md:flex-row justify-between items-center gap-4">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                                        sim.status === 'completed' 
+                                                            ? (sim.score / sim.total_questions >= 0.7 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400')
+                                                            : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                                    }`}>
+                                                        {sim.status === 'completed' 
+                                                            ? (sim.score / sim.total_questions >= 0.7 ? 'APROBADO' : 'REPROBADO')
+                                                            : 'EN PROGRESO'}
+                                                    </span>
+                                                    <span className="text-sm text-gray-500">{new Date(sim.created).toLocaleDateString()}</span>
+                                                </div>
+                                                <h4 className="font-bold text-gray-900 dark:text-white text-lg">
+                                                    {sim.total_questions === 45 ? 'Simulación Inicial (45)' : 
+                                                     sim.total_questions === 90 ? 'Simulación Media (90)' :
+                                                     sim.total_questions === 135 ? 'Simulación Avanzada (135)' :
+                                                     sim.total_questions === 180 ? 'Simulacro Real (180)' :
+                                                     `Simulación Personalizada (${sim.total_questions})`}
+                                                </h4>
+                                                <p className="text-sm text-gray-500 mt-1">
+                                                    Progreso: {sim.current_index + (sim.status === 'completed' ? 0 : 1)} / {sim.total_questions} preguntas
+                                                </p>
+                                            </div>
+                                            
+                                            <div className="flex gap-3 w-full md:w-auto">
+                                                {sim.status === 'in_progress' ? (
+                                                    <>
+                                                        <button 
+                                                            onClick={() => handleDeleteSimulation(sim.id)}
+                                                            className="p-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-xl transition-colors"
+                                                            title="Cancelar y eliminar intento"
+                                                        >
+                                                            <Trash2 className="w-5 h-5" />
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => onStartChatMode(`resume_simulation:${sim.id}:${sim.type}:${sim.total_questions}`)}
+                                                            className="flex-1 md:flex-none px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-colors"
+                                                        >
+                                                            Continuar
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <button 
+                                                        onClick={() => onStartChatMode(`resume_simulation:${sim.id}:${sim.type}:${sim.total_questions}`)}
+                                                        className="flex-1 md:flex-none px-6 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-xl font-bold transition-colors"
+                                                    >
+                                                        Ver Informe
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+
+                        <section className="space-y-6">
+                            <div className="flex flex-col gap-2">
+                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Iniciar Nuevo Simulacro 🎓</h2>
+                                <p className="text-gray-500 dark:text-gray-400">Pruebas de resistencia progresivas para validar tu preparación.</p>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {simulationPhases[0].worlds[0].levels.map((lvl, idx) => {
+                                    const world = simulationPhases[0].worlds[0];
+                                    const levelId = `${world.id}-${idx}`;
+                                    return (
+                                        <button
+                                            key={idx}
+                                            onClick={() => onStartChatMode(`level_exam:${lvl}`)}
+                                            className="group relative overflow-hidden bg-white dark:bg-gray-800 p-8 rounded-3xl border-2 border-transparent hover:border-red-500 transition-all duration-300 text-left shadow-sm hover:shadow-xl"
+                                        >
+                                            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                                                <span className="text-9xl">⏱️</span>
+                                            </div>
+                                            
+                                            <div className="relative z-10 flex flex-col h-full">
+                                                <div className="flex items-start justify-between mb-4">
+                                                    <div className="w-14 h-14 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
+                                                        {idx === 3 ? '🏆' : idx === 2 ? '🔥' : idx === 1 ? '⚡' : '🏁'}
+                                                    </div>
+                                                    <span className="px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-xs font-bold text-gray-500 dark:text-gray-400">
+                                                        Nivel {idx + 1}
+                                                    </span>
+                                                </div>
+                                                
+                                                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
+                                                    {lvl.split('(')[0].trim()}
+                                                </h3>
+                                                
+                                                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mt-auto">
+                                                    {lvl.match(/\((.*?)\)/)?.[1] || 'Preguntas variables'}
+                                                </p>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </section>
+                    </div>
+                ) : null}
 
                 {/* Modes Selection */}
                 {viewMode === 'free' ? (

@@ -14,6 +14,7 @@ interface Message {
 interface ChatAreaProps {
     messages: Message[];
     isLoading: boolean;
+    isLoadingHistory?: boolean;
     input: string;
     mode: string;
     onInputChange: (value: string) => void;
@@ -26,6 +27,7 @@ interface ChatAreaProps {
 export default function ChatArea({
     messages,
     isLoading,
+    isLoadingHistory = false,
     input,
     mode,
     onInputChange,
@@ -252,13 +254,20 @@ export default function ChatArea({
             {/* Messages Area */}
             <div className={`flex-1 overflow-y-auto px-4 sm:px-8 pt-6 pb-32 scroll-smooth ${isSimulation ? 'bg-gray-100 dark:bg-gray-900' : ''} ${levelTopic ? 'pt-16' : ''}`}>
                 <div className="max-w-3xl mx-auto space-y-8">
-                    {messages.length === 0 && (
-                        <div className="text-center py-20 text-gray-400">
-                            <p>Comienza la conversación...</p>
+                    {isLoadingHistory ? (
+                        <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                            <p className="text-gray-400 text-sm">Cargando historial...</p>
                         </div>
-                    )}
+                    ) : (
+                        <>
+                            {messages.length === 0 && (
+                                <div className="text-center py-20 text-gray-400">
+                                    <p>Comienza la conversación...</p>
+                                </div>
+                            )}
 
-                    {messages.map((m, idx) => {
+                            {messages.map((m, idx) => {
                         // Parse options if present
                         const [contentBody, optionsPart] = m.content.split('---OPTIONS---');
                         let options: string[] = [];
@@ -325,8 +334,10 @@ export default function ChatArea({
                                 </div>
                             )}
                         </div>
-                    );
+                        );
                     })}
+                        </>
+                    )}
                     
                     {isLoading && (
                         <div className="flex items-center gap-2 text-gray-400 text-sm animate-pulse ml-2">

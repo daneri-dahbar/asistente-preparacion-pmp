@@ -8,7 +8,7 @@ En primer lugar, se definen los objetivos de diseño del asistente, distinguiend
 
 Posteriormente, se adopta un enfoque de diseño centrado en el usuario, caracterizando los perfiles de uso esperados, identificando las principales necesidades de aprendizaje asociadas a la preparación del examen PMP y describiendo los flujos de interacción previstos. Este enfoque busca asegurar que las decisiones de diseño no se basen únicamente en criterios tecnológicos, sino que respondan a problemáticas reales y a contextos de uso concretos.
 
-A continuación, se presenta la arquitectura general del sistema, detallando su implementación moderna basada en Next.js y PocketBase, así como los componentes principales que conforman la solución. Esta descripción permite comprender cómo se organizan y articulan los distintos elementos del sistema —modelo de lenguaje, backend, frontend y mecanismos de gamificación— y de qué manera se soportan los objetivos definidos previamente.
+A continuación, se presenta la arquitectura general del sistema, detallando su implementación moderna basada en Next.js 16 y PocketBase, así como los componentes principales que conforman la solución. Esta descripción permite comprender cómo se organizan y articulan los distintos elementos del sistema —modelo de lenguaje, backend, frontend y mecanismos de gamificación— y de qué manera se soportan los objetivos definidos previamente.
 
 Finalmente, el capítulo aborda el diseño de la interfaz de usuario, exponiendo los principios de usabilidad aplicados, el diseño de las pantallas principales (Dashboard, Chat, Sidebar) y el sistema de retroalimentación implementado. Estos aspectos resultan clave para garantizar una experiencia de uso clara, coherente y orientada al aprendizaje, especialmente en un sistema basado en interacción conversacional avanzada.
 
@@ -30,9 +30,12 @@ Asimismo, se definió como objetivo funcional que el asistente fuera capaz de re
 
 Otro objetivo funcional relevante consistió en la generación y análisis de preguntas tipo examen PMP. El asistente debía ser capaz de presentar escenarios situacionales, analizar alternativas de respuesta y justificar de manera razonada por qué una opción resulta más adecuada que las demás. Este objetivo fue clave para simular, en la medida de lo posible, el razonamiento esperado en el examen real.
 
-Adicionalmente, se estableció como objetivo funcional la provisión de retroalimentación explicativa ante las respuestas del usuario. El asistente no debía limitarse a indicar si una respuesta era correcta o incorrecta, sino que debía ofrecer una justificación detallada, orientada a corregir errores conceptuales y reforzar el aprendizaje.
+Adicionalmente, se estableció como objetivo funcional la provisión de retroalimentación explicativa ante las respuestas del usuario. El asistente no debía limitarse a indicar si una respuesta es correcta o incorrecta, sino que debía ofrecer una justificación detallada, orientada a corregir errores conceptuales y reforzar el aprendizaje.
 
-Finalmente, se consideró como objetivo funcional la posibilidad de adaptar el nivel de profundidad de las respuestas en función del contexto de interacción y del tipo de consulta realizada, mediante modos de chat especializados (Simulación, Socrático, Taller, Examen). Esto permitió evitar explicaciones excesivamente superficiales o, por el contrario, innecesariamente extensas, contribuyendo a una experiencia de uso más equilibrada.
+Finalmente, se consideró como objetivo funcional la posibilidad de adaptar el nivel de profundidad y el estilo de las respuestas mediante una arquitectura de **modos de interacción especializados**. El sistema implementó más de 12 modos distintos para cubrir diferentes necesidades pedagógicas:
+*   **Modos de Estudio General:** Modo Estándar, Tutor Socrático, Explícamelo como a un niño y Entrenador de Fórmulas.
+*   **Modos de Simulación Profesional:** Simulación de Crisis, Taller de Entregables, Caso de Estudio y Debate (Abogado del Diablo).
+*   **Modos de Evaluación:** Examen Rápido y modos específicos por nivel (Lección, Práctica, Oráculo, Examen).
 
 ### 4.1.2 Objetivos educativos
 
@@ -44,7 +47,7 @@ Otro objetivo educativo clave consistió en promover el aprendizaje activo del u
 
 Asimismo, se estableció como objetivo educativo integrar técnicas de estudio reconocidas, tales como la práctica de recuperación, el aprendizaje basado en escenarios, la elaboración cognitiva y la metacognición. Estas técnicas se incorporaron en la forma de estructurar las respuestas del asistente, en las preguntas de seguimiento y en los mecanismos de retroalimentación, con el fin de fortalecer la retención y transferencia del conocimiento.
 
-Otro objetivo relevante fue acompañar el proceso de aprendizaje autodirigido mediante elementos de gamificación. El sistema debía motivar al usuario a mantener la constancia en su estudio a través de niveles, rachas y progreso visible, ayudándolo a identificar errores, reforzar áreas débiles y consolidar progresivamente su comprensión del dominio PMP.
+Otro objetivo relevante fue acompañar el proceso de aprendizaje autodirigido mediante una estructura de **gamificación progresiva**. El sistema organiza el contenido en "Fases" (ej. Fundamentos, Dominios de Desempeño, Principios) y "Mundos", cada uno con niveles específicos que el usuario debe completar. Esto permite trazar una ruta de aprendizaje clara y motivante.
 
 Finalmente, desde una perspectiva educativa, se buscó que el asistente contribuyera a reducir la brecha entre el conocimiento teórico y su aplicación práctica. Dado que el examen PMP se basa en situaciones reales de gestión de proyectos, el asistente fue diseñado para contextualizar los conceptos en escenarios verosímiles, facilitando el desarrollo del juicio profesional requerido por la certificación.
 
@@ -122,12 +125,12 @@ La solución se estructura como una aplicación web progresiva (PWA) de página 
 
 La arquitectura lógica del sistema se organiza en capas que interactúan entre sí para ofrecer la funcionalidad completa:
 
-1.  **Capa de Presentación (Frontend):** Construida sobre **Next.js 16.1 (con Turbopack)** y **React 19**. Esta capa es responsable de renderizar la interfaz de usuario, gestionar el estado local de la aplicación (sesiones, chats, progreso) y manejar la interacción directa con el usuario. Se utiliza **Tailwind CSS v4** para el diseño visual, permitiendo una interfaz moderna, responsiva y adaptable (modo oscuro/claro).
+1.  **Capa de Presentación (Frontend):** Construida sobre **Next.js 16.1 (con Turbopack)** y **React 19.2**. Esta capa es responsable de renderizar la interfaz de usuario, gestionar el estado local de la aplicación (sesiones, chats, progreso) y manejar la interacción directa con el usuario. Se utiliza **Tailwind CSS v4** para el diseño visual, permitiendo una interfaz moderna, responsiva y adaptable (modo oscuro/claro).
 2.  **Capa de Datos y Autenticación (Backend as a Service):** Se implementó **PocketBase v0.26**, una solución de backend ligera y de alto rendimiento basada en SQLite. PocketBase gestiona:
     *   **Autenticación:** Registro y login de usuarios.
     *   **Persistencia:** Almacenamiento de sesiones de estudio (`study_sessions`), historiales de chat (`chats`), mensajes (`messages`) y progreso del usuario (`user_progress`).
     *   **Tiempo Real:** Sincronización de datos entre el cliente y el servidor.
-3.  **Capa de Inteligencia Artificial:** El núcleo inteligente del sistema utiliza **LangChain.js** como framework de orquestación y el **Vercel AI SDK** para la gestión del streaming de respuestas. El sistema se conecta a modelos de lenguaje avanzados (como GPT-4o-mini) a través de la API de OpenAI, permitiendo generar respuestas contextualizadas y pedagógicamente ricas.
+3.  **Capa de Inteligencia Artificial:** El núcleo inteligente del sistema utiliza **LangChain.js** como framework integral de orquestación y gestión del flujo de respuestas (streaming). El sistema se conecta a modelos de lenguaje avanzados (como GPT-4o-mini) a través de la API de OpenAI, permitiendo generar respuestas contextualizadas y pedagógicamente ricas.
 
 ### 4.3.2 Arquitectura física y despliegue
 
@@ -142,10 +145,10 @@ La arquitectura física sigue un modelo distribuido y "serverless" en gran medid
 
 A partir de las arquitecturas lógica y física, se identifican los siguientes componentes esenciales desarrollados:
 
-*   **Chat Interface & AI Orchestrator:** El corazón del sistema. Gestiona el envío de mensajes, la construcción de prompts dinámicos según el modo seleccionado (Simulación, Taller, etc.) y el rendering de respuestas en formato Markdown. Utiliza `StringOutputParser` de LangChain para procesar el flujo de texto en tiempo real.
-*   **Dashboard de Progreso:** Un componente visual que muestra al usuario su avance en el "mundo" del PMP. Incluye visualización de niveles, rachas de estudio y áreas dominadas.
-*   **Gestor de Sesiones (Sidebar):** Permite al usuario crear, renombrar y eliminar sesiones de estudio, facilitando la organización temática de su preparación.
-*   **Motor de Gamificación:** Lógica interna que calcula la experiencia (XP), determina el nivel del usuario (desde "Novato" hasta "Leyenda PMP") y desbloquea logros basados en la interacción y la constancia.
+*   **Chat Interface & AI Orchestrator:** El corazón del sistema. Gestiona el envío de mensajes, la construcción de prompts dinámicos según el modo seleccionado y el rendering de respuestas en formato Markdown. Utiliza `StringOutputParser` de LangChain para procesar el flujo de texto en tiempo real y `ChatOpenAI` para la conexión con el modelo.
+*   **Dashboard Inteligente:** Un componente visual dinámico que actúa como centro de mando. Integra un banner de recomendación ("Tu Siguiente Paso") que guía al usuario hacia la actividad prioritaria, y un sistema de pestañas para navegar por las Fases y Etapas del plan de estudio.
+*   **Gestor de Sesiones (Sidebar):** Permite al usuario acceder al historial de sesiones de estudio, crear nuevas conversaciones y gestionar su perfil, manteniendo la interfaz limpia y organizada.
+*   **Motor de Gamificación:** Lógica interna (`lib/gameData.ts`) que gestiona la estructura curricular (Fases, Etapas, Niveles). Controla el desbloqueo progresivo de contenido (candados en fases futuras) y calcula el porcentaje de avance en cada etapa, asegurando que el usuario domine los fundamentos antes de avanzar a temas complejos.
 
 ## 4.4 Diseño de la interfaz de usuario
 
@@ -155,7 +158,7 @@ Se adoptó un enfoque de diseño centrado en la simplicidad, utilizando una est�
 
 ### 4.4.1 Principios de usabilidad y Estilo Visual
 
-El diseño visual se apoya en **Tailwind CSS**, utilizando una paleta de colores neutra con acentos de color para indicar estados (verde para éxito, rojo para errores, azul para acciones principales).
+El diseño visual se apoya en **Tailwind CSS v4**, utilizando una paleta de colores neutra con acentos de color para indicar estados (verde para éxito, rojo para errores, azul para acciones principales).
 
 *   **Simplicidad:** La interfaz elimina el ruido visual. El foco está siempre en el contenido de la conversación o en el panel de control.
 *   **Modo Oscuro/Claro:** Se implementó soporte nativo para temas oscuros y claros, permitiendo al usuario adaptar la interfaz a sus preferencias y condiciones de iluminación, algo crucial para largas sesiones de estudio nocturno.
@@ -163,30 +166,39 @@ El diseño visual se apoya en **Tailwind CSS**, utilizando una paleta de colores
 
 ### 4.4.2 Estructura de Pantallas
 
-La aplicación se organiza en una estructura de "Single Page Application" con tres áreas principales:
+La aplicación se organiza en una estructura de "Single Page Application" optimizada para la concentración, dividida en tres áreas funcionales principales:
 
 1.  **Barra Lateral (Sidebar):**
-    *   Proporciona navegación rápida entre diferentes sesiones de estudio.
-    *   Permite la gestión de sesiones (crear, borrar, editar).
-    *   Incluye acceso al perfil de usuario y cierre de sesión.
-    *   Es colapsable en dispositivos móviles para maximizar el espacio.
+    *   Actúa como el centro de navegación global.
+    *   Permite el acceso rápido al "Inicio" y la gestión de "Sesiones de Estudio" (historial de conversaciones).
+    *   Incluye el perfil del usuario y opciones de sesión en la parte inferior.
+    *   Su diseño minimalista busca no distraer al usuario del contenido principal.
 
 2.  **Panel de Control (Dashboard):**
-    *   Es la vista inicial ("Home") del estudiante.
-    *   Muestra tarjetas de estadísticas: "Sesiones Totales", "Precisión", "Áreas Dominadas" y "Racha Actual".
-    *   Presenta un mapa visual de progreso o lista de niveles desbloqueados, gamificando la experiencia de avance a través de los dominios del PMP (Personas, Procesos, Entorno de Negocio).
+    *   Es el "hub" central del estudiante, diseñado para adaptarse a diferentes estilos de aprendizaje mediante un sistema de pestañas superiores:
+        *   **Modo Guiado:** La vista por defecto. Presenta una ruta de aprendizaje estructurada y lineal. Destaca un banner de **"Tu Siguiente Paso"** que dirige al usuario inmediatamente a la lección o práctica pendiente más prioritaria. Debajo, un sistema de navegación por pestañas permite explorar las 5 Fases principales del contenido (desde "El Estándar" hasta "Esquema de Contenido (ECO)"), desplegando listas de niveles y etapas con indicadores de progreso porcentual.
+        *   **Modo Desbloqueado:** Una vista alternativa para usuarios avanzados que desean navegar libremente por todo el contenido estructurado sin restricciones de progreso.
+        *   **Modo Libre:** Transforma el dashboard en una "caja de herramientas". Muestra una cuadrícula de tarjetas con acceso directo a todos los modos especializados del asistente (ej. "Simulación de Crisis", "Tutor Socrático", "Debate"), permitiendo al usuario practicar habilidades específicas bajo demanda sin seguir una secuencia lineal.
+        *   **Simulación Examen:** Un entorno dedicado exclusivamente a la práctica intensiva de exámenes. A diferencia del modo guiado, este modo elimina la estructura jerárquica de fases y mundos, presentando directamente cuatro tarjetas de simulación de alto nivel (45, 90, 135 y 180 preguntas). Esto permite un acceso inmediato a los simulacros, facilitando sesiones de práctica enfocadas y sin distracciones.
 
-3.  **Área de Chat (Workspace):**
-    *   Es el espacio de trabajo principal.
-    *   **Selector de Modos:** Una barra superior permite cambiar dinámicamente el comportamiento del asistente entre modos como "Estándar", "Simulación de Crisis", "Taller de Entregables", "Método Socrático" y "Examen Rápido".
-    *   **Historial de Mensajes:** Renderiza el diálogo con soporte para formato rico (negritas, listas, código, tablas) gracias a `react-markdown`.
-    *   **Input de Texto:** Una barra de entrada persistente y accesible.
+3.  **Modales de Actividad (Niveles):**
+    *   Al seleccionar un nivel en el Modo Guiado, el sistema no inicia un chat genérico, sino que despliega un modal de selección de actividad.
+    *   Este diseño permite al usuario elegir *cómo* quiere aprender ese tema específico:
+        *   **Lección Magistral:** Para aprender conceptos teóricos.
+        *   **Entrenamiento Práctico:** Para aplicar conocimientos en escenarios.
+        *   **Oráculo:** Para resolver dudas específicas.
+        *   **Prueba de Fuego:** Para demostrar dominio y avanzar.
+
+4.  **Área de Chat (Workspace):**
+    *   Es el espacio donde ocurre la interacción educativa.
+    *   Adapta su "personalidad" y funcionalidad según el modo seleccionado (ej. en modo "Debate" la IA es confrontativa; en "Explícamelo como a un niño" es didáctica y simple).
+    *   Renderiza el contenido en formato Markdown rico para facilitar la lectura de estructuras complejas, listas y tablas.
 
 ### 4.4.3 Sistema de Retroalimentación y Gamificación
 
 El sistema de retroalimentación va más allá del texto. Se integraron elementos visuales para reforzar el aprendizaje y la motivación:
 
-*   **Feedback Inmediato:** En el modo examen, las respuestas correctas o incorrectas se acompañan de explicaciones claras y distintivos visuales.
+*   **Feedback Inmediato:** En el modo examen y prácticas de nivel, las respuestas correctas o incorrectas se acompañan de explicaciones claras y distintivos visuales.
 *   **Modales de Logro:** Al completar un nivel o alcanzar un hito (ej. "Racha de 7 días"), el sistema despliega modales de celebración (`LevelCompletedModal`), reforzando positivamente la conducta de estudio.
 *   **Indicadores de Estado:** El uso de iconos (`Lucide React`) y colores semánticos ayuda al usuario a entender rápidamente el estado del sistema (cargando, error, éxito).
 

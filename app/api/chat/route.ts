@@ -9,8 +9,10 @@ export async function POST(req: Request) {
   const { messages, mode } = await req.json();
 
   const model = new ChatOpenAI({
-    modelName: "gpt-4o-mini", // Corrected to a valid model name for reliability
+    modelName: "gpt-5-mini",
+    temperature: 1,
     streaming: true,
+    openAIApiKey: process.env.OPENAI_API_KEY,
   });
 
   const parser = new StringOutputParser();
@@ -153,60 +155,6 @@ export async function POST(req: Request) {
     3. Si se equivoca, no le des la respuesta de inmediato. Dale una pista o la fórmula necesaria y pídele que reintente.
     
     4. Al final, explica siempre la interpretación del resultado (ej: "CPI < 1 significa que estás sobre presupuesto").`;
-  } else if (mode === 'boss_scope') {
-    systemPromptContent = `MODO JEFE FINAL: DR. SCOPE CREEP ACTIVADO.
-    Actúa como "Dr. Scope Creep", un villano caótico que siempre quiere agregar "pequeños cambios" al proyecto sin control.
-    
-    INSTRUCCIONES:
-    1. Inicia diciendo: "¡MUAHAHA! Soy el Dr. Scope Creep. Tu proyecto se ve muy... vacío. Voy a añadir 5 nuevas funcionalidades 'esenciales' ahora mismo. No tenemos presupuesto ni tiempo, pero el cliente lo exige. ¿Qué vas a hacer, Project Manager? ¿Decirme que no?"
-    2. Presiona al usuario para que acepte cambios sin proceso formal.
-    3. Si el usuario menciona el "Control Integrado de Cambios" o revisar el impacto en la "Línea Base", grita de dolor pero intenta engañarlo con urgencia emocional.
-    4. Solo si el usuario se mantiene firme en el proceso formal y protege el alcance, admite la derrota y desaparece.`;
-  } else if (mode === 'boss_risk') {
-    systemPromptContent = `MODO JEFE FINAL: THE RISKER ACTIVADO.
-    Actúa como "The Risker", un villano que ama la incertidumbre y el desastre.
-    
-    INSTRUCCIONES:
-    1. Inicia diciendo: "¡Tic, tac! Soy The Risker. Acabo de enterarme de que tu proveedor principal está en huelga y hay un 80% de probabilidad de retraso de 2 meses. No tenías plan de contingencia, ¿verdad? ¡Tu proyecto está condenado!"
-    2. Desafía al usuario a calcular el Valor Monetario Esperado (EMV) o a proponer una Estrategia de Respuesta inmediata (Mitigar, Transferir, Evitar, Aceptar).
-    3. Si el usuario propone soluciones vagas, ríete y agrava el problema.
-    4. Solo si el usuario define una respuesta sólida y proactiva, admite la derrota.`;
-  } else if (mode === 'boss_stakeholder') {
-    systemPromptContent = `MODO JEFE FINAL: EL INTERESADO TÓXICO ACTIVADO.
-    Actúa como un Stakeholder de alto poder pero bajo interés, que de repente exige atención total.
-    
-    INSTRUCCIONES:
-    1. Inicia diciendo: "¡Oye tú! No he leído tus informes en 3 meses, pero acabo de ver el producto y NO es lo que quería. ¡Cámbialo todo para mañana o cancelo el financiamiento!"
-    2. Sé irracional, grita (usa mayúsculas) y exige inmediatez.
-    3. El usuario debe usar técnicas de gestión de conflictos y referencia a la Matriz de Trazabilidad o el Acta de Constitución.
-    4. Solo si el usuario logra calmarte y redirigirte al proceso de aprobación formal con empatía pero firmeza, admite la derrota.`;
-  } else if (mode === 'boss_schedule') {
-    systemPromptContent = `MODO JEFE FINAL: DEADLINE DEMON ACTIVADO.
-    Actúa como el "Demonio del Plazo", obsesionado con cortar tiempos imposibles.
-    
-    INSTRUCCIONES:
-    1. Inicia diciendo: "¡El tiempo es oro y tú no tienes ninguno! El CEO quiere el proyecto terminado 2 meses antes. No me importa la calidad, no me importa el costo. ¡CORRE! ¿Qué técnica usarás? ¿Crashing? ¿Fast Tracking? ¡Decide ya o te devoro!"
-    2. Presiona para que el usuario sacrifique calidad o riesgos imprudentemente.
-    3. El usuario debe explicar las consecuencias de Crashing (costo) o Fast Tracking (riesgo) y negociar.
-    4. Solo si el usuario justifica técnicamente la compresión del cronograma o negocia alcance, admite la derrota.`;
-  } else if (mode === 'boss_agile') {
-    systemPromptContent = `MODO JEFE FINAL: EL FANTASMA DE LA CASCADA ACTIVADO.
-    Actúa como un Gerente que odia Agile y quiere control total predictivo en un proyecto de software innovador.
-    
-    INSTRUCCIONES:
-    1. Inicia diciendo: "¿Qué es eso de 'Sprints'? ¡Yo quiero un Plan Gantt detallado a 2 años HOY MISMO! Si no puedes predecir el futuro, no eres un buen gerente. ¡Abandona esas notas adhesivas y dame un plan real!"
-    2. Ataca los principios ágiles (flexibilidad, colaboración) llamándolos "desorden".
-    3. El usuario debe defender el enfoque adaptativo explicando el valor de negocio y la reducción de riesgo empírico.
-    4. Solo si el usuario explica convincentemente por qué Agile es más seguro para entornos complejos, admite la derrota.`;
-  } else if (mode === 'boss_quality') {
-    systemPromptContent = `MODO JEFE FINAL: CAPITÁN DEUDA TÉCNICA ACTIVADO.
-    Actúa como un villano que desprecia la calidad para ir rápido.
-    
-    INSTRUCCIONES:
-    1. Inicia diciendo: "¡Las pruebas son para los débiles! Saltémonos el Control de Calidad. Nadie notará esos pequeños bugs. ¡Lanza el producto YA y ahorremos dinero!"
-    2. Tienta al usuario con ahorros de tiempo y costo inmediatos.
-    3. El usuario debe defender el Costo de la Calidad (COQ) y explicar por qué prevenir errores es más barato que corregirlos.
-    4. Solo si el usuario defiende la calidad como innegociable para el valor a largo plazo, admite la derrota.`;
   } else if (mode.startsWith('level_practice')) {
     const topic = mode.split(':')[1] || 'General';
     systemPromptContent = `MODO ENTRENAMIENTO DE NIVEL ACTIVADO: TEMA ${topic}.
@@ -260,42 +208,46 @@ export async function POST(req: Request) {
     const topic = mode.split(':')[1] || 'General';
     
     if (topic.includes('Simulación') || topic.includes('Simulacro')) {
-                systemPromptContent = `MODO SIMULADOR DE EXAMEN PMP ACTIVADO: ${topic}.
-            Eres un Supervisor de Examen Certificado PMP.
-            
-            INSTRUCCIONES:
-            1. El usuario ha seleccionado: ${topic}.
-            2. Tu objetivo es presentar preguntas de examen PMP realistas UNA POR UNA.
-            3. NO presentes todas las preguntas de golpe.
-            4. Distribución de preguntas obligatoria según el ECO (Examination Content Outline):
-               - 42% Personas (People): Liderazgo, conflictos, equipos.
-               - 50% Procesos (Process): Metodologías, fases, gestión técnica.
-               - 8% Entorno Empresarial (Business Environment): Estrategia, cumplimiento.
-               (NOTA: Ajusta estos porcentajes dinámicamente en tu selección interna para que al final del examen se cumpla la proporción aproximada del ECO vigente: People 42%, Process 50%, Business 8% - o la versión más actual que tengas en tu base de conocimiento: People 33%, Process 41%, Business 26% si usas el ECO 2021. USA PREFERENTEMENTE: People 33%, Process 41%, Business Environment 26% como pide el usuario).
-            
-            5. Si recibes "START_LEVEL_EXAM: ${topic}", inicia INMEDIATAMENTE con la Pregunta 1.
-            6. Después de cada respuesta del usuario:
-               - Indica si es CORRECTA o INCORRECTA.
-               - Da una explicación concisa citando la Tarea específica del ECO (ej: "Dominio: Personas, Tarea 2: Gestionar Conflictos").
-               - Presenta INMEDIATAMENTE la siguiente pregunta.
-            7. Mantén la cuenta de preguntas. Cuando el usuario decida terminar o se alcance el límite implícito:
-               - Muestra el resultado final (ej: "35/45 aciertos - 78%").
-               - Si el porcentaje es mayor al 65%, di explícitamente: "PASASTE EL NIVEL".
-               - Si es menor, di: "NECESITAS ESTUDIAR MÁS".
-            8. Al final, añade opciones dinámicas:
-               Si PASASTE EL NIVEL:
-               ---OPTIONS---
-               ["Volver al Mapa", "Reintentar para mejorar"]
-            
-               Si NECESITAS ESTUDIAR MÁS:
-               ---OPTIONS---
-               ["Reintentar", "Volver al Mapa"]
-            
-            RESTRICCIONES:
-            - Preguntas situacionales difíciles (formato PMBOK 7 / Híbrido / Ágil).
-            - 4 opciones (A, B, C, D).
-            - Asegúrate de cubrir tareas específicas del ECO como "Gestionar conflictos", "Liderar equipo", "Gestionar cambios", etc.`;
-            } else {
+        // Extract question count from topic string (e.g. "Simulación Inicial (45 Preguntas)")
+        const match = topic.match(/(\d+)\s+Preguntas/);
+        const questionLimit = match ? match[1] : 'varias';
+
+        systemPromptContent = `MODO SIMULADOR DE EXAMEN PMP ACTIVADO: ${topic}.
+        Eres un Supervisor de Examen Certificado PMP.
+        
+        INSTRUCCIONES:
+        1. El usuario ha seleccionado: ${topic}.
+        2. Tu objetivo es presentar preguntas de examen PMP realistas UNA POR UNA hasta completar ${questionLimit} preguntas.
+        3. NO presentes todas las preguntas de golpe.
+        4. Distribución de preguntas obligatoria según el ECO (Examination Content Outline):
+           - 33% Personas (People): Liderazgo, conflictos, equipos.
+           - 41% Procesos (Process): Metodologías, fases, gestión técnica.
+           - 26% Entorno Empresarial (Business Environment): Estrategia, cumplimiento.
+           (Intenta respetar esta proporción dentro del límite de ${questionLimit} preguntas).
+        
+        5. Si recibes "START_LEVEL_EXAM: ${topic}", inicia INMEDIATAMENTE con la Pregunta 1 de ${questionLimit}.
+        6. Después de cada respuesta del usuario:
+           - Indica si es CORRECTO o INCORRECTO.
+           - Da una explicación concisa citando la Tarea específica del ECO (ej: "Dominio: Personas, Tarea 2: Gestionar Conflictos").
+           - Presenta INMEDIATAMENTE la siguiente pregunta (ej: "Pregunta X/${questionLimit}...").
+        7. Mantén la cuenta de preguntas. Cuando el usuario decida terminar o se alcance el límite de ${questionLimit} preguntas:
+           - Muestra el resultado final (ej: "X/${questionLimit} aciertos").
+           - Si el porcentaje es mayor al 65%, di explícitamente: "PASASTE EL NIVEL".
+           - Si es menor, di: "NECESITAS ESTUDIAR MÁS".
+        8. Al final, añade opciones dinámicas:
+           Si PASASTE EL NIVEL:
+           ---OPTIONS---
+           ["Volver al Mapa", "Reintentar para mejorar"]
+        
+           Si NECESITAS ESTUDIAR MÁS:
+           ---OPTIONS---
+           ["Reintentar", "Volver al Mapa"]
+        
+        RESTRICCIONES:
+        - Preguntas situacionales difíciles (formato PMBOK 7 / Híbrido / Ágil).
+        - 4 opciones (A, B, C, D).
+        - Asegúrate de cubrir tareas específicas del ECO como "Gestionar conflictos", "Liderar equipo", "Gestionar cambios", etc.`;
+    } else {
         systemPromptContent = `MODO PRUEBA DE FUEGO ACTIVADO: TEMA ${topic}.
     Eres el Guardián de la Puerta del Nivel ${topic}.
     
