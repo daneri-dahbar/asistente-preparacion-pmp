@@ -27,6 +27,7 @@ export default function WelcomePage() {
     const [currentChatId, setCurrentChatId] = useState<string | null>(null);
     const [chatMode, setChatMode] = useState<string>('standard'); // standard, simulation, workshop, socratic, exam_simulation
     const [isChatViewOpen, setIsChatViewOpen] = useState(false);
+    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     
     // Exam Simulation State
     const [isExamMode, setIsExamMode] = useState(false);
@@ -282,6 +283,7 @@ export default function WelcomePage() {
     };
 
     const handleSelectChat = async (chatId: string, mode?: string) => {
+        setIsMobileSidebarOpen(false);
         // Prevent race conditions by tracking the latest request
         activeChatIdRef.current = chatId;
         
@@ -835,6 +837,8 @@ export default function WelcomePage() {
                 onLogout={handleLogout}
                 onGoHome={handleGoHome}
                 isLoadingChats={isLoadingChats}
+                isOpen={isMobileSidebarOpen}
+                onClose={() => setIsMobileSidebarOpen(false)}
             />
 
             {/* Onboarding Modal */}
@@ -846,6 +850,24 @@ export default function WelcomePage() {
 
             {/* Main Content Area */}
             <main className="flex-1 flex flex-col relative min-w-0">
+                {/* Mobile Header */}
+                <div className="md:hidden flex items-center p-3 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 sticky top-0 z-30">
+                    <button 
+                        onClick={() => setIsMobileSidebarOpen(true)}
+                        className="p-2 -ml-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                        aria-label="Abrir menú"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="4" x2="20" y1="12" y2="12" />
+                            <line x1="4" x2="20" y1="6" y2="6" />
+                            <line x1="4" x2="20" y1="18" y2="18" />
+                        </svg>
+                    </button>
+                    <span className="ml-3 font-semibold text-gray-900 dark:text-white truncate">
+                        {isChatViewOpen ? (chats.find(c => c.id === currentChatId)?.title || 'Chat') : 'Asistente PMP'}
+                    </span>
+                </div>
+
                 {/* 
                     Logic:
                     - If isChatViewOpen is true -> Show Chat

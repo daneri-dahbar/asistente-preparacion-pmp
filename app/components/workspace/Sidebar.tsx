@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import pb from '@/lib/pocketbase';
 import { WORLDS } from '@/lib/gameData';
 import { ChevronDown, ChevronRight, Clock, Folder, MessageSquare } from 'lucide-react';
 
@@ -13,6 +14,8 @@ interface SidebarProps {
     onLogout: () => void;
     onGoHome: () => void;
     isLoadingChats?: boolean;
+    isOpen?: boolean;
+    onClose?: () => void;
 }
 
 export default function Sidebar({
@@ -23,7 +26,9 @@ export default function Sidebar({
     onCreateChat,
     onLogout,
     onGoHome,
-    isLoadingChats = false
+    isLoadingChats = false,
+    isOpen = false,
+    onClose
 }: SidebarProps) {
     const [viewMode, setViewMode] = useState<'recent' | 'structure'>('recent');
     const [expandedPhases, setExpandedPhases] = useState<Record<string, boolean>>({});
@@ -105,15 +110,50 @@ export default function Sidebar({
     }, [chats]);
 
     return (
-        <aside className="w-80 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col h-full transition-all duration-300">
+        <>
+            {/* Mobile Overlay */}
+            {isOpen && (
+                <div 
+                    className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
+                    onClick={onClose}
+                />
+            )}
+            <aside className={`fixed inset-y-0 left-0 z-50 w-80 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col h-full transition-transform duration-300 ${
+                isOpen ? 'translate-x-0' : '-translate-x-full'
+            } md:relative md:translate-x-0`}>
             {/* Header / User Profile */}
             <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold shadow-md">
-                    {user?.name?.[0] || 'U'}
+                <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold shadow-md overflow-hidden relative">
+                    {user?.avatar ? (
+                        <img 
+                            src={pb.files.getUrl(user, user.avatar)} 
+                            alt={user.name || 'User'} 
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                e.currentTarget.parentElement!.classList.remove('overflow-hidden');
+                                const fallback = document.getElementById('user-initial-fallback');
+                                if (fallback) fallback.style.display = 'flex';
+                            }}
+                        />
+                    ) : (
+                        <span>{user?.name?.[0] || 'U'}</span>
+                    )}
+                    {/* Fallback for image error - hidden by default if image exists */}
+                    {user?.avatar && (
+                        <div id="user-initial-fallback" className="absolute inset-0 flex items-center justify-center bg-blue-600 hidden">
+                            {user?.name?.[0] || 'U'}
+                        </div>
+                    )}
                 </div>
                 <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-gray-900 dark:text-white truncate">{user?.name || 'Usuario'}</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">Preparación PMP</p>
+                    <button 
+                        onClick={onLogout}
+                        className="text-xs text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 truncate transition-colors flex items-center gap-1"
+                    >
+                        Cerrar Sesión
+                    </button>
                 </div>
             </div>
 
@@ -161,27 +201,30 @@ export default function Sidebar({
                             <div className="text-sm text-gray-400 italic p-2">No hay chats.</div>
                     ) : viewMode === 'recent' ? (
                         chats.map(chat => (
-                            <button
-                                key={chat.id}
-                                onClick={() => onSelectChat(chat.id, chat.mode)}
-                                className={`w-full text-left px-3 py-2 rounded-lg text-sm truncate transition-colors flex items-center gap-2 group relative ${
-                                    currentChatId === chat.id
-                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-                                }`}
-                            >
-                                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                                    chat.mode === 'simulation' ? 'bg-purple-400' :
-                                    chat.mode === 'workshop' ? 'bg-green-400' :
-                                    chat.mode === 'socratic' ? 'bg-yellow-400' :
-                                    'bg-blue-400'
-                                }`}></span>
-                                <div className="flex-1 min-w-0">
-                                    <div className="truncate font-medium">{chat.title || 'Chat sin título'}</div>
-                                    <div className="text-xs text-gray-400">{formatRelativeTime(chat.updated || chat.created)}</div>
-                                </div>
-                            </button>
-                        ))
+                                <button
+                                    key={chat.id}
+                                    onClick={() => onSelectChat(chat.id, chat.mode)}
+                                    className={`w-full text-left px-3 py-2 rounded-lg text-sm truncate transition-colors flex items-center gap-2 group relative ${
+                                        currentChatId === chat.id
+                                            ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                                            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                                    }`}
+                                >
+                                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                        chat.mode === 'simulation' ? 'bg-purple-400' :
+                                        chat.mode === 'workshop' ? 'bg-green-400' :
+                                        chat.mode === 'socratic' ? 'bg-yellow-400' :
+                                        'bg-blue-400'
+                                    }`}></span>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="truncate font-medium">{chat.title || 'Chat sin título'}</div>
+                                        <div className="text-[10px] text-gray-400 truncate flex items-center gap-1">
+                                            <Clock className="w-2.5 h-2.5" />
+                                            {formatRelativeTime(chat.last_active || chat.updated || chat.created)}
+                                        </div>
+                                    </div>
+                                </button>
+                            ))
                     ) : (
                         <div className="space-y-4">
                             {/* Structured View */}
@@ -215,7 +258,10 @@ export default function Sidebar({
                                                             <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0 mt-0.5"></span>
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="truncate">{chat.title || 'Chat'}</div>
-                                                                <div className="text-[10px] text-gray-400 truncate">{formatRelativeTime(chat.last_active || chat.updated || chat.created)}</div>
+                                                                <div className="text-[10px] text-gray-400 truncate flex items-center gap-1">
+                                                                    <Clock className="w-2.5 h-2.5" />
+                                                                    {formatRelativeTime(chat.last_active || chat.updated || chat.created)}
+                                                                </div>
                                                             </div>
                                                         </button>
                                                     ))}
@@ -243,7 +289,10 @@ export default function Sidebar({
                                             <span className="w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0 mt-0.5"></span>
                                             <div className="flex-1 min-w-0">
                                                 <div className="truncate">{chat.title || 'Simulación'}</div>
-                                                <div className="text-[10px] text-gray-400 truncate">{formatRelativeTime(chat.last_active || chat.updated || chat.created)}</div>
+                                                <div className="text-[10px] text-gray-400 truncate flex items-center gap-1">
+                                                    <Clock className="w-2.5 h-2.5" />
+                                                    {formatRelativeTime(chat.last_active || chat.updated || chat.created)}
+                                                </div>
                                             </div>
                                         </button>
                                     ))}
@@ -267,7 +316,10 @@ export default function Sidebar({
                                             <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0 mt-0.5"></span>
                                             <div className="flex-1 min-w-0">
                                                 <div className="truncate">{chat.title || 'Entrenamiento'}</div>
-                                                <div className="text-[10px] text-gray-400 truncate">{formatRelativeTime(chat.last_active || chat.updated || chat.created)}</div>
+                                                <div className="text-[10px] text-gray-400 truncate flex items-center gap-1">
+                                                    <Clock className="w-2.5 h-2.5" />
+                                                    {formatRelativeTime(chat.last_active || chat.updated || chat.created)}
+                                                </div>
                                             </div>
                                         </button>
                                     ))}
@@ -291,7 +343,10 @@ export default function Sidebar({
                                             <MessageSquare className="w-3 h-3 flex-shrink-0 mt-0.5" />
                                             <div className="flex-1 min-w-0">
                                                 <div className="truncate">{chat.title || 'Chat'}</div>
-                                                <div className="text-[10px] text-gray-400 truncate">{formatRelativeTime(chat.last_active || chat.updated || chat.created)}</div>
+                                                <div className="text-[10px] text-gray-400 truncate flex items-center gap-1">
+                                                    <Clock className="w-2.5 h-2.5" />
+                                                    {formatRelativeTime(chat.last_active || chat.updated || chat.created)}
+                                                </div>
                                             </div>
                                         </button>
                                     ))}
@@ -302,5 +357,6 @@ export default function Sidebar({
                 </div>
             </div>
         </aside>
+        </>
     );
 }

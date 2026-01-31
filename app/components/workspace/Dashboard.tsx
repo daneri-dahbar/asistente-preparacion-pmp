@@ -144,14 +144,14 @@ export default function Dashboard({
 
     return (
         <div 
-            className="flex-1 overflow-y-auto p-8 bg-gray-50/50 dark:bg-gray-900/50"
+            className="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-50/50 dark:bg-gray-900/50"
             style={{ scrollbarGutter: 'stable' }}
         >
-            <div className="max-w-5xl mx-auto space-y-12">
+            <div className="max-w-5xl mx-auto space-y-8 md:space-y-12">
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">
                             Hola, {userName} 👋
                         </h1>
                         <p className="text-gray-500 dark:text-gray-400">
@@ -160,10 +160,10 @@ export default function Dashboard({
                     </div>
                     
                     {/* Mode Switcher */}
-                    <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl w-fit">
+                    <div className="flex flex-wrap bg-gray-100 dark:bg-gray-800 p-1 rounded-xl w-full md:w-fit gap-1">
                         <button
                             onClick={() => { setViewMode('guided'); setActivePhaseIndex(0); }}
-                            className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                            className={`flex-1 md:flex-none px-4 md:px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
                                 viewMode === 'guided'
                                     ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
                                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
@@ -173,7 +173,7 @@ export default function Dashboard({
                         </button>
                         <button
                             onClick={() => { setViewMode('guided_unlocked'); setActivePhaseIndex(0); }}
-                            className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                            className={`flex-1 md:flex-none px-4 md:px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
                                 viewMode === 'guided_unlocked'
                                     ? 'bg-white dark:bg-gray-700 text-green-600 dark:text-green-400 shadow-sm'
                                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
@@ -183,7 +183,7 @@ export default function Dashboard({
                         </button>
                         <button
                             onClick={() => setViewMode('free')}
-                            className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                            className={`flex-1 md:flex-none px-4 md:px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
                                 viewMode === 'free'
                                     ? 'bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 shadow-sm'
                                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
@@ -193,7 +193,7 @@ export default function Dashboard({
                         </button>
                         <button
                             onClick={() => { setViewMode('simulation'); setActivePhaseIndex(0); }}
-                            className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                            className={`flex-1 md:flex-none px-4 md:px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
                                 viewMode === 'simulation'
                                     ? 'bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 shadow-sm'
                                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
