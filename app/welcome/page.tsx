@@ -161,7 +161,9 @@ export default function WelcomePage() {
             
             // Client-side sort
             records.sort((a: any, b: any) => {
-                return new Date(b.created).getTime() - new Date(a.created).getTime();
+                const timeA = new Date(a.last_active || a.updated).getTime();
+                const timeB = new Date(b.last_active || b.updated).getTime();
+                return timeB - timeA;
             });
 
             setChats(records);
@@ -178,7 +180,9 @@ export default function WelcomePage() {
                     // Client-side filter and sort
                     const userChats = allRecords.filter((r: any) => r.user === userId);
                     userChats.sort((a: any, b: any) => {
-                        return new Date(b.created).getTime() - new Date(a.created).getTime();
+                        const timeA = new Date(a.last_active || a.updated).getTime();
+                        const timeB = new Date(b.last_active || b.updated).getTime();
+                        return timeB - timeA;
                     });
                     setChats(userChats);
                 } catch (fallbackError: any) {
@@ -710,6 +714,30 @@ export default function WelcomePage() {
                 role: 'assistant',
                 user: user.id,
                 chat: activeChatId
+            });
+
+            // Update chat timestamp in PocketBase to ensure it appears as most recent
+            const now = new Date().toISOString();
+            try {
+                await pb.collection('chats').update(activeChatId, {
+                    last_active: now
+                });
+            } catch (err) {
+                console.warn("Failed to update last_active field. Ensure the field exists in PocketBase.", err);
+            }
+
+            // Update local chats state to reflect new timestamp and move to top
+            setChats(prev => {
+                const updatedChats = prev.map(c => 
+                    c.id === activeChatId 
+                        ? { ...c, last_active: now, updated: now } 
+                        : c
+                );
+                return updatedChats.sort((a, b) => {
+                    const timeA = new Date(a.last_active || a.updated).getTime();
+                    const timeB = new Date(b.last_active || b.updated).getTime();
+                    return timeB - timeA;
+                });
             });
 
             // CHECK FOR LEVEL COMPLETION

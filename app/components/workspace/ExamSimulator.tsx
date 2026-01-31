@@ -422,7 +422,7 @@ export default function ExamSimulator({ simulationId, initialQuestionCount, topi
                     >
                         {/* Question Card */}
                         <div className="mb-12 text-center">
-                            <h2 className="text-2xl md:text-4xl font-bold leading-tight md:leading-snug mb-8 text-shadow-sm">
+                            <h2 className="text-lg md:text-xl font-bold leading-tight md:leading-snug mb-8 text-shadow-sm">
                                 {currentQuestion.text}
                             </h2>
                         </div>
