@@ -398,58 +398,58 @@ export default function ExamSimulator({ simulationId, initialQuestionCount, topi
                 </div>
             </header>
 
+            {/* Progress Bar */}
+            <div className="w-full h-1 bg-gray-800 shrink-0 z-20">
+                <motion.div 
+                    className="h-full bg-blue-500"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${((record.current_index + 1) / record.total_questions) * 100}%` }}
+                    transition={{ duration: 0.5 }}
+                />
+            </div>
+
             {/* Main Stage */}
-            <main className="flex-1 flex flex-col relative max-w-5xl mx-auto w-full p-6 justify-center">
-                
-                {/* Progress Bar */}
-                <div className="absolute top-0 left-0 w-full h-1 bg-gray-800">
-                    <motion.div 
-                        className="h-full bg-blue-500"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${((record.current_index + 1) / record.total_questions) * 100}%` }}
-                        transition={{ duration: 0.5 }}
-                    />
+            <main className="flex-1 overflow-y-auto w-full scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+                <div className="max-w-5xl mx-auto w-full p-6 min-h-full flex flex-col justify-center">
+                    <AnimatePresence mode='wait'>
+                        <motion.div
+                            key={currentQuestion.id}
+                            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -20, scale: 1.05 }}
+                            transition={{ duration: 0.3 }}
+                            className="w-full"
+                        >
+                            {/* Question Card */}
+                            <div className="mb-12 text-center">
+                                <h2 className="text-lg md:text-xl font-bold leading-tight md:leading-snug mb-8 text-shadow-sm">
+                                    {currentQuestion.text}
+                                </h2>
+                            </div>
+
+                            {/* Options Grid - Millionaire Style */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+                                {currentQuestion.options.map((opt) => (
+                                    <button
+                                        key={opt.id}
+                                        onClick={() => handleAnswer(opt.id)}
+                                        className="relative group group-hover:z-10 h-full"
+                                    >
+                                        <div className="absolute inset-0 bg-blue-600 rounded-full opacity-0 group-hover:opacity-20 blur-md transition-opacity duration-300"></div>
+                                        <div className="relative border-2 border-gray-600 bg-gray-800 hover:bg-blue-900/30 hover:border-blue-400 text-left p-6 rounded-2xl transition-all duration-200 flex items-center h-full">
+                                            <span className="text-orange-400 font-bold text-xl mr-4">{opt.id}:</span>
+                                            <span className="text-lg md:text-xl font-medium text-gray-100">{opt.text}</span>
+                                        </div>
+                                        
+                                        {/* Decoration Lines (Millionaire style) */}
+                                        <div className="absolute top-1/2 -left-3 w-3 h-[2px] bg-gray-600 group-hover:bg-blue-400 hidden md:block"></div>
+                                        <div className="absolute top-1/2 -right-3 w-3 h-[2px] bg-gray-600 group-hover:bg-blue-400 hidden md:block"></div>
+                                    </button>
+                                ))}
+                            </div>
+                        </motion.div>
+                    </AnimatePresence>
                 </div>
-
-                <AnimatePresence mode='wait'>
-                    <motion.div
-                        key={currentQuestion.id}
-                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -20, scale: 1.05 }}
-                        transition={{ duration: 0.3 }}
-                        className="w-full"
-                    >
-                        {/* Question Card */}
-                        <div className="mb-12 text-center">
-                            <h2 className="text-lg md:text-xl font-bold leading-tight md:leading-snug mb-8 text-shadow-sm">
-                                {currentQuestion.text}
-                            </h2>
-                        </div>
-
-                        {/* Options Grid - Millionaire Style */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-                            {currentQuestion.options.map((opt) => (
-                                <button
-                                    key={opt.id}
-                                    onClick={() => handleAnswer(opt.id)}
-                                    className="relative group group-hover:z-10 h-full"
-                                >
-                                    <div className="absolute inset-0 bg-blue-600 rounded-full opacity-0 group-hover:opacity-20 blur-md transition-opacity duration-300"></div>
-                                    <div className="relative border-2 border-gray-600 bg-gray-800 hover:bg-blue-900/30 hover:border-blue-400 text-left p-6 rounded-2xl transition-all duration-200 flex items-center h-full">
-                                        <span className="text-orange-400 font-bold text-xl mr-4">{opt.id}:</span>
-                                        <span className="text-lg md:text-xl font-medium text-gray-100">{opt.text}</span>
-                                    </div>
-                                    
-                                    {/* Decoration Lines (Millionaire style) */}
-                                    <div className="absolute top-1/2 -left-3 w-3 h-[2px] bg-gray-600 group-hover:bg-blue-400 hidden md:block"></div>
-                                    <div className="absolute top-1/2 -right-3 w-3 h-[2px] bg-gray-600 group-hover:bg-blue-400 hidden md:block"></div>
-                                </button>
-                            ))}
-                        </div>
-                    </motion.div>
-                </AnimatePresence>
-
             </main>
 
             {/* Footer */}
