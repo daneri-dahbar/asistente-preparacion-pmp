@@ -1,4 +1,4 @@
-import { ChatOpenAI } from "@langchain/openai";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 
@@ -8,11 +8,19 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages, mode } = await req.json();
 
-  const model = new ChatOpenAI({
-    modelName: "gpt-5-mini",
-    temperature: 1,
+  const apiKey = process.env.GOOGLE_API_KEY;
+  if (!apiKey) {
+    return new Response(JSON.stringify({ error: "GOOGLE_API_KEY environment variable is not set" }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  const model = new ChatGoogleGenerativeAI({
+    model: "gemini-3-flash-preview",
+    temperature: 0.7,
     streaming: true,
-    openAIApiKey: process.env.OPENAI_API_KEY,
+    apiKey: apiKey,
   });
 
   const parser = new StringOutputParser();

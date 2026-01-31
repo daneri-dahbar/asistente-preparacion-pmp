@@ -1,17 +1,22 @@
 
-import { ChatOpenAI } from "@langchain/openai";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { PromptTemplate } from "@langchain/core/prompts";
 import { NextResponse } from 'next/server';
 
-// Inicializar el modelo
-const model = new ChatOpenAI({
-    modelName: "gpt-5-mini",
-    temperature: 1,
-    openAIApiKey: process.env.OPENAI_API_KEY,
-});
-
 export async function POST(req: Request) {
     try {
+        const apiKey = process.env.GOOGLE_API_KEY;
+        if (!apiKey) {
+            return NextResponse.json({ error: "GOOGLE_API_KEY environment variable is not set" }, { status: 500 });
+        }
+
+        // Inicializar el modelo
+        const model = new ChatGoogleGenerativeAI({
+            model: "gemini-3-flash-preview",
+            temperature: 0.7,
+            apiKey: apiKey,
+        });
+
         const { topic, amount = 5, existingQuestions = [] } = await req.json();
 
         // Evitar duplicados enviando los IDs o temas de preguntas previas si es necesario
