@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import pb from '@/lib/pocketbase';
 import { WORLDS } from '@/lib/gameData';
-import { ChevronDown, ChevronRight, Clock, Folder, MessageSquare, PanelLeftClose, PanelLeftOpen, Home, PlusCircle } from 'lucide-react';
+import { ChevronDown, ChevronRight, Clock, Folder, MessageSquare, PanelLeftClose, PanelLeftOpen, Home, PlusCircle, Edit2, Check, X } from 'lucide-react';
 
 interface SidebarProps {
     user: any;
@@ -11,6 +11,7 @@ interface SidebarProps {
     currentChatId: string | null;
     onSelectChat: (chatId: string, mode?: string) => void;
     onCreateChat: () => void;
+    onRenameChat?: (chatId: string, newTitle: string) => void;
     onLogout: () => void;
     onGoHome: () => void;
     isLoadingChats?: boolean;
@@ -37,6 +38,8 @@ export default function Sidebar({
     const [viewMode, setViewMode] = useState<'recent' | 'structure'>('recent');
     const [expandedPhases, setExpandedPhases] = useState<Record<string, boolean>>({});
     const [expandedWorlds, setExpandedWorlds] = useState<Record<string, boolean>>({});
+    const [editingChatId, setEditingChatId] = useState<string | null>(null);
+    const [editTitle, setEditTitle] = useState('');
 
     const togglePhase = (phaseId: string) => {
         setExpandedPhases(prev => ({ ...prev, [phaseId]: !prev[phaseId] }));
@@ -44,6 +47,25 @@ export default function Sidebar({
 
     const toggleWorld = (worldId: string) => {
         setExpandedWorlds(prev => ({ ...prev, [worldId]: !prev[worldId] }));
+    };
+
+    const startEditing = (e: React.MouseEvent, chat: any) => {
+        e.stopPropagation();
+        setEditingChatId(chat.id);
+        setEditTitle(chat.title || 'Chat');
+    };
+
+    const saveEditing = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (editingChatId && onRenameChat) {
+            onRenameChat(editingChatId, editTitle);
+        }
+        setEditingChatId(null);
+    };
+
+    const cancelEditing = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setEditingChatId(null);
     };
 
     const formatRelativeTime = (dateString: string) => {
@@ -261,13 +283,58 @@ export default function Sidebar({
                                         chat.mode === 'socratic' ? 'bg-yellow-400' :
                                         'bg-blue-400'
                                     }`}></span>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="truncate font-medium">{chat.title || 'Chat sin título'}</div>
-                                        <div className="text-[10px] text-gray-400 truncate flex items-center gap-1">
-                                            <Clock className="w-2.5 h-2.5" />
-                                            {formatRelativeTime(chat.last_active || chat.updated || chat.created)}
+                                    
+                                    {editingChatId === chat.id ? (
+                                        <div className="flex-1 flex items-center gap-1 min-w-0" onClick={e => e.stopPropagation()}>
+                                            <input 
+                                                type="text" 
+                                                value={editTitle}
+                                                onChange={(e) => setEditTitle(e.target.value)}
+                                                className="flex-1 bg-white dark:bg-gray-800 border border-blue-300 dark:border-blue-700 rounded px-1 py-0.5 text-xs focus:outline-none min-w-0"
+                                                autoFocus
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') saveEditing(e as any);
+                                                    if (e.key === 'Escape') cancelEditing(e as any);
+                                                }}
+                                                onClick={e => e.stopPropagation()}
+                                            />
+                                            <div className="flex items-center gap-0.5">
+                                                <div 
+                                                    onClick={saveEditing}
+                                                    className="p-1 hover:bg-green-100 dark:hover:bg-green-900/30 text-green-600 rounded cursor-pointer"
+                                                >
+                                                    <Check className="w-3 h-3" />
+                                                </div>
+                                                <div 
+                                                    onClick={cancelEditing}
+                                                    className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 rounded cursor-pointer"
+                                                >
+                                                    <X className="w-3 h-3" />
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
+                                    ) : (
+                                        <div className="flex-1 min-w-0 flex items-center justify-between group/item">
+                                            <div className="min-w-0 overflow-hidden flex-1">
+                                                <div className="truncate font-medium">{chat.title || 'Chat sin título'}</div>
+                                                <div className="text-[10px] text-gray-400 truncate flex items-center gap-1">
+                                                    <Clock className="w-2.5 h-2.5" />
+                                                    {formatRelativeTime(chat.last_active || chat.updated || chat.created)}
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Edit button for general chats only */}
+                                            {onRenameChat && (!chat.mode || chat.mode === 'standard') && (
+                                                <div 
+                                                    onClick={(e) => startEditing(e, chat)}
+                                                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-500 transition-opacity"
+                                                    title="Renombrar chat"
+                                                >
+                                                    <Edit2 className="w-3 h-3" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </button>
                             ))
                     ) : (
@@ -379,20 +446,65 @@ export default function Sidebar({
                                         <button
                                             key={chat.id}
                                             onClick={() => onSelectChat(chat.id, chat.mode)}
-                                            className={`w-full text-left px-3 py-2 rounded-lg text-sm truncate transition-colors flex items-center gap-2 ${
+                                            className={`w-full text-left px-3 py-2 rounded-lg text-sm truncate transition-colors flex items-center gap-2 group relative ${
                                                 currentChatId === chat.id
                                                     ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'
                                                     : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                                             }`}
                                         >
                                             <MessageSquare className="w-3 h-3 flex-shrink-0 mt-0.5" />
-                                            <div className="flex-1 min-w-0">
-                                                <div className="truncate">{chat.title || 'Chat'}</div>
-                                                <div className="text-[10px] text-gray-400 truncate flex items-center gap-1">
-                                                    <Clock className="w-2.5 h-2.5" />
-                                                    {formatRelativeTime(chat.last_active || chat.updated || chat.created)}
+                                            
+                                            {editingChatId === chat.id ? (
+                                                <div className="flex-1 flex items-center gap-1 min-w-0" onClick={e => e.stopPropagation()}>
+                                                    <input 
+                                                        type="text" 
+                                                        value={editTitle}
+                                                        onChange={(e) => setEditTitle(e.target.value)}
+                                                        className="flex-1 bg-white dark:bg-gray-800 border border-blue-300 dark:border-blue-700 rounded px-1 py-0.5 text-xs focus:outline-none min-w-0"
+                                                        autoFocus
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') saveEditing(e as any);
+                                                            if (e.key === 'Escape') cancelEditing(e as any);
+                                                        }}
+                                                        onClick={e => e.stopPropagation()}
+                                                    />
+                                                    <div className="flex items-center gap-0.5">
+                                                        <div 
+                                                            onClick={saveEditing}
+                                                            className="p-1 hover:bg-green-100 dark:hover:bg-green-900/30 text-green-600 rounded cursor-pointer"
+                                                        >
+                                                            <Check className="w-3 h-3" />
+                                                        </div>
+                                                        <div 
+                                                            onClick={cancelEditing}
+                                                            className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 rounded cursor-pointer"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            ) : (
+                                                <div className="flex-1 min-w-0 flex items-center justify-between group/item">
+                                                    <div className="min-w-0 overflow-hidden flex-1">
+                                                        <div className="truncate font-medium">{chat.title || 'Chat'}</div>
+                                                        <div className="text-[10px] text-gray-400 truncate flex items-center gap-1">
+                                                            <Clock className="w-2.5 h-2.5" />
+                                                            {formatRelativeTime(chat.last_active || chat.updated || chat.created)}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Edit button for general chats only */}
+                                                    {onRenameChat && (!chat.mode || chat.mode === 'standard') && (
+                                                        <div 
+                                                            onClick={(e) => startEditing(e, chat)}
+                                                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-500 transition-opacity"
+                                                            title="Renombrar chat"
+                                                        >
+                                                            <Edit2 className="w-3 h-3" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                         </button>
                                     ))}
                                 </div>

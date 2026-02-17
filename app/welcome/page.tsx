@@ -267,6 +267,21 @@ export default function WelcomePage() {
         setIsChatViewOpen(true);
     };
 
+    const handleRenameChat = async (chatId: string, newTitle: string) => {
+        try {
+            await pb.collection('chats').update(chatId, {
+                title: newTitle
+            });
+            
+            // Update local state
+            setChats(prev => prev.map(chat => 
+                chat.id === chatId ? { ...chat, title: newTitle } : chat
+            ));
+        } catch (error) {
+            console.error("Error renaming chat:", error);
+        }
+    };
+
     // Helper to generate start message for a given mode
     const getStartMessageForMode = (mode: string) => {
         if (mode === 'simulation') return 'START_SIMULATION';
@@ -836,6 +851,7 @@ export default function WelcomePage() {
                 currentChatId={currentChatId}
                 onSelectChat={handleSelectChat}
                 onCreateChat={handleNewChat}
+                onRenameChat={handleRenameChat}
                 onLogout={handleLogout}
                 onGoHome={handleGoHome}
                 isLoadingChats={isLoadingChats}
