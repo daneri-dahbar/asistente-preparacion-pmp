@@ -1,0 +1,428 @@
+\chapter{CAPÍTULO 4: DISEÑO DE LA SOLUCIÓN}
+
+\section{4.1. Introducción}
+Este capítulo detalla el diseño técnico y arquitectónico del "Asistente Virtual para la Preparación del Examen PMP". Se describe la estructura lógica y física del sistema, los componentes de software desarrollados, los modelos de datos implementados y los flujos de interacción que permiten el funcionamiento de las capacidades de inteligencia artificial generativa. El diseño se ha orientado a crear una solución escalable, modular y mantenible, priorizando la experiencia del usuario y la precisión pedagógica.
+
+\section{4.2. Arquitectura General del Sistema}
+La arquitectura del sistema ha sido diseñada siguiendo los principios modernos de la ingeniería de software para aplicaciones web distribuidas, adoptando un enfoque \textbf{Serverless} y \textbf{Jamstack} (JavaScript, APIs, and Markup). Este paradigma arquitectónico permite desacoplar completamente la capa de presentación (frontend) de la lógica de negocio y los datos (backend), lo que resulta en un sistema altamente modular, escalable y seguro.
+
+La elección de esta arquitectura responde a la necesidad de ofrecer una experiencia de usuario fluida y de baja latencia, crucial para un entorno de estudio interactivo, minimizando al mismo tiempo la carga operativa de administración de servidores. Al utilizar servicios gestionados y funciones sin servidor ("serverless functions"), el sistema puede escalar automáticamente según la demanda de los usuarios, optimizando costos y recursos computacionales. Además, este enfoque facilita la integración continua y el despliegue rápido de nuevas funcionalidades pedagógicas.
+
+\subsection{4.2.1. Diagrama de Arquitectura de Alto Nivel}
+El sistema se estructura en cuatro capas lógicas claramente diferenciadas, cada una con responsabilidades específicas y canales de comunicación definidos:
+
+\begin{enumerate}
+\item \textbf{Capa de Presentación (Frontend - Client Side):}
+    Esta capa es responsable de toda la interacción con el usuario final. Desarrollada con \textbf{React} y ejecutada principalmente en el navegador del usuario, se encarga de renderizar la interfaz gráfica, gestionar el estado local de la sesión de estudio (como las respuestas seleccionadas en el simulador o el historial de chat visible) y capturar los eventos de entrada. Gracias al modelo de "hidratación" de React, la aplicación ofrece una experiencia de "Single Page Application" (SPA), donde la navegación entre secciones es instantánea y no requiere recargas completas de página.
+
+\item \textbf{Capa de Aplicación y Orquestación (Backend - Server Side):}
+    Implementada mediante \textbf{Next.js API Routes}, esta capa actúa como el cerebro lógico del sistema. Funciona como un conjunto de microservicios ligeros que se ejecutan bajo demanda. Sus responsabilidades incluyen:
+\end{enumerate}
+\begin{itemize}
+\item Validación de seguridad y autenticación de las peticiones entrantes.
+\item Orquestación del flujo de datos entre el cliente, la base de datos y el servicio de IA.
+\item Construcción de contextos (prompts) enriquecidos para el modelo de lenguaje, inyectando información pedagógica específica según el modo de estudio seleccionado.
+\item Gestión de la lógica de negocio crítica, como el cálculo de puntajes de exámenes o la generación dinámica de preguntas.
+
+\end{itemize}
+\begin{enumerate}
+\item \textbf{Capa de Datos y Persistencia (Data Layer):}
+    Esta capa garantiza la integridad y disponibilidad de la información a largo plazo. Se utiliza un servicio de \textbf{Backend-as-a-Service (BaaS)} que provee:
+\end{enumerate}
+\begin{itemize}
+\item Una base de datos relacional para almacenar perfiles de usuarios, historiales de chat y registros de simulaciones.
+\item Un sistema de autenticación seguro (JWT) que gestiona el ciclo de vida de las sesiones de usuario.
+\item Reglas de seguridad a nivel de fila (Row Level Security) que aseguran que cada estudiante solo pueda acceder a sus propios datos.
+
+\end{itemize}
+\begin{enumerate}
+\item \textbf{Capa de Inteligencia Cognitiva (AI Service Layer):}
+    Es el componente externo que dota de "inteligencia" al asistente. El sistema consume la API de un Modelo de Lenguaje Grande (LLM) de última generación. Esta capa no almacena estado de la aplicación; funciona como un motor de procesamiento de lenguaje natural puro, recibiendo contexto y devolviendo explicaciones, preguntas o feedback pedagógico en tiempo real.
+
+\end{enumerate}
+\begin{figure}[H]
+\centering
+% \includegraphics[width=0.8\textwidth]{placeholder.png}
+\caption{Diagrama de arquitectura de alto nivel}
+\label{figura\_4.1}
+\end{figure}
+\textit{\textit{Sugerencia: Incluir un diagrama de bloques detallado mostrando: Cliente Web (Navegador) -> Next.js (Vercel) -> API Routes (Node.js) -> PocketBase (SQLite) / Google Gemini API.}}
+
+\subsection{4.2.2. Stack Tecnológico Detallado}
+Para materializar la arquitectura propuesta, se ha realizado una selección rigurosa de tecnologías, priorizando aquellas que ofrecen un equilibrio óptimo entre rendimiento, mantenibilidad y soporte de la comunidad (ecosistema).
+
+\subsubsection{A. Core Framework y Lenguaje}
+\begin{itemize}
+\item \textbf{Next.js 16.1 (App Router):} Se utiliza la última versión estable del framework full-stack de React. La adopción del "App Router" permite aprovechar capacidades avanzadas como los \textbf{React Server Components (RSC)} y el \textbf{Streaming SSR}. Esto significa que gran parte del HTML se genera en el servidor de manera incremental, reduciendo el tamaño del paquete JavaScript que el usuario debe descargar y mejorando drásticamente el tiempo de carga inicial (First Contentful Paint).
+\item \textbf{TypeScript:} Todo el código base está escrito en TypeScript. El tipado estático fuerte es fundamental en este proyecto para garantizar que las estructuras de datos complejas (como los objetos JSON de las preguntas del examen PMP o las respuestas de la API de IA) se manejen correctamente, previniendo errores en tiempo de ejecución "undefined is not a function" antes de que ocurran.
+
+\end{itemize}
+\subsubsection{B. Interfaz de Usuario y Experiencia (UX)}
+\begin{itemize}
+\item \textbf{React 19:} La biblioteca de interfaz de usuario subyacente. Se aprovechan sus nuevos hooks y primitivas para la gestión eficiente del estado y las transiciones concurrentes.
+\item \textbf{Tailwind CSS 4:} Framework de estilos "utility-first". Permite construir interfaces consistentes y adaptables (responsive) directamente desde el HTML. La versión 4 introduce un motor de compilación JIT (Just-in-Time) de nueva generación, ultrarrápido y con detección automática de clases.
+\item \textbf{Framer Motion:} Biblioteca utilizada para las animaciones de la interfaz (transiciones entre preguntas, aparición de mensajes de chat, confeti de celebración), proporcionando una sensación de fluidez y modernidad esencial para mantener el compromiso del usuario (engagement).
+\item \textbf{Lucide React:} Conjunto de iconos vectoriales SVG ligeros y consistentes visualmente, utilizados para mejorar la usabilidad de la navegación y los controles.
+
+\end{itemize}
+\subsubsection{C. Backend y Base de Datos}
+\begin{itemize}
+\item \textbf{PocketBase:} Una solución de backend ultra-portátil escrita en \textbf{Go}. A diferencia de bases de datos tradicionales como PostgreSQL que requieren una administración compleja, PocketBase utiliza \textbf{SQLite} en modo WAL (Write-Ahead Logging) embebido, lo que ofrece un rendimiento excepcional para el volumen de lectura/escritura esperado en una aplicación educativa (miles de operaciones por segundo). Su API en tiempo real permite futuras expansiones.
+\item \textbf{LangChain.js:} Framework de orquestación para LLMs. Actúa como una capa de abstracción sobre la API de Gemini. Permite cambiar de modelo de IA con cambios mínimos en el código, y facilita la gestión de cadenas de pensamiento y la estructuración de las salidas (parsers) para asegurar que la IA siempre responda en el formato esperado (por ejemplo, JSON válido para las simulaciones).
+
+\end{itemize}
+\subsubsection{D. Motor de Inteligencia Artificial}
+\begin{itemize}
+\item \textbf{Google Gemini 3.0 Flash (Preview):} Se ha seleccionado el modelo más reciente y experimental de Google para aprovechar sus capacidades superiores de razonamiento y velocidad. Esta versión "Flash" está optimizada para respuestas de latencia ultra baja, esencial para mantener una conversación fluida en tiempo real, mientras mantiene una ventana de contexto masiva que permite analizar documentos extensos del PMBOK sin perder coherencia.
+
+\end{itemize}
+\section{4.3. Componentes Principales del Asistente Virtual}
+El sistema ha sido construido mediante una arquitectura modular basada en componentes reutilizables, ubicados principalmente en \texttt{app/components}. Esta estrategia no solo facilita el desarrollo paralelo y las pruebas unitarias, sino que también asegura que el mantenimiento futuro sea menos propenso a errores en cascada.
+
+\subsection{4.3.1. Estructura del Proyecto (Frontend)}
+El frontend de la aplicación, desarrollado sobre \textbf{Next.js}, aprovecha la distinción entre \textit{Server Components} (para renderizado estático y acceso a datos seguro) y \textit{Client Components} (para interactividad).
+
+\subsubsection{A. Layout y Navegación (`Sidebar` y `Dashboard`)}
+\begin{itemize}
+\item \textbf{Componente \texttt{Sidebar}:}
+    Implementado como un componente de cliente (\texttt{'use client'}), gestiona la navegación global de la aplicación. Mantiene el estado de la ruta activa y colapsa/expande el menú en dispositivos móviles para garantizar la responsividad. Utiliza iconos vectoriales de la librería \texttt{lucide-react} para ofrecer pistas visuales claras. Además, integra el control de cierre de sesión, que invoca directamente al cliente de autenticación de PocketBase para limpiar el almacenamiento local (LocalStorage) y redirigir al login.
+
+\item \textbf{Componente \texttt{Dashboard}:}
+    Actúa como el centro de mando del estudiante. Al cargarse, realiza consultas asíncronas a la colección \texttt{user\_progress} y \texttt{simulations} para calcular métricas en tiempo real. Visualiza:
+\item \textbf{Nivel de Usuario:} Una barra de progreso animada con \texttt{framer-motion} que muestra la experiencia (XP) actual relativa al siguiente nivel.
+\item \textbf{Racha de Estudio:} Lógica que compara la fecha de la última actividad registrada con la fecha actual para determinar la continuidad del hábito de estudio.
+\item \textbf{Resumen de Dominios:} Tarjetas informativas que desglosan el rendimiento por áreas del PMBOK (Personas, Procesos, Entorno de Negocio).
+\item \textbf{Historial de Simulaciones:} Una lista filtrable de los exámenes realizados, permitiendo retomar los que están "en progreso" o revisar los "completados".
+
+\end{itemize}
+\subsubsection{B. Módulo de Chat Inteligente (`ChatArea`)}
+Este componente representa el núcleo interactivo de la solución y es técnicamente el más complejo del frontend.
+\begin{itemize}
+\item \textbf{Gestión de Estado Avanzada:} Utiliza \texttt{useRef} para mantener referencias mutables al contenedor de scroll (logrando un auto-scroll suave cuando llegan nuevos mensajes) y \texttt{useState} para gestionar la cola de mensajes y el estado de "pensando" (loading state) del asistente.
+\item \textbf{Streaming de Respuesta:} La comunicación con el backend utiliza flujos de datos (\texttt{streams}). El cliente procesa los chunks de texto a medida que llegan desde la API de Gemini, reduciendo la percepción de latencia y mostrando la respuesta carácter por carácter.
+\item \textbf{Inyección de Contexto Dinámico:} El componente permite al usuario seleccionar "Modos" (Socrático, Simulación, Workshop, etc.). Al cambiar el modo, se actualiza un estado que se envía como metadato en el payload de la API, alterando el comportamiento de la IA sin recargar la página.
+\item \textbf{Renderizado Markdown:} Los mensajes recibidos se procesan a través de \texttt{react-markdown}. Esto permite que el asistente estructure sus explicaciones con listas, tablas, negritas y bloques de código con resaltado de sintaxis.
+
+\end{itemize}
+\subsubsection{C. Simulador de Examen (`ExamSimulator`)}
+Diseñado para replicar fielmente las condiciones del examen de certificación PMP.
+\begin{itemize}
+\item \textbf{Motor de Preguntas:} Este componente maneja un array de objetos JSON que representan las preguntas. Puede operar en dos modos:
+\end{itemize}
+\begin{enumerate}
+\item \textbf{Carga Estática/Histórica:} Recupera un examen existente desde PocketBase (colección \texttt{simulations}) para continuar una sesión previa.
+\item \textbf{Generación Dinámica:} Invoca a la API de IA (\texttt{/api/simulation/generate}) para crear un set de preguntas único basado en un tema específico y una cantidad definida (ej. 10, 45, 90 preguntas).
+\end{enumerate}
+\begin{itemize}
+\item \textbf{Control de Tiempo y Navegación:} Implementa un temporizador decreciente (\texttt{useEffect} con \texttt{setInterval}) que alerta al usuario cuando el tiempo se agota. La navegación entre preguntas se gestiona mediante un índice de estado.
+\item \textbf{Lógica de Evaluación:} Al finalizar, compara las respuestas del usuario (\texttt{selectedOptions}) con las \texttt{correctAnswer} almacenadas. Calcula el porcentaje de aciertos y actualiza el registro en la base de datos, marcando el examen como \texttt{completed} y guardando el puntaje final.
+
+\end{itemize}
+\subsubsection{D. Componentes Auxiliares de UX}
+\begin{itemize}
+\item \textbf{\texttt{OnboardingModal}:} Un asistente tipo "wizard" de 4 pasos que se presenta a los nuevos usuarios, explicando la metodología de estudio y las funcionalidades principales.
+\item \textbf{\texttt{LevelCompletedModal}:} Un componente de celebración que se activa cuando el usuario alcanza el 100\% de progreso en un nivel. Utiliza animaciones de confeti y transiciones de entrada para proporcionar refuerzo positivo inmediato.
+
+\end{itemize}
+\begin{figure}[H]
+\centering
+% \includegraphics[width=0.8\textwidth]{placeholder.png}
+\caption{Componentes de la Interfaz de Usuario}
+\label{figura\_4.2}
+\end{figure}
+\textit{\textit{Sugerencia: Captura de pantalla compuesta mostrando: 1) El Dashboard con métricas, 2) Una sesión de Chat activa con streaming de texto, y 3) La interfaz del Simulador con una pregunta de selección múltiple.}}
+
+\subsection{4.3.1.E Estrategias de Navegación y Modos de Estudio}
+El Dashboard principal actúa como un controlador de estado que adapta la experiencia de aprendizaje a través de cuatro modos de visualización distintos, gestionados por el estado \texttt{viewMode}. Esta flexibilidad permite que la aplicación sirva tanto a estudiantes novatos que necesitan estructura como a expertos que buscan práctica específica.
+
+\begin{enumerate}
+\item \textbf{Modo Guiado (🗺️):}
+\end{enumerate}
+\begin{itemize}
+\item \textbf{Enfoque:} Gamificación y Progresión Lineal.
+\item \textbf{Comportamiento:} Es la vista predeterminada. Presenta el contenido organizado en "Mundos" (Fases) y "Niveles". Implementa una lógica de bloqueo estricta donde un nivel solo se habilita (\texttt{isLocked: false}) cuando el inmediatamente anterior ha sido marcado como completado en la colección \texttt{user\_progress}.
+\item \textbf{Objetivo:} Garantizar que el estudiante construya su conocimiento sobre bases sólidas antes de avanzar a conceptos complejos.
+
+\end{itemize}
+\begin{enumerate}
+\item \textbf{Modo Desbloqueado (🔓):}
+\end{enumerate}
+\begin{itemize}
+\item \textbf{Enfoque:} Referencia y Consulta.
+\item \textbf{Comportamiento:} Utiliza la misma interfaz visual de mapas y mundos que el Modo Guiado, pero elimina todas las restricciones de acceso. Todos los niveles son accesibles instantáneamente.
+\item \textbf{Objetivo:} Permitir a usuarios avanzados o repetidores navegar libremente para reforzar áreas específicas sin la fricción de tener que "desbloquear" contenido ya conocido.
+
+\end{itemize}
+\begin{enumerate}
+\item \textbf{Modo Libre (♾️):}
+\end{enumerate}
+\begin{itemize}
+\item \textbf{Enfoque:} Herramientas de IA a la Carta.
+\item \textbf{Comportamiento:} Reemplaza completamente la visualización del mapa de niveles por un menú de tarjetas ("Grid Layout"). Ofrece 9 herramientas especializadas diseñadas para cubrir diferentes estilos de aprendizaje y necesidades específicas:
+\item \textbf{Modo Estándar:} El asistente clásico. Proporciona preguntas y respuestas directas sobre cualquier tema del PMBOK. Es ideal para resolver dudas rápidas y obtener definiciones precisas.
+\item \textbf{Simulación de Crisis:} Un roleplay inmersivo donde la IA actúa como un stakeholder difícil, un miembro del equipo conflictivo o un patrocinador exigente. El usuario debe actuar como Project Manager para resolver la situación aplicando habilidades blandas y técnicas.
+\item \textbf{Taller de Entregables:} Una herramienta de creación guiada paso a paso. Ayuda al usuario a redactar documentos clave como el Project Charter, la Matriz de Riesgos o el Plan de Gestión de Comunicaciones, asegurando que se incluyan todos los componentes estándar.
+\item \textbf{Examen Rápido:} Genera una serie corta de preguntas tipo PMP para poner a prueba el conocimiento del usuario. Ofrece feedback inmediato y explicaciones detalladas para cada opción de respuesta (correcta e incorrectas).
+\item \textbf{Tutor Socrático:} Diseñado para profundizar en conceptos complejos. En lugar de dar la respuesta directa, la IA guía al usuario mediante una serie de preguntas reflexivas para que él mismo descubra la solución y construya su conocimiento.
+\item \textbf{Debate (Abogado del Diablo):} Un ejercicio de argumentación donde la IA adopta deliberadamente una postura polémica o incorrecta sobre un tema de gestión de proyectos. El usuario debe convencer a la IA utilizando argumentos basados en los estándares del PMBOK y el Código de Ética.
+\item \textbf{Caso de Estudio:} Presenta escenarios complejos y multifacéticos de proyectos. El usuario actúa como consultor externo para diagnosticar problemas raíz (root cause analysis) y proponer un plan de acción correctivo integral.
+\item \textbf{Explícamelo como a un niño (ELI5):} Simplifica conceptos densos o abstractos utilizando analogías cotidianas y lenguaje sencillo. Es especialmente útil para entender la esencia de procesos complejos antes de estudiar los detalles técnicos.
+\item \textbf{Entrenador de Fórmulas:} Se centra exclusivamente en la parte cuantitativa del examen. Genera ejercicios prácticos sobre Gestión del Valor Ganado (EVM), análisis de Ruta Crítica (CPM) y proyecciones financieras, enseñando a interpretar los resultados numéricos.
+\item \textbf{Objetivo:} Ofrecer acceso directo a las capacidades del LLM fuera del contexto de un "nivel" específico, ideal para sesiones de estudio auto-dirigidas o exploración de conceptos abstractos.
+
+\end{itemize}
+\begin{enumerate}
+\item \textbf{Simulación Examen (🎓):}
+\end{enumerate}
+\begin{itemize}
+\item \textbf{Enfoque:} Evaluación y Métricas.
+\item \textbf{Comportamiento:} Transforma el Dashboard en un centro de análisis de datos. Muestra gráficos de rendimiento acumulado, desglose de aciertos por dominio (Personas, Procesos, Entorno) y permite lanzar generadores de exámenes de longitud variable (simulacros de 45 a 180 preguntas).
+\item \textbf{Objetivo:} Validar la preparación del estudiante bajo condiciones controladas y proporcionar feedback cuantitativo sobre su preparación real para el examen.
+
+\end{itemize}
+\subsection{4.3.2. Servicios de Backend (API Routes)}
+Las API Routes de Next.js actúan como una capa de abstracción segura (Backend-for-Frontend) que oculta las credenciales de servicios terceros y centraliza la lógica de negocio.
+
+\subsubsection{A. Ruta de Chat (`/api/chat`)}
+Esta ruta orquesta la interacción con el modelo de lenguaje Google Gemini.
+\begin{itemize}
+\item \textbf{Validación:} Verifica que la solicitud contenga un array de mensajes válido y un modo de operación soportado.
+\item \textbf{Integración con LangChain:} Utiliza la librería \texttt{LangChain.js} para instanciar el modelo \texttt{ChatGoogleGenerativeAI} configurado con el modelo \textbf{gemini-3-flash-preview}.
+\item \textbf{Ingeniería de Prompts (System Prompting):} La ruta selecciona dinámicamente el "Prompt del Sistema" basándose en el parámetro \texttt{mode} recibido:
+\item \textbf{Estándar:} Tutor experto en PMBOK 7ma Edición.
+\item \textbf{Simulación:} Stakeholder o miembro del equipo en un escenario de crisis (Roleplay).
+\item \textbf{Workshop:} Facilitador senior que guía en la creación de entregables (Project Charter, WBS, etc.).
+\item \textbf{Socrático:} Profesor que responde solo con preguntas para fomentar el análisis.
+\item \textbf{Quiz:} Examinador oficial que lanza preguntas situacionales difíciles.
+\item \textbf{Manejo de Streaming:} La respuesta del modelo se canaliza para devolver un flujo de datos continuo al cliente, permitiendo tiempos de respuesta percibidos casi instantáneos.
+
+\end{itemize}
+\subsubsection{B. Ruta de Generación de Simulación (`/api/simulation/generate`)}
+Esta ruta es crítica para la funcionalidad de generación infinita de contenido.
+\begin{itemize}
+\item \textbf{Prompt de Estructura Estricta (JSON Mode):} Se instruye al modelo Gemini para que actúe como un generador de datos estructurados. El prompt exige que la salida sea estrictamente un array JSON válido de objetos \texttt{Question}, definiendo campos como \texttt{text}, \texttt{options}, \texttt{correctAnswer} y \texttt{explanation}.
+\item \textbf{Parsing y Validación:} La respuesta cruda de la IA se limpia y parsea. Aunque se confía en la capacidad del modelo, se implementan bloques \texttt{try-catch} para manejar posibles errores de formato JSON ("alucinaciones sintácticas") y asegurar que el frontend siempre reciba datos consumibles.
+
+\end{itemize}
+\subsection{4.3.3. Modelo de Datos (PocketBase)}
+La base de datos se ha diseñado utilizando el esquema relacional ligero de PocketBase. A continuación se detallan las colecciones y sus estructuras de datos.
+
+\begin{table}[H]
+\centering
+% \includegraphics[width=0.8\textwidth]{placeholder.png}
+\caption{Esquema de Base de Datos Detallado}
+\label{tabla\_4.1}
+\end{table}
+\textit{\textit{Sugerencia: Tabla técnica describiendo tipos de datos y relaciones.}}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{lllll}
+\hline
+\textbf{Colección} & \textbf{Tipo} & \textbf{Campos Clave} & \textbf{Relaciones} & \textbf{Descripción} \\
+\hline
+\textbf{users} & Auth & \texttt{id}, \texttt{username}, \texttt{email}, \texttt{avatar}, \texttt{name} & - & Colección del sistema para gestión de identidad. Almacena también preferencias de UI. \\
+\hline
+\textbf{user\_progress} & Base & \texttt{user\_id} (relation), \texttt{level} (int), \texttt{xp} (int), \texttt{streak\_days} (int), \texttt{last\_login} (date) & 1:1 con \texttt{users} & Almacena la gamificación y métricas acumuladas del estudiante. \\
+\hline
+\textbf{chats} & Base & \texttt{id}, \texttt{user\_id} (relation), \texttt{title} (text), \texttt{mode} (select), \texttt{created} (date) & N:1 con \texttt{users} & Cabecera de una sesión de conversación. Permite listar el historial en el sidebar. \\
+\hline
+\textbf{messages} & Base & \texttt{chat\_id} (relation), \texttt{role} (select: 'user'\textbackslash{} & 'assistant'), \texttt{content} (text), \texttt{created} (date) & N:1 con \texttt{chats} & Almacena cada interacción individual. Indexado por \texttt{chat\_id} para recuperación rápida. \\
+\hline
+\textbf{simulations} & Base & \texttt{user\_id} (relation), \texttt{score} (int), \texttt{questions} (json), \texttt{answers} (json), \texttt{status} (select: 'in\_progress'\textbackslash{} & 'completed') & N:1 con \texttt{users} & Almacena exámenes completos. El campo \texttt{questions} guarda el array completo de preguntas generadas para mantener la integridad histórica del examen realizado. \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{itemize}
+\item \textbf{Seguridad a Nivel de Fila (RLS):}
+    Todas las colecciones tienen reglas de API configuradas para garantizar la privacidad.
+\item \texttt{List/View Rule}: \texttt{user\_id = @request.auth.id} (El usuario solo ve sus propios registros).
+\item \texttt{Create/Update Rule}: \texttt{user\_id = @request.auth.id} (El usuario solo puede crear/modificar datos asociados a su ID).
+\item Esto asegura que, incluso si un atacante intentara acceder a la API directamente, no podría leer datos de otros estudiantes.
+
+\end{itemize}
+\section{4.4. Flujos de Interacción y Procesos}
+El diseño dinámico de la solución se detalla a través de los flujos de datos que ocurren entre el usuario, el sistema y los servicios externos. A continuación, se describen los algoritmos y secuencias de operación para los casos de uso principales.
+
+\subsection{4.4.1. Flujo de Autenticación y Onboarding}
+Este proceso es la puerta de entrada al sistema y garantiza que cada sesión de estudio esté personalizada y segura.
+\begin{enumerate}
+\item \textbf{Detección de Sesión (Middleware):}
+    Al intentar acceder a cualquier ruta protegida (ej. \texttt{/dashboard}), el sistema verifica la validez del estado de autenticación de PocketBase.
+\end{enumerate}
+\begin{itemize}
+\item \textit{Si es válida:} Permite el acceso a la aplicación.
+\item \textit{Si es inválida/inexistente:} Redirige al usuario a la ruta pública de bienvenida.
+\end{itemize}
+\begin{enumerate}
+\item \textbf{Autenticación (Login/Registro):}
+    El usuario introduce sus credenciales. El cliente JS invoca al método \texttt{pb.collection('users').authWithPassword()}.
+\end{enumerate}
+\begin{itemize}
+\item PocketBase valida el hash de la contraseña (bcrypt).
+\item Si es correcto, retorna un token JWT firmado y el objeto \texttt{User}.
+\item El cliente guarda el token en el almacenamiento seguro y actualiza el estado global.
+\end{itemize}
+\begin{enumerate}
+\item \textbf{Onboarding (Primer Acceso):}
+    Tras el primer login, se presenta el \texttt{OnboardingModal}. Este componente guía al usuario a través de 4 pasos clave, explicando cómo usar el chat, el simulador y cómo interpretar su progreso.
+
+\end{enumerate}
+\subsection{4.4.2. Flujo de Consulta al Asistente (Chat)}
+Este flujo representa el ciclo completo de una interacción conversacional, desde que el usuario presiona "Enviar" hasta que la respuesta completa se visualiza.
+
+\begin{enumerate}
+\item \textbf{Captura y Optimización (Cliente):}
+\end{enumerate}
+\begin{itemize}
+\item El usuario escribe un mensaje. El componente \texttt{ChatArea} bloquea inmediatamente el input.
+\item Se añade el mensaje del usuario al estado local de la UI ("Optimistic UI update") para una sensación de respuesta instantánea.
+\end{itemize}
+\begin{enumerate}
+\item \textbf{Construcción del Payload (Cliente -> Servidor):}
+    Se envía una solicitud POST a \texttt{/api/chat} conteniendo:
+\end{enumerate}
+\begin{itemize}
+\item \texttt{messages}: El historial reciente de la conversación.
+\item \texttt{mode}: El modo pedagógico actual (ej. \texttt{'socratic'}, \texttt{'workshop'}).
+\end{itemize}
+\begin{enumerate}
+\item \textbf{Orquestación de IA (Servidor):}
+\end{enumerate}
+\begin{itemize}
+\item \textbf{Inyección de System Prompt:} La API selecciona la "personalidad" de la IA adecuada para el modo solicitado.
+\item \textbf{Llamada a Gemini:} Se invoca la API de Google usando \texttt{streaming: true}.
+\end{itemize}
+\begin{enumerate}
+\item \textbf{Streaming y Persistencia (Respuesta):}
+\end{enumerate}
+\begin{itemize}
+\item El servidor transmite los tokens generados al cliente en tiempo real.
+\item Una vez finalizada la transmisión, el cliente envía una petición asíncrona a PocketBase para guardar el mensaje del usuario y la respuesta completa de la IA en la colección \texttt{messages}.
+
+\end{itemize}
+\begin{figure}[H]
+\centering
+% \includegraphics[width=0.8\textwidth]{placeholder.png}
+\caption{Diagrama de Secuencia - Interacción de Chat}
+\label{figura\_4.3}
+\end{figure}
+\textit{\textit{Sugerencia: Diagrama UML de secuencia detallado mostrando: Usuario -> Chat UI -> Next.js API (LangChain) -> Google Gemini -> PocketBase (Async Save).}}
+
+\subsection{4.4.3. Flujo de Simulación de Examen}
+El proceso de simulación es técnicamente el más riguroso, ya que involucra generación procedimental y evaluación lógica.
+
+\begin{enumerate}
+\item \textbf{Configuración del Examen:}
+    El usuario define los parámetros: Cantidad de preguntas (ej. 10, 50, 180) y Tópico (ej. "Gestión de Riesgos").
+\item \textbf{Generación Procedimental (AI-Driven):}
+\end{enumerate}
+\begin{itemize}
+\item El sistema construye un prompt complejo que incluye la estructura JSON exacta requerida.
+\item Gemini retorna el JSON. El backend lo parsea y valida.
+\item Se crea un registro en la colección \texttt{simulations} con estado \texttt{in\_progress}.
+\end{itemize}
+\begin{enumerate}
+\item \textbf{Ejecución del Examen:}
+\end{enumerate}
+\begin{itemize}
+\item Las preguntas se cargan en el \texttt{ExamSimulator}.
+\item El usuario responde secuencialmente. Las respuestas se guardan temporalmente en el estado local o se sincronizan periódicamente.
+\end{itemize}
+\begin{enumerate}
+\item \textbf{Envío y Evaluación (Scoring Algorithm):}
+\end{enumerate}
+\begin{itemize}
+\item Al finalizar, se comparan las respuestas del usuario con las correctas.
+\item Algoritmo de puntuación:
+        \texttt{}`typescript
+        score = 0
+        for (q of questions) \{
+           if (userAnswers[q.id] === q.correctAnswer) score++
+        \}
+        percentage = (score / total) * 100
+        \texttt{}`
+\end{itemize}
+\begin{enumerate}
+\item \textbf{Cierre y Análisis:}
+\end{enumerate}
+\begin{itemize}
+\item Se actualiza el registro en \texttt{simulations} con el puntaje final y el estado \texttt{completed}.
+\item Si el usuario aprueba un nivel (en el contexto de la gamificación), se muestra el \texttt{LevelCompletedModal}.
+
+\end{itemize}
+\section{4.5. Decisiones de Diseño y Justificación Tecnológica}
+
+Esta sección detalla las decisiones críticas de ingeniería y diseño tomadas durante el desarrollo del Asistente PMP. Cada decisión se justifica no solo desde una perspectiva técnica (rendimiento, escalabilidad), sino también desde una perspectiva pedagógica.
+
+\subsection{4.5.1. Selección del Motor de IA: Google Gemini 3.0 Flash (Preview)}
+La elección del modelo de lenguaje fundacional (LLM) fue una de las decisiones más trascendentales del proyecto. Se evaluaron opciones como OpenAI GPT-4o y Anthropic Claude 3.5 Sonnet. Finalmente, se seleccionó \textbf{Gemini 3.0 Flash (Preview)} por las siguientes razones técnicas y estratégicas:
+
+\begin{enumerate}
+\item \textbf{Ventana de Contexto Masiva (1M+ Tokens):} Permite que el asistente mantenga en memoria todo el historial de conversaciones y documentos de referencia del PMBOK sin sufrir "amnesia".
+\item \textbf{Velocidad de Inferencia Superior:} La variante "Flash" está optimizada para respuestas de ultra baja latencia. Esto es vital para mantener la "ilusión de conversación" y evitar que el estudiante pierda el foco esperando una respuesta.
+\item \textbf{Capacidades de Razonamiento Avanzado:} A pesar de ser un modelo optimizado para velocidad, la versión 3.0 muestra mejoras significativas en lógica deductiva, crucial para explicar preguntas situacionales complejas del examen PMP.
+\item \textbf{Eficiencia de Costos:} Ofrece una relación rendimiento/costo superior para tareas educativas de alto volumen en comparación con modelos más pesados.
+
+\end{enumerate}
+\subsection{4.5.2. Arquitectura de "Prompt Engineering" y Roles Pedagógicos}
+En lugar de depender de un único "System Prompt" genérico, se diseñó una arquitectura de inyección de prompts dinámica basada en el concepto pedagógico de \textbf{Andamiaje Instruccional}. El sistema cambia su comportamiento interno según el "Modo de Estudio":
+
+\begin{itemize}
+\item \textbf{Modo Estándar:} Tutor equilibrado, claro y conciso.
+\item \textbf{Modo Tutor Socrático:} No da respuestas directas. Responde con preguntas guía para fomentar el pensamiento crítico (Nivel de Análisis en Bloom).
+\item \textbf{Modo Simulador de Examen:} Adopta un tono de "Roleplay" (Stakeholder enojado, Patrocinador exigente) para preparar al estudiante para la presión emocional y la resolución de conflictos en escenarios realistas.
+\item \textbf{Modo Workshop (Taller):} Actúa como un facilitador experto que guía al usuario paso a paso en la redacción de entregables formales (ej. Acta de Constitución), asegurando que se cumplan los estándares del PMBOK.
+\item \textbf{Modo Quiz:} Un examinador estricto que lanza preguntas rápidas y directas para evaluar la retención de conocimientos específicos.
+
+La implementación técnica utiliza plantillas de prompts que se ensamblan en tiempo de ejecución inyectando variables de contexto, logrando una experiencia altamente personalizada.
+
+\end{itemize}
+\subsection{4.5.3. Estrategia de Interfaz de Usuario (UI/UX) para el Aprendizaje Profundo}
+La interfaz gráfica no es meramente estética; se diseñó como una herramienta para gestionar la carga cognitiva del estudiante.
+
+\begin{itemize}
+\item \textbf{Diseño "Distraction-Free":} Se adoptó una filosofía minimalista donde los elementos de navegación se atenúan durante el estudio profundo.
+\item \textbf{Modo Oscuro por Defecto:} Reduce la fatiga visual durante sesiones de estudio nocturnas.
+\item \textbf{Feedback Inmediato y Optimista:} Patrones de UI que reaccionan instantáneamente a las acciones del usuario para mantener el estado de "flow".
+
+\end{itemize}
+\subsection{4.5.4. Arquitectura de Datos Híbrida (Static vs. Dynamic)}
+Se diseñó un modelo de datos híbrido que combina la inmutabilidad de los estándares educativos con la flexibilidad del progreso del usuario.
+
+\begin{itemize}
+\item \textbf{Contenido Estático en Código (\texttt{gameData.ts}):} La estructura del PMBOK (Dominios, Tareas, Principios) se codifica directamente en el cliente para garantizar acceso instantáneo y tipado estático.
+\item \textbf{Datos Dinámicos en PocketBase:} Solo los datos generados por el usuario se persisten en la base de datos, separando claramente la lógica de dominio del estado del usuario.
+
+\end{itemize}
+\subsection{4.5.5. Enfoque de Gamificación Estructural}
+La gamificación se integró en el núcleo de la navegación.
+
+\begin{itemize}
+\item \textbf{Progresión Bloqueada:} El usuario debe "conquistar" conceptos para desbloquear los siguientes, asegurando una ruta de aprendizaje coherente.
+\item \textbf{Sistema de XP y Celebración:} Los puntos de experiencia y las modales de "Nivel Completado" (\texttt{LevelCompletedModal}) utilizan recompensas visuales (confeti) para motivar al usuario a completar sus objetivos diarios.
+
+\end{itemize}
+\section{4.6. Consideraciones de Seguridad y Robustez}
+
+La seguridad en el desarrollo de software educativo garantiza la integridad del proceso de aprendizaje.
+
+\subsection{4.6.1. Gestión Segura de Credenciales}
+Las claves API sensibles (\texttt{GOOGLE\_API\_KEY}) se almacenan en variables de entorno del lado del servidor, nunca expuestas al cliente. Next.js garantiza este aislamiento por diseño.
+
+\subsection{4.6.2. Validación de Datos y Prevención de Inyecciones}
+\begin{itemize}
+\item \textbf{Validación de Esquema:} Todas las entradas a los API Endpoints se validan rigurosamente (aunque el código actual utiliza validación manual y tipos TypeScript, la arquitectura está preparada para esquemas Zod).
+\item \textbf{Sanitización:} Se verifica la estructura de los JSON generados por la IA antes de renderizarlos.
+
+\end{itemize}
+\subsection{4.6.3. Aislamiento de Datos Multi-Inquilino (Row Level Security)}
+Se implementa RLS en PocketBase:
+\begin{itemize}
+\item \texttt{user\_id = @request.auth.id}: Regla inmutable que asegura que cada estudiante solo acceda a sus propios datos, independientemente de la lógica del frontend.
+
+\end{itemize}
+\subsection{4.6.4. Privacidad}
+El sistema minimiza la recolección de datos, almacenando solo lo necesario para la continuidad pedagógica y el seguimiento del progreso.

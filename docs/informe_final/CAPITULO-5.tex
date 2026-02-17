@@ -1,0 +1,191 @@
+\chapter{CAPÍTULO 5: IMPLEMENTACIÓN DEL ASISTENTE VIRTUAL}
+
+\section{5.1. Introducción}
+Este capítulo describe el proceso de construcción y materialización del "Asistente de Preparación PMP". Se detalla cómo el diseño arquitectónico propuesto en el capítulo anterior fue transformado en un prototipo funcional de software. Se abordan las herramientas de desarrollo seleccionadas, la configuración del entorno, la implementación de los componentes de frontend y backend, la integración de la Inteligencia Artificial Generativa y la configuración de la base de datos. Asimismo, se discuten los desafíos técnicos encontrados durante la codificación y las soluciones adoptadas para garantizar un sistema robusto, seguro y escalable.
+
+\section{5.2. Entorno de Desarrollo y Configuración}
+
+La fase de implementación comenzó con la definición y preparación de un entorno de desarrollo robusto, diseñado para maximizar la "Experiencia del Desarrollador" (DX) y garantizar la reproducibilidad del código entre diferentes máquinas. Se priorizó un enfoque de "Infraestructura como Código" y configuración estandarizada.
+
+\subsection{5.2.1. Selección y Justificación del Stack Tecnológico}
+Para la construcción del sistema se seleccionó un conjunto de tecnologías modernas ("Modern Stack") que favorecen el desarrollo rápido, la seguridad de tipos y el rendimiento en el borde (Edge). A continuación, se detalla la elección de cada componente.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{llll}
+\hline
+\textbf{Componente} & \textbf{Tecnología Seleccionada} & \textbf{Versión} & \textbf{Justificación Técnica} \\
+\hline
+\textbf{Framework Frontend} & Next.js (App Router) & 16.1+ & Renderizado híbrido (SSR/CSR), Server Actions, Streaming, y soporte nativo para React Server Components. \\
+\hline
+\textbf{Librería UI} & React & 19.0+ & Hooks modernos, gestión de estado optimizada y directivas como \texttt{use client} para interactividad. \\
+\hline
+\textbf{Lenguaje} & TypeScript & 5.3+ & Tipado estático estricto para reducir errores en tiempo de ejecución, crucial para manejar estructuras de datos complejas del PMBOK. \\
+\hline
+\textbf{Estilizado} & Tailwind CSS & 4.0+ & Motor JIT (Just-in-Time) de nueva generación, compilación instantánea y variables CSS nativas para temas. \\
+\hline
+\textbf{Inteligencia Artificial} & Google Gemini API & 3.0 Flash (Preview) & Modelo multimodal de última generación con ventana de contexto de 1M+ tokens, razonamiento superior y latencia ultra baja. \\
+\hline
+\textbf{Orquestación IA} & LangChain.js & 0.3+ & Abstracción agnóstica del modelo, gestión eficiente de cadenas de prompts y memoria conversacional. \\
+\hline
+\textbf{Base de Datos / Auth} & PocketBase & 0.22+ & Backend-as-a-Service ligero basado en SQLite (modo WAL), con autenticación JWT integrada y reglas de seguridad (RLS). \\
+\hline
+\textbf{Iconografía} & Lucide React & Latest & Iconos vectoriales SVG ligeros, consistentes y altamente personalizables. \\
+\hline
+\textbf{Validación} & Zod & 3.23+ & Validación de esquemas en tiempo de ejecución (runtime), esencial para verificar las respuestas JSON de la IA. \\
+\hline
+\end{tabular}
+\caption{Stack Tecnológico del Proyecto}
+\label{tabla\_5.1}
+\end{table}
+
+\subsection{5.2.2. Configuración del Entorno Local}
+Antes de iniciar la codificación, se estandarizaron las herramientas base del sistema operativo (Windows 11 en este caso):
+
+\begin{enumerate}
+\item \textbf{Runtime de JavaScript:} Se instaló \textbf{Node.js LTS} (v20.x o superior) para garantizar estabilidad y compatibilidad con las últimas características de Next.js 16.
+\item \textbf{Gestor de Paquetes:} Se optó por \textbf{npm} (Node Package Manager) configurado para asegurar la instalación exacta de versiones.
+\item \textbf{Sistema de Control de Versiones:}
+\end{enumerate}
+\begin{itemize}
+\item \textbf{Git:} Configurado con claves SSH para autenticación segura con GitHub.
+\item \textbf{Repositorio:} \texttt{https://github.com/daneri-dahbar/asistente-preparacion-pmp.git}
+\end{itemize}
+\begin{enumerate}
+\item \textbf{Entorno de Desarrollo Integrado (IDE):}
+\end{enumerate}
+\begin{itemize}
+\item \textbf{Visual Studio Code (VS Code)} con extensiones recomendadas (\texttt{dbaeumer.vscode-eslint}, \texttt{esbenp.prettier-vscode}, \texttt{bradlc.vscode-tailwindcss}).
+
+\end{itemize}
+\subsection{5.2.3. Inicialización y Estructura del Proyecto Next.js}
+El núcleo de la aplicación se inicializó utilizando \texttt{create-next-app} con las banderas modernas habilitadas por defecto:
+
+\begin{minted}{bash}
+npx create-next-app@latest asistente-preparacion-pmp \
+  --typescript \
+  --tailwind \
+  --eslint \
+  --app \           # App Router (obligatorio en Next.js 16)
+  --src-dir=false   # Estructura plana en raíz para simplicidad
+  --import-alias "@/*"
+\end{minted}
+
+\textbf{Estructura de Carpetas Clave:}
+\begin{itemize}
+\item \texttt{app/layout.tsx}: Root Layout con inyección de fuentes (\texttt{Geist}) y metadatos globales.
+\item \texttt{app/api/}: Route Handlers para endpoints de backend (\texttt{chat}, \texttt{simulation}).
+\item \texttt{app/components/}: Componentes reutilizables divididos por dominio (\texttt{ui}, \texttt{workspace}, \texttt{layout}).
+\item \texttt{lib/}: Utilidades puras (\texttt{pocketbase.ts}, \texttt{gemini.ts}, \texttt{utils.ts}).
+\item \texttt{types/}: Definiciones de tipos TypeScript compartidas (\texttt{UserProgress}, \texttt{Message}).
+
+\end{itemize}
+\subsection{5.2.4. Configuración de Variables de Entorno y Seguridad}
+La seguridad se gestiona mediante variables de entorno en \texttt{.env.local}:
+
+\begin{itemize}
+\item \texttt{GOOGLE\_API\_KEY}: Clave privada para acceder a los modelos de Gemini (Server-side only).
+\item \texttt{NEXT\_PUBLIC\_POCKETBASE\_URL}: URL de la instancia de base de datos (expuesta al cliente para conexiones realtime).
+
+\end{itemize}
+\section{5.3. Implementación del Frontend (Interfaz de Usuario)}
+
+La interfaz de usuario (UI) busca reducir la carga cognitiva ajena al aprendizaje y facilitar el estado de "flow". Se implementó sobre React 19 aprovechando las nuevas capacidades de concurrencia y transiciones.
+
+\subsection{5.3.1. Arquitectura de Componentes y Patrón "Server-First"}
+Se siguió rigurosamente el patrón de \textbf{Server Components} por defecto:
+
+\begin{itemize}
+\item \textbf{Server Components (RSC):} Utilizados para el layout, fetch de datos inicial y rutas protegidas (\texttt{app/dashboard/layout.tsx}). Reducen el JavaScript enviado al cliente.
+\item \textbf{Client Components:} Reservados para interactividad (\texttt{'use client'}). Ejemplos: \texttt{ChatArea.tsx} (manejo de input), \texttt{ExamSimulator.tsx} (estado del quiz), \texttt{OnboardingModal.tsx} (wizard inicial).
+
+\end{itemize}
+\subsection{5.3.2. Componentes de Experiencia de Usuario (UX)}
+
+\subsubsection{A. Onboarding y Personalización}
+El componente \texttt{OnboardingModal.tsx} gestiona la primera experiencia del usuario. Implementa un wizard de 4 pasos que:
+\begin{enumerate}
+\item Utiliza el nombre del usuario para personalizar la experiencia.
+\item Explica la metodología del asistente (Socrático, Simulaciones).
+\item Establece el tono de la interacción.
+\item Guarda el estado de completitud en \texttt{localStorage} para no repetir el tutorial.
+
+\end{enumerate}
+\subsubsection{B. Gamificación y Feedback}
+El \texttt{LevelCompletedModal.tsx} proporciona feedback visual inmediato al superar una prueba. Utiliza \texttt{framer-motion} para animaciones de entrada y confeti (\texttt{canvas-confetti}) para celebrar el logro, reforzando positivamente el progreso del estudiante.
+
+\subsection{5.3.3. Módulo de Conversación (ChatArea)}
+El componente \texttt{ChatArea.tsx} es el núcleo de la interacción:
+\begin{enumerate}
+\item \textbf{Streaming:} Utiliza \texttt{ReadableStream} para procesar la respuesta de la IA token a token, reduciendo la latencia percibida.
+\item \textbf{Markdown Rendering:} Implementa \texttt{react-markdown} con soporte para GFM (GitHub Flavored Markdown), permitiendo renderizar tablas, listas y bloques de código con resaltado de sintaxis (\texttt{prismjs} o similar) dentro del chat.
+\item \textbf{Scroll Automático:} Lógica inteligente para mantener el scroll en el último mensaje mientras se genera la respuesta.
+
+\end{enumerate}
+\subsection{5.3.4. Motor de Simulación (ExamSimulator)}
+El simulador funciona como una Máquina de Estados Finitos (FSM):
+\begin{itemize}
+\item \textbf{Estados:} \texttt{idle} -> \texttt{loading} -> \texttt{question} -> \texttt{review} -> \texttt{results}.
+\item \textbf{Persistencia:} Las respuestas se mantienen en memoria durante el examen y solo se envían al servidor al finalizar para calcular el puntaje y actualizar el XP del usuario.
+
+\end{itemize}
+\subsection{5.3.5. Navegación y Modos de Estudio}
+El \texttt{Dashboard} implementa una navegación híbrida:
+\begin{itemize}
+\item \textbf{Sidebar:} Navegación lineal por fases y niveles (bloqueados/desbloqueados según progreso).
+\item \textbf{Modo Libre (Grid):} Un layout de tarjetas (\texttt{grid-cols-1 md:grid-cols-2 lg:grid-cols-3}) que permite acceso directo a herramientas especializadas (Simulación de Crisis, Taller de Entregables, etc.) sin restricciones de nivel.
+
+\end{itemize}
+\section{5.4. Implementación del Backend y Lógica de IA}
+
+El backend se implementó utilizando \textbf{Next.js API Routes}, actuando como orquestador seguro entre el cliente y el modelo Gemini.
+
+\subsection{5.4.1. Integración con Gemini 3.0 Flash}
+Se actualizó el núcleo de IA para utilizar el modelo \texttt{gemini-3-flash-preview} a través de \texttt{ChatGoogleGenerativeAI} de LangChain.
+
+\begin{minted}{typescript}
+// app/api/chat/route.ts
+const model = new ChatGoogleGenerativeAI({
+  model: "gemini-3-flash-preview", // Modelo de última generación
+  temperature: 0.7,
+  streaming: true,
+  apiKey: apiKey,
+});
+\end{minted}
+Esta actualización permite respuestas más rápidas y una ventana de contexto significativamente mayor para mantener el hilo de conversaciones largas o analizar casos de estudio extensos.
+
+\subsection{5.4.2. Inyección Dinámica de Sistema (Dynamic System Prompting)}
+La característica más potente del backend es la capacidad de cambiar la "personalidad" de la IA dinámicamente según el \texttt{mode} seleccionado por el usuario. El endpoint \texttt{POST /api/chat} intercepta la solicitud e inyecta un \texttt{SystemMessage} específico antes de llamar al modelo.
+
+\textbf{Modos Implementados:}
+
+\begin{enumerate}
+\item \textbf{Estándar:} Tutor experto, respuestas directas y concisas.
+\item \textbf{Simulación (Crisis):} Rol de stakeholder difícil/emocional. Inicia con un escenario de conflicto.
+\item \textbf{Taller (Workshop):} Facilitador que guía paso a paso en la creación de entregables (Project Charter, Riesgos).
+\item \textbf{Socrático:} Profesor que responde con preguntas para fomentar el pensamiento crítico.
+\item \textbf{Examen Rápido (Quiz):} Examinador que lanza preguntas de opción múltiple y da feedback inmediato.
+\item \textbf{Debate (Abogado del Diablo):} Adopta posturas polémicas (ej. "Agile no sirve") para obligar al usuario a argumentar.
+\item \textbf{Caso de Estudio:} Consultor que presenta escenarios complejos para diagnóstico de causa raíz.
+\item \textbf{ELI5 (Explícamelo como a un niño):} Usa analogías cotidianas para explicar conceptos abstractos.
+\item \textbf{Entrenador de Fórmulas (Math):} Tutor riguroso enfocado en EVM, CPM y matemáticas de proyectos.
+
+Además, existen modos específicos de nivel (\texttt{level\_practice}, \texttt{level\_lesson}, \texttt{level\_oracle}, \texttt{level\_exam}) que restringen el conocimiento de la IA exclusivamente al tema del nivel actual, evitando que el estudiante se disperse.
+
+\end{enumerate}
+\subsection{5.4.3. Pipeline de Streaming}
+La respuesta se transmite al cliente mediante un \texttt{ReadableStream} personalizado que encadena la salida de LangChain (\texttt{pipe(parser).stream(...)}), permitiendo una experiencia de usuario fluida y en tiempo real.
+
+\section{5.5. Base de Datos y Persistencia}
+
+\subsection{5.5.1. PocketBase y SQLite WAL}
+Se mantuvo \textbf{PocketBase} como solución BaaS por su eficiencia y simplicidad.
+\begin{itemize}
+\item \textbf{Motor:} SQLite en modo WAL (Write-Ahead Logging) para alta concurrencia de lectura.
+\item \textbf{Colecciones:}
+\item \texttt{users}: Perfil, XP, progreso.
+\item \texttt{chats}: Historial de conversaciones (reemplazando a la antigua colección \texttt{study\_sessions}).
+\item \texttt{simulation\_results}: Resultados detallados de exámenes y simulacros.
+\item \textbf{Reglas de Seguridad (RLS):} Configuradas para asegurar que cada usuario solo pueda acceder y modificar sus propios datos (\texttt{id = @request.auth.id}).
+\end{itemize}

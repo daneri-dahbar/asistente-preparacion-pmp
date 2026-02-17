@@ -1,0 +1,307 @@
+\chapter{ANEXO B: PLANIFICACIÓN DETALLADA DE SPRINTS Y BACKLOG}
+
+Este anexo detalla la ejecución operativa del proyecto bajo la metodología Scrum descrita en el \textbf{Capítulo 3}. Se presenta el desglose cronológico y técnico del trabajo en \textbf{4 Sprints} principales, especificando los objetivos estratégicos, el \textit{Sprint Backlog} seleccionado, el desglose de tareas de ingeniería y los resultados de las retrospectivas.
+
+La planificación se alineó estrictamente con las Épicas e Historias de Usuario definidas en el \textbf{Anexo A}, asegurando la trazabilidad bidireccional entre los requisitos del negocio y los entregables técnicos.
+
+\section{B.1. Estrategia de Ejecución y Roadmap}
+
+El desarrollo se estructuró en 4 iteraciones de \textbf{3 semanas} de duración cada una, siguiendo un enfoque incremental e iterativo. Se utilizó un tablero Kanban digital (simulado mediante GitHub Projects) para el seguimiento de tareas.
+
+\subsection{Ceremonias Realizadas}
+\begin{itemize}
+\item \textbf{Sprint Planning:} Al inicio de cada ciclo, para seleccionar las historias del Product Backlog y estimar su complejidad (Puntos de Historia).
+\item \textbf{Daily Standups:} Revisiones asíncronas diarias para identificar bloqueos técnicos.
+\item \textbf{Sprint Review:} Demostración del incremento funcional al final de cada iteración.
+\item \textbf{Retrospective:} Análisis de mejora continua aplicado al proceso de desarrollo.
+\end{itemize}
+
+\subsection{Cronograma de Alto Nivel}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{|l|l|X|l|l|}
+\hline
+\textbf{Sprint} & \textbf{Fechas (Simuladas)} & \textbf{Foco Principal} & \textbf{Épicas Abordadas} & \textbf{Estado} \\
+\hline
+\textbf{Sprint 1} & Semanas 1-3 & Fundamentos, Arquitectura y Auth & E01, E05 & Completado \\
+\hline
+\textbf{Sprint 2} & Semanas 4-6 & Núcleo de IA y Lógica Conversacional & E02 & Completado \\
+\hline
+\textbf{Sprint 3} & Semanas 7-9 & Motor de Simulación y Evaluación & E03 & Completado \\
+\hline
+\textbf{Sprint 4} & Semanas 10-12 & Gamificación, Métricas y Pulido & E04, E05 & Completado \\
+\hline
+\end{tabularx}
+\caption{Cronograma de Alto Nivel del Proyecto}
+\end{table}
+
+---
+
+\section{B.2. Detalle de Iteraciones}
+
+A continuación, se documenta la "vida" de cada Sprint, desde su planificación hasta su cierre.
+
+\subsection{Sprint 1: Fundamentos y Prototipo Inicial}
+
+\textbf{Objetivo del Sprint:} Establecer la arquitectura base del proyecto ("Walking Skeleton"), configurar el entorno de desarrollo e implementar el sistema de gestión de identidad seguro para permitir el acceso de los primeros usuarios de prueba.
+
+\textbf{Riesgos Identificados:}
+\begin{itemize}
+\item Curva de aprendizaje de Next.js 16 (App Router) y Server Actions.
+\item Configuración correcta de reglas de seguridad en PocketBase (RLS).
+\end{itemize}
+
+\subsubsection{Sprint Backlog (Historias Seleccionadas)}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|l|l|}
+\hline
+\textbf{ID} & \textbf{Historia de Usuario / Tarea} & \textbf{Prioridad} & \textbf{Estimación} \\
+\hline
+\textbf{T-01} & Configuración de Entorno y Repositorio & Alta & 3 pts \\
+\hline
+\textbf{T-02} & Infraestructura de Datos (PocketBase) & Alta & 5 pts \\
+\hline
+\textbf{HU-02} & Autenticación y Persistencia & Alta & 8 pts \\
+\hline
+\textbf{HU-03} & Gestión de Perfil de Usuario & Media & 5 pts \\
+\hline
+\textbf{HU-22} & Diseño Responsivo (Layout Base) & Alta & 5 pts \\
+\hline
+\textbf{HU-19} & Privacidad de Datos (RLS) & Crítica & 5 pts \\
+\hline
+\textbf{HU-01} & Onboarding de Nuevo Usuario & Media & 8 pts \\
+\hline
+\end{tabularx}
+\caption{Backlog del Sprint}
+\end{table}
+
+\subsubsection{Desglose de Tareas Técnicas (Engineering Tasks)}
+
+\begin{itemize}
+\item \textbf{Infraestructura y Configuración:}
+\item [DevOps] Inicializar repositorio Git y configurar \texttt{.gitignore}.
+\item [Frontend] Crear proyecto Next.js con TypeScript, ESLint y Tailwind CSS.
+\item [Backend] Desplegar instancia local de PocketBase y verificar conexión HTTP.
+\item [Frontend] Configurar alias de rutas (\texttt{@/components}, \texttt{@/lib}) en \texttt{tsconfig.json}.
+\end{itemize}
+
+\begin{itemize}
+\item \textbf{Autenticación y Seguridad:}
+\item [Backend] Definir colección \texttt{users} en PocketBase con campos: \texttt{name}, \texttt{avatar}, \texttt{level}.
+\item [Backend] Escribir reglas API (RLS): \texttt{Admin only} para escritura general, \texttt{id = @request.auth.id} para lectura propia.
+\item [Frontend] Implementar \texttt{AuthProvider} (Context API) para manejo de estado global de sesión.
+\item [Frontend] Crear Middleware (\texttt{middleware.ts}) para proteger rutas \texttt{/dashboard/*}.
+\item [UI] Diseñar y maquetar formularios de Login y Registro con validación Zod.
+\end{itemize}
+
+\begin{itemize}
+\item \textbf{Interfaz de Usuario (UI/UX):}
+\item [UI] Implementar \texttt{Sidebar} responsivo con Framer Motion (colapsable en móvil).
+\item [UI] Crear componente \texttt{OnboardingModal} con persistencia de estado (\texttt{localStorage} + DB).
+\item [UI] Desarrollar vista de Perfil con funcionalidad de subida de avatar.
+\end{itemize}
+
+\subsubsection{Retrospectiva del Sprint 1}
+\begin{itemize}
+\item \textbf{Lo bueno:} La integración de PocketBase fue mucho más rápida de lo esperado en comparación con Firebase.
+\item \textbf{A mejorar:} El manejo de estado de sesión en componentes de servidor (RSC) vs componentes de cliente causó confusión inicial.
+\item \textbf{Acción:} Se estandarizó el uso de un hook \texttt{useAuth} solo en componentes cliente.
+\end{itemize}
+
+---
+
+\subsection{Sprint 2: Implementación del Asistente Inteligente}
+
+\textbf{Objetivo del Sprint:} Desarrollar el "corazón" del sistema: el núcleo conversacional. Integrar el modelo Gemini 3.0 Flash, habilitar el streaming de respuestas para mejorar la UX y configurar las distintas personalidades pedagógicas.
+
+\textbf{Riesgos Identificados:}
+\begin{itemize}
+\item Latencia alta en respuestas de la IA.
+\item Posible exposición de la API Key en el cliente.
+\item Alucinaciones del modelo en temas técnicos.
+\end{itemize}
+
+\subsubsection{Sprint Backlog (Historias Seleccionadas)}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|l|l|}
+\hline
+\textbf{ID} & \textbf{Historia de Usuario} & \textbf{Prioridad} & \textbf{Estimación} \\
+\hline
+\textbf{HU-20} & Protección de API Key (Proxy) & Crítica & 3 pts \\
+\hline
+\textbf{HU-04} & Chat Streaming en Tiempo Real & Alta & 8 pts \\
+\hline
+\textbf{HU-05} & Renderizado de Markdown Rico & Media & 5 pts \\
+\hline
+\textbf{HU-06} & Memoria Contextual & Alta & 5 pts \\
+\hline
+\textbf{HU-07} & Modo Tutor Socrático & Alta & 5 pts \\
+\hline
+\textbf{HU-08} & Modo Roleplay & Media & 5 pts \\
+\hline
+\textbf{HU-09} & Modo Taller de Entregables & Baja & 3 pts \\
+\hline
+\end{tabularx}
+\caption{Backlog del Sprint}
+\end{table}
+
+\subsubsection{Desglose de Tareas Técnicas (Engineering Tasks)}
+
+\begin{itemize}
+\item \textbf{Integración de IA (Backend):}
+\item [Backend] Crear Route Handler \texttt{/api/chat} para ocultar la comunicación con Google.
+\item [Seguridad] Configurar variables de entorno en servidor (\texttt{GOOGLE_API_KEY}).
+\item [Backend] Implementar \texttt{GoogleGenerativeAIStream} (AI SDK) para streaming de texto.
+\item [Lógica] Desarrollar servicio de inyección de \textit{System Prompts} dinámicos según el modo seleccionado.
+\end{itemize}
+
+\begin{itemize}
+\item \textbf{Interfaz de Chat (Frontend):}
+\item [Frontend] Implementar hook \texttt{useChat} para manejo de mensajes y estado de carga (\texttt{isLoading}).
+\item [UI] Integrar \texttt{react-markdown} con plugins (\texttt{remark-gfm}) para tablas y listas.
+\item [UI] Crear componentes visuales para mensajes de usuario (burbuja azul) vs IA (burbuja gris con logo).
+\item [UX] Implementar \textit{auto-scroll} suave al recibir nuevos tokens.
+\end{itemize}
+
+\begin{itemize}
+\item \textbf{Ingeniería de Prompts:}
+\item [AI] Diseñar y testear el prompt "Socrático": \textit{Restricción de no responder, solo preguntar}.
+\item [AI] Diseñar prompt "Roleplay": \textit{Definición de personalidades (Stakeholder enojado)}.
+\item [AI] Implementar ventana deslizante de contexto (últimos 10 mensajes) para mantener coherencia.
+\end{itemize}
+
+\subsubsection{Retrospectiva del Sprint 2}
+\begin{itemize}
+\item \textbf{Lo bueno:} El streaming mejora drásticamente la percepción de velocidad. Gemini 3.0 es muy capaz en razonamiento lógico.
+\item \textbf{A mejorar:} Las tablas de Markdown a veces rompen el diseño móvil.
+\item \textbf{Acción:} Se añadió un contenedor con \texttt{overflow-x-auto} a las tablas renderizadas.
+\end{itemize}
+
+---
+
+\subsection{Sprint 3: Módulo de Simulación y Evaluación}
+
+\textbf{Objetivo del Sprint:} Construir el motor de generación procedural de exámenes y la interfaz de simulación cronometrada. Este sprint transforma la herramienta de un simple chat a una plataforma de evaluación objetiva.
+
+\textbf{Riesgos Identificados:}
+\begin{itemize}
+\item Generación de JSON inválido por parte de la IA.
+\item Pérdida de estado del examen si el usuario recarga la página.
+\end{itemize}
+
+\subsubsection{Sprint Backlog (Historias Seleccionadas)}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|l|l|}
+\hline
+\textbf{ID} & \textbf{Historia de Usuario} & \textbf{Prioridad} & \textbf{Estimación} \\
+\hline
+\textbf{HU-11} & Generador de Preguntas (JSON) & Crítica & 8 pts \\
+\hline
+\textbf{HU-23} & Validación de Integridad (Zod) & Alta & 3 pts \\
+\hline
+\textbf{HU-12} & Interfaz de Examen (Simulador) & Alta & 8 pts \\
+\hline
+\textbf{HU-13} & Motor de Evaluación y Feedback & Alta & 5 pts \\
+\hline
+\textbf{HU-14} & Historial de Intentos & Media & 5 pts \\
+\hline
+\end{tabularx}
+\caption{Backlog del Sprint}
+\end{table}
+
+\subsubsection{Desglose de Tareas Técnicas (Engineering Tasks)}
+
+\begin{itemize}
+\item \textbf{Generación y Validación:}
+\item [AI] Crear prompt específico para salida JSON estructurada (\texttt{Schema enforcement}).
+\item [Backend] Implementar esquema Zod: \texttt{QuestionSchema} (pregunta, opciones[], respuesta, explicación).
+\item [Backend] Crear lógica de reintento (retry) si el JSON generado es inválido.
+\end{itemize}
+
+\begin{itemize}
+\item \textbf{Simulador (Frontend):}
+\item [UI] Desarrollar componente \texttt{ExamSimulator} aislado (sin sidebar/chat).
+\item [Lógica] Implementar máquina de estados del examen: \texttt{idle} -> \texttt{loading} -> \texttt{active} -> \texttt{finished}.
+\item [UI] Crear temporizador decreciente (\texttt{CountdownTimer}).
+\item [UI] Diseñar vista de resultados con indicadores visuales (Check verde / Cruz roja).
+\end{itemize}
+
+\begin{itemize}
+\item \textbf{Persistencia:}
+\item [DB] Crear colección \texttt{simulation_results} en PocketBase.
+\item [Backend] Guardar el examen completo (preguntas + respuestas usuario) para revisión futura.
+\end{itemize}
+
+\subsubsection{Retrospectiva del Sprint 3}
+\begin{itemize}
+\item \textbf{Lo bueno:} La generación procedural garantiza que el usuario nunca memorice preguntas.
+\item \textbf{A mejorar:} La generación de 10 preguntas tarda unos 15 segundos, lo cual es lento.
+\item \textbf{Acción:} Se implementó una pantalla de carga con "tips de estudio" aleatorios para amenizar la espera.
+\end{itemize}
+
+---
+
+\subsection{Sprint 4: Gamificación, Optimización y Cierre}
+
+\textbf{Objetivo del Sprint:} Implementar las mecánicas de retención (gamificación), optimizar el rendimiento global, realizar pruebas de carga y finalizar la documentación académica.
+
+\textbf{Riesgos Identificados:}
+\begin{itemize}
+\item Complejidad lógica en el cálculo de desbloqueo de niveles.
+\item "Bugs de integración" al unir todos los módulos.
+\end{itemize}
+
+\subsubsection{Sprint Backlog (Historias Seleccionadas)}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|l|l|}
+\hline
+\textbf{ID} & \textbf{Historia de Usuario} & \textbf{Prioridad} & \textbf{Estimación} \\
+\hline
+\textbf{HU-15} & Mapa de Niveles (Bloqueo/Desbloqueo) & Alta & 5 pts \\
+\hline
+\textbf{HU-16} & Sistema de XP y Nivel de Usuario & Media & 5 pts \\
+\hline
+\textbf{HU-17} & Racha de Estudio (Streak) & Baja & 3 pts \\
+\hline
+\textbf{HU-18} & Dashboard de Métricas & Media & 5 pts \\
+\hline
+\textbf{HU-21} & Manejo de Errores Global (Error Boundary) & Alta & 3 pts \\
+\hline
+\textbf{Cierre} & Documentación y Despliegue Final & - & - \\
+\hline
+\end{tabularx}
+\caption{Backlog del Sprint}
+\end{table}
+
+\subsubsection{Desglose de Tareas Técnicas (Engineering Tasks)}
+
+\begin{itemize}
+\item \textbf{Gamificación:}
+\item [Lógica] Definir archivo maestro \texttt{gameData.ts} con la estructura de Mundos y Niveles.
+\item [Backend] Actualizar perfil de usuario al completar nivel: \texttt{completedLevels.push(id)}.
+\item [UI] Implementar efecto de confeti (\texttt{canvas-confetti}) al aprobar.
+\item [Lógica] Calcular racha diaria comparando \texttt{lastLoginDate}.
+\end{itemize}
+
+\begin{itemize}
+\item \textbf{Calidad y Cierre:}
+\item [Frontend] Envolver aplicación en \texttt{ErrorBoundary} de React para capturar crasheos no controlados.
+\item [UX] Implementar notificaciones tipo "Toast" (\texttt{react-hot-toast}) para feedback de acciones.
+\item [Testing] Ejecutar pruebas de carga manuales (ver Anexo C).
+\item [Doc] Generar capturas de pantalla y redactar manual de usuario.
+\end{itemize}
+
+\subsubsection{Retrospectiva Final (Project Post-Mortem)}
+\begin{itemize}
+\item \textbf{Conclusión:} Se logró un MVP robusto que cumple con todos los "Must Have".
+\item \textbf{Deuda Técnica:} Queda pendiente implementar tests unitarios automatizados (Jest/Vitest) para la lógica de negocio pura, ya que la validación fue principalmente manual/exploratoria.
+\end{itemize}

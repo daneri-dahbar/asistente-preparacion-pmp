@@ -5,6 +5,7 @@ import pb from '@/lib/pocketbase';
 import { useRouter } from 'next/navigation';
 import { WORLDS } from '@/lib/gameData';
 import { syncLocalProgress, saveCompletedLevel, updateUserStats, getUserProgress } from '@/lib/userProgress';
+import { PanelLeftOpen } from 'lucide-react';
 
 // Components
 import Sidebar from '@/app/components/workspace/Sidebar';
@@ -28,6 +29,7 @@ export default function WelcomePage() {
     const [chatMode, setChatMode] = useState<string>('standard'); // standard, simulation, workshop, socratic, exam_simulation
     const [isChatViewOpen, setIsChatViewOpen] = useState(false);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+    const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true);
     
     // Exam Simulation State
     const [isExamMode, setIsExamMode] = useState(false);
@@ -839,17 +841,30 @@ export default function WelcomePage() {
                 isLoadingChats={isLoadingChats}
                 isOpen={isMobileSidebarOpen}
                 onClose={() => setIsMobileSidebarOpen(false)}
+                isDesktopOpen={isDesktopSidebarOpen}
+                onToggleDesktop={() => setIsDesktopSidebarOpen(prev => !prev)}
             />
 
             {/* Onboarding Modal */}
             <OnboardingModal 
                 isOpen={showOnboarding} 
                 onClose={handleCloseOnboarding} 
-                userInitials={user?.name?.[0] || 'U'}
+                userName={user?.name || user?.username || 'Estudiante'}
             />
 
             {/* Main Content Area */}
             <main className="flex-1 flex flex-col relative min-w-0">
+                {/* Desktop Expand Button */}
+                {!isDesktopSidebarOpen && (
+                    <button 
+                        onClick={() => setIsDesktopSidebarOpen(true)}
+                        className="hidden md:flex absolute top-4 left-4 z-30 p-2 bg-white dark:bg-gray-800 rounded-md shadow-md border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
+                        title="Mostrar barra lateral"
+                    >
+                        <PanelLeftOpen className="w-5 h-5" />
+                    </button>
+                )}
+
                 {/* Mobile Header */}
                 <div className="md:hidden flex items-center p-3 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 sticky top-0 z-30">
                     <button 

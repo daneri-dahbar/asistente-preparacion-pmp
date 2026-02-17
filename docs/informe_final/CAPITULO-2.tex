@@ -1,0 +1,293 @@
+\chapter{Capítulo 2: Marco Teórico}
+El presente capítulo tiene como propósito establecer el marco conceptual y teórico que sustenta el desarrollo del asistente virtual propuesto, así como contextualizar la investigación dentro del estado actual del conocimiento en las áreas involucradas. Para ello, se integran fundamentos provenientes de la gestión de proyectos, la inteligencia artificial —en particular los Modelos de Lenguaje de Gran Escala (LLM)—, la educación asistida por tecnología y las técnicas de estudio aplicadas al aprendizaje autodirigido y a la preparación para certificaciones profesionales.
+
+En primer lugar, se abordan los principios de la gestión de proyectos como disciplina, poniendo especial énfasis en la certificación Project Management Professional (PMP) otorgada por el Project Management Institute. Se analiza la estructura del examen, sus dominios y la relevancia del PMBOK Guide como marco de referencia conceptual, dado que constituye la base normativa y filosófica sobre la cual se evalúan las competencias del profesional certificado. Este análisis resulta esencial para comprender el dominio específico al que se orienta el asistente virtual desarrollado.
+
+A continuación, se introduce el concepto de los Modelos de Lenguaje de Gran Escala, describiendo su evolución, arquitectura general y capacidades distintivas. Se examinan tanto sus fortalezas —como la comprensión contextual, la generación de lenguaje natural y el razonamiento basado en texto— como sus limitaciones actuales, con el objetivo de ofrecer una visión equilibrada que permita fundamentar su uso como soporte educativo. Este apartado proporciona el sustento técnico necesario para justificar la selección y utilización de un LLM como núcleo del asistente virtual.
+
+Posteriormente, el capítulo profundiza en la aplicación de los LLM en el ámbito educativo, analizando su rol en el aprendizaje asistido por inteligencia artificial, los procesos de evaluación educativa y la personalización del aprendizaje. Se revisan enfoques y resultados reportados en la literatura reciente, destacando el potencial de estos modelos para enriquecer experiencias formativas, especialmente en contextos de aprendizaje autónomo y formación profesional avanzada.
+
+Asimismo, se presentan y analizan distintas técnicas de estudio, tanto tradicionales como modernas, con énfasis en aquellas basadas en principios de metacognición y aprendizaje autodirigido. Estas técnicas constituyen un componente clave del diseño pedagógico del asistente, ya que permiten alinear la interacción con el usuario con prácticas de estudio efectivas y reconocidas en la preparación para certificaciones exigentes como la PMP.
+
+Finalmente, el capítulo incluye un análisis de trabajos relacionados, abarcando herramientas existentes para la preparación del examen PMP y asistentes educativos basados en inteligencia artificial. Este análisis comparativo permite identificar similitudes, diferencias y vacíos en las soluciones actuales, posicionando la propuesta desarrollada dentro del estado del arte y destacando sus aportes diferenciales desde una perspectiva académica y tecnológica.
+
+En conjunto, este capítulo proporciona el sustento teórico y contextual necesario para comprender las decisiones de diseño, implementación y evaluación adoptadas en los capítulos posteriores, estableciendo una base sólida para el desarrollo integral del trabajo.
+
+
+\section{2.1 Gestión de proyectos y certificación PMP}
+La gestión de proyectos se ha consolidado en la actualidad como una disciplina clave para el logro de objetivos estratégicos en organizaciones públicas y privadas, especialmente en contextos caracterizados por la complejidad, la incertidumbre y el cambio continuo. En un entorno global cada vez más dinámico, los proyectos se convierten en el principal vehículo para la implementación de iniciativas de transformación, innovación y mejora organizacional, lo que incrementa la necesidad de contar con profesionales capaces de gestionarlos de manera integral y efectiva.
+
+Desde una perspectiva contemporánea, la gestión de proyectos ya no se limita a la aplicación de técnicas de planificación y control, sino que incorpora de manera explícita dimensiones humanas, organizacionales y estratégicas. En este sentido, el Project Management Institute (PMI) promueve una visión holística de la disciplina, donde el foco se desplaza desde el cumplimiento estricto de restricciones tradicionales hacia la entrega de valor, la adaptación al contexto y la satisfacción de las partes interesadas (Project Management Institute, 2021).
+
+En este marco, la certificación Project Management Professional (PMP) se posiciona como uno de los estándares internacionales más reconocidos para validar competencias profesionales en dirección de proyectos. Dicha certificación no solo acredita conocimientos técnicos, sino también la capacidad de liderazgo, el razonamiento situacional y la toma de decisiones informadas en entornos complejos. El presente apartado desarrolla los fundamentos de la gestión de proyectos como disciplina, analiza la estructura y objetivos de la certificación PMP y destaca la relevancia del PMBOK® en su séptima edición como referencia central del examen y de la práctica profesional actual.
+
+
+\subsection{2.1.1 Gestión de proyectos como disciplina}
+La gestión de proyectos puede definirse como la aplicación de conocimientos, habilidades, herramientas y técnicas a las actividades de un proyecto con el propósito de cumplir sus objetivos y generar valor sostenible para la organización y sus partes interesadas. A diferencia de las operaciones, los proyectos son esfuerzos temporales orientados a la creación de productos, servicios o resultados únicos, lo que implica la necesidad de una gestión específica y estructurada (Project Management Institute, 2021).
+
+En las últimas décadas, la disciplina ha experimentado una evolución significativa. Los enfoques tradicionales de carácter predictivo, basados en una planificación detallada y secuencial, han sido complementados —y en muchos contextos reemplazados— por enfoques ágiles e híbridos, que priorizan la adaptabilidad, la colaboración y el aprendizaje continuo. Esta evolución responde al aumento de la complejidad de los entornos organizacionales y a la necesidad de gestionar proyectos en escenarios donde los requisitos y las condiciones pueden cambiar de manera constante (Kerzner, 2022).
+
+Actualmente, la gestión de proyectos se concibe como una disciplina integradora que combina aspectos técnicos —como la planificación, el control del alcance, el cronograma, los costos y los riesgos— con dimensiones humanas y organizacionales, tales como el liderazgo, la comunicación efectiva, la gestión de interesados y la toma de decisiones en entornos inciertos. Esta concepción reconoce que el éxito de un proyecto no depende exclusivamente del cumplimiento de métricas tradicionales, sino también de la capacidad del equipo para generar valor, adaptarse al contexto y responder a las expectativas de los actores involucrados (Project Management Institute, 2021).
+
+En el ámbito de la ingeniería informática, esta visión resulta especialmente relevante, dado que los proyectos de software suelen desarrollarse en entornos altamente dinámicos, con fuerte dependencia del conocimiento, interacción continua entre equipos multidisciplinarios y una elevada exposición a la incertidumbre tecnológica. En consecuencia, la gestión de proyectos se posiciona como una competencia transversal esencial para los profesionales del área.
+
+
+\subsection{2.1.2 Certificación PMP: objetivos, estructura y dominios}
+La certificación Project Management Professional (PMP), otorgada por el Project Management Institute, constituye una de las credenciales más prestigiosas y reconocidas a nivel internacional en el campo de la gestión de proyectos. Su objetivo principal es validar que el profesional certificado posee la experiencia, el conocimiento y las competencias necesarias para liderar proyectos complejos de manera efectiva, alineando los objetivos del proyecto con la estrategia organizacional (PMI, 2024).
+
+El examen PMP se caracteriza por su enfoque situacional y aplicado. A diferencia de evaluaciones centradas exclusivamente en la memorización de conceptos, el examen evalúa la capacidad del aspirante para analizar escenarios reales de proyectos y seleccionar la respuesta más adecuada conforme a principios, buenas prácticas y criterios profesionales. Este enfoque busca reflejar de manera más fiel los desafíos que enfrentan los directores de proyectos en contextos reales.
+
+En su versión actual, el contenido del examen se organiza en tres dominios principales:
+
+\begin{itemize}
+\item Personas (People): abarca competencias relacionadas con el liderazgo, la gestión de equipos, la comunicación, la motivación y la resolución de conflictos.
+\item Procesos (Process): incluye los aspectos técnicos de la gestión de proyectos, como la planificación, la ejecución, el monitoreo y el control del trabajo del proyecto.
+\item Entorno de negocio (Business Environment): se enfoca en la alineación del proyecto con los objetivos estratégicos de la organización y en la generación de valor.
+\end{itemize}
+
+Esta estructura refleja un cambio significativo respecto de versiones anteriores del examen, al otorgar un peso sustancial a las habilidades interpersonales y al contexto organizacional, en consonancia con la evolución de la disciplina y con las demandas actuales del mercado profesional (PMI, 2024).
+
+La amplitud conceptual y la profundidad de los dominios evaluados convierten a la preparación para el examen PMP en un proceso exigente, que requiere no solo estudio teórico, sino también la capacidad de integrar conocimientos y aplicarlos de manera flexible y contextualizada.
+
+
+\subsection{2.1.3 Importancia del PMBOK (séptima edición)}
+La Guía del Project Management Body of Knowledge (PMBOK®) constituye el principal marco de referencia desarrollado por el Project Management Institute para la práctica de la gestión de proyectos. La séptima edición, publicada en 2021, representa un cambio de paradigma respecto de ediciones anteriores, al abandonar un enfoque prescriptivo basado en procesos para adoptar una orientación centrada en principios y en la entrega de valor (Project Management Institute, 2021).
+
+El PMBOK® 7 define un conjunto de principios fundamentales que guían el comportamiento y la toma de decisiones del director de proyectos, independientemente del enfoque metodológico utilizado. Entre estos principios se destacan la orientación al valor, el liderazgo efectivo, la adaptación al contexto, la colaboración con las partes interesadas y el pensamiento sistémico. Esta aproximación reconoce que no existe una única forma correcta de gestionar proyectos, sino que las prácticas deben ajustarse a las características específicas de cada entorno.
+
+Asimismo, la séptima edición introduce el concepto de dominios de desempeño, que describen áreas clave de atención a lo largo del ciclo de vida del proyecto, tales como el equipo, los interesados, la planificación, la entrega, la medición y la gestión de la incertidumbre. Esta estructura facilita la integración de enfoques predictivos, ágiles e híbridos dentro de un mismo marco conceptual, alineándose con la realidad actual de la práctica profesional.
+
+La relevancia del PMBOK® 7 para la certificación PMP es central, ya que sus principios y dominios constituyen la base conceptual del examen. Comprender este marco resulta esencial para interpretar adecuadamente las preguntas del examen, que suelen presentar situaciones complejas donde se evalúa el juicio profesional más que la aplicación mecánica de técnicas.
+
+Desde una perspectiva educativa, el cambio de enfoque introducido por el PMBOK® 7 plantea un desafío adicional para los aspirantes, al exigir un razonamiento más abstracto y contextual. Este escenario refuerza la necesidad de herramientas de apoyo que faciliten la comprensión profunda de los principios y promuevan el análisis situacional, aspecto que resulta especialmente relevante para el desarrollo del asistente virtual propuesto en este trabajo.
+
+
+\section{2.2 Modelos de Lenguaje de Gran Escala (LLM)}
+Los Modelos de Lenguaje de Gran Escala (Large Language Models, LLM) constituyen uno de los avances más significativos en el campo de la inteligencia artificial aplicada al procesamiento del lenguaje natural (Natural Language Processing, NLP). Estos modelos han transformado de manera sustancial la forma en que los sistemas computacionales interpretan, generan y razonan sobre el lenguaje humano, habilitando aplicaciones que van desde asistentes conversacionales hasta sistemas de soporte cognitivo en dominios especializados.
+
+Desde una perspectiva teórica, los LLM se inscriben dentro del paradigma de los foundation models, es decir, modelos entrenados sobre grandes volúmenes de datos y diseñados para ser reutilizados y adaptados a múltiples tareas sin necesidad de entrenamiento específico para cada una de ellas (Bommasani et al., 2021). Esta característica resulta central para el desarrollo de asistentes inteligentes capaces de operar en contextos complejos, como la preparación para certificaciones profesionales de alta exigencia conceptual.
+
+En esta sección se analizan el concepto y la evolución de los LLM, su arquitectura general y las principales capacidades y limitaciones que presentan, estableciendo el marco teórico necesario para comprender su potencial como base tecnológica del asistente virtual propuesto en este trabajo.
+
+
+\subsection{2.2.1 Concepto y evolución de los LLM}
+Un modelo de lenguaje de gran escala puede definirse como un modelo estadístico basado en redes neuronales profundas, entrenado sobre corpus masivos de texto con el objetivo de aprender patrones lingüísticos, relaciones semánticas y estructuras contextuales del lenguaje natural. A diferencia de enfoques tradicionales basados en reglas o características manuales, los LLM adquieren su conocimiento de manera implícita a partir de los datos, lo que les permite generalizar a una amplia variedad de tareas lingüísticas (Qiu et al., 2020).
+
+La evolución de los LLM está estrechamente ligada al desarrollo del deep learning y, en particular, al surgimiento de la arquitectura Transformer, introducida por Vaswani et al. (2017). Este enfoque permitió superar limitaciones de modelos secuenciales previos, como las redes recurrentes, al incorporar mecanismos de atención que facilitan el procesamiento eficiente de dependencias de largo alcance en el texto.
+
+A partir de este hito, comenzaron a desarrollarse modelos preentrenados cada vez más grandes y potentes, como BERT (Devlin et al., 2019), GPT-3 (Brown et al., 2020) y sus sucesivas generaciones. Estos modelos demostraron que el escalado en tamaño del modelo y del conjunto de datos de entrenamiento conduce a mejoras significativas en el desempeño, fenómeno conocido como scaling laws (Kaplan et al., 2020).
+
+En los últimos años, la evolución de los LLM no se ha limitado únicamente al aumento de parámetros, sino que ha incorporado mejoras en términos de alineación con objetivos humanos, razonamiento, multimodalidad y control del comportamiento. Modelos recientes integran capacidades para procesar múltiples tipos de entrada (texto, imágenes, audio), así como técnicas avanzadas de alineación mediante aprendizaje por refuerzo con retroalimentación humana (RLHF), lo que mejora la coherencia, utilidad y seguridad de las respuestas generadas (OpenAI, 2023; Bai et al., 2022).
+
+Esta evolución ha consolidado a los LLM como una tecnología madura para su aplicación en sistemas interactivos complejos, sentando las bases para su uso como asistentes inteligentes en contextos educativos y profesionales.
+
+
+\subsection{2.2.2 Arquitectura general de los LLM modernos}
+Desde el punto de vista arquitectónico, los LLM modernos se basan predominantemente en variantes del modelo Transformer, el cual se estructura en capas apiladas de bloques de atención y redes neuronales feed-forward. El componente central de esta arquitectura es el mecanismo de self-attention, que permite al modelo ponderar dinámicamente la relevancia de cada token en relación con el resto de la secuencia de entrada (Vaswani et al., 2017).
+
+Cada capa de un LLM incluye múltiples cabezas de atención (multi-head attention), lo que posibilita capturar distintos tipos de relaciones semánticas y sintácticas en paralelo. Esta capacidad resulta clave para comprender textos extensos y contextos complejos, como los que caracterizan a documentos técnicos, normativos o escenarios situacionales propios de la gestión de proyectos.
+
+El proceso de entrenamiento de un LLM se divide generalmente en dos etapas principales. En primer lugar, se realiza un preentrenamiento auto-supervisado sobre grandes volúmenes de texto, utilizando objetivos como la predicción del siguiente token. Posteriormente, el modelo puede ser alineado o ajustado mediante técnicas adicionales, como el aprendizaje por refuerzo con retroalimentación humana, con el fin de mejorar la calidad, utilidad y adecuación de las respuestas generadas (Ouyang et al., 2022).
+
+En arquitecturas modernas, los LLM suelen integrarse dentro de sistemas más amplios que incluyen mecanismos de prompting, memoria contextual, herramientas externas y recuperación de información (retrieval-augmented generation). Esta integración permite extender las capacidades del modelo más allá de su conocimiento paramétrico, reduciendo errores y mejorando la consistencia de las respuestas en dominios especializados (Lewis et al., 2020).
+
+Desde una perspectiva de ingeniería de software, esta arquitectura modular favorece el diseño de asistentes virtuales que combinan el razonamiento lingüístico del LLM con reglas de negocio, fuentes externas de conocimiento y flujos de interacción controlados, aspecto particularmente relevante en aplicaciones educativas y de certificación profesional.
+
+
+\subsection{2.2.3 Capacidades y limitaciones}
+Los LLM presentan un conjunto de capacidades que los convierten en una tecnología especialmente atractiva para su uso como soporte cognitivo y educativo. Entre sus principales fortalezas se destacan la comprensión contextual del lenguaje natural, la generación de explicaciones coherentes, la reformulación de conceptos complejos y la simulación de escenarios hipotéticos. Estas capacidades permiten a los LLM actuar como intermediarios cognitivos entre el conocimiento formal y el usuario final (Bommasani et al., 2021).
+
+Asimismo, los LLM muestran una notable flexibilidad para adaptarse a distintos dominios mediante técnicas de few-shot learning y prompt engineering, lo que reduce la necesidad de entrenamientos específicos y facilita su aplicación en contextos especializados. Esta característica resulta particularmente valiosa en dominios como la gestión de proyectos, donde los conceptos combinan aspectos técnicos, organizacionales y situacionales.
+
+No obstante, junto con estas capacidades, los LLM presentan limitaciones relevantes que deben ser consideradas cuidadosamente. Una de las principales es la posibilidad de generar respuestas incorrectas o imprecisas con alta fluidez lingüística, fenómeno conocido como hallucinations. Este comportamiento puede resultar problemático en contextos educativos si no se implementan mecanismos de validación, control y alineación con fuentes confiables (Ji et al., 2023).
+
+Otra limitación importante se relaciona con la falta de razonamiento verdaderamente simbólico o causal. Si bien los LLM pueden emular procesos de razonamiento, su funcionamiento se basa en correlaciones estadísticas aprendidas durante el entrenamiento, lo que puede derivar en errores cuando se enfrentan a situaciones que requieren una lógica estricta o conocimiento normativo específico.
+
+Adicionalmente, existen desafíos vinculados a la transparencia, la interpretabilidad y los sesgos presentes en los datos de entrenamiento, así como consideraciones éticas relacionadas con el uso responsable de estas tecnologías en entornos educativos y profesionales (Bender et al., 2021).
+
+En consecuencia, la literatura reciente coincide en que el mayor valor de los LLM no reside en su uso autónomo, sino en su integración dentro de sistemas diseñados con criterios pedagógicos, técnicos y éticos claros. En el marco de este trabajo, estas consideraciones resultan fundamentales para justificar el diseño de un asistente virtual que utilice un LLM como componente central, pero que incorpore mecanismos de control, contextualización y apoyo al aprendizaje, alineados con los objetivos de la certificación PMP.
+
+
+\section{2.3 Modelos de Lenguaje de Gran Escala (LLM) aplicados a educación}
+La aplicación de los Modelos de Lenguaje de Gran Escala (Large Language Models, LLM) en el ámbito educativo ha emergido como una de las líneas de investigación y desarrollo más relevantes dentro del campo de la inteligencia artificial aplicada. A partir de su capacidad para comprender y generar lenguaje natural de manera contextualizada, estos modelos habilitan nuevas formas de interacción entre los sistemas digitales y los procesos de enseñanza y aprendizaje, superando las limitaciones de los entornos educativos tradicionales basados en contenidos estáticos y flujos unidireccionales.
+
+A diferencia de tecnologías educativas previas, los LLM permiten establecer interacciones conversacionales dinámicas, adaptativas y orientadas al razonamiento, lo que los posiciona como herramientas potenciales para el aprendizaje autónomo, la evaluación formativa y la personalización de trayectorias educativas. En este contexto, su incorporación en escenarios de formación profesional y certificaciones exigentes, como la Project Management Professional (PMP), resulta particularmente pertinente, dado que estos procesos requieren no solo memorización de conceptos, sino también comprensión profunda, análisis situacional y aplicación contextual del conocimiento.
+
+No obstante, la adopción de LLM en educación también plantea desafíos pedagógicos, éticos y metodológicos que deben ser abordados de manera crítica. Por ello, resulta necesario analizar de forma diferenciada sus principales aportes en tres dimensiones clave: el aprendizaje asistido por inteligencia artificial, la evaluación educativa y la personalización del aprendizaje.
+
+
+\subsection{2.3.1 Aprendizaje asistido por inteligencia artificial}
+El aprendizaje asistido por inteligencia artificial se refiere al uso de sistemas inteligentes como apoyo activo al proceso de adquisición de conocimientos, sin reemplazar el rol del estudiante ni del docente. En este marco, los LLM han demostrado un alto potencial para actuar como tutores virtuales capaces de ofrecer explicaciones, ejemplos y orientaciones en lenguaje natural, adaptándose al contexto y a las preguntas formuladas por el usuario.
+
+Diversos estudios recientes señalan que los LLM pueden facilitar el aprendizaje activo al promover la formulación de preguntas, el razonamiento guiado y la exploración conceptual iterativa (Kasneci et al., 2023). A diferencia de los materiales educativos tradicionales, que suelen presentar la información de manera lineal, los LLM permiten al estudiante interactuar de forma no secuencial, profundizando en aquellos conceptos que resultan más complejos o relevantes para su proceso de aprendizaje.
+
+En contextos de formación profesional, esta capacidad resulta especialmente valiosa. El aprendizaje de competencias complejas —como las evaluadas en el examen PMP— requiere comprender no solo definiciones formales, sino también principios subyacentes, criterios de decisión y la aplicación de buenas prácticas en escenarios reales. Los LLM pueden contribuir a este proceso mediante la generación de ejemplos contextualizados, la reformulación de conceptos desde diferentes perspectivas y la simulación de situaciones problemáticas propias del dominio.
+
+Asimismo, el uso de LLM favorece el aprendizaje autodirigido, una competencia clave en la educación de adultos. La posibilidad de acceder a un asistente disponible de manera permanente permite que el estudiante avance a su propio ritmo, formule consultas en el momento en que surgen las dudas y reciba apoyo inmediato, reduciendo la dependencia de instancias formales de enseñanza (Holmes et al., 2022).
+
+Sin embargo, la literatura también advierte sobre el riesgo de un uso acrítico de estas herramientas. Un aprendizaje excesivamente asistido puede derivar en una reducción del esfuerzo cognitivo si no se diseñan estrategias que fomenten la reflexión y la comprensión profunda. En consecuencia, el valor educativo de los LLM depende en gran medida del diseño pedagógico que guíe su integración como herramientas de apoyo y no como sustitutos del proceso de aprendizaje.
+
+
+\subsection{2.3.2 Evaluación educativa con LLM}
+La evaluación constituye un componente central del proceso educativo, ya que permite medir el progreso del estudiante, identificar dificultades y orientar estrategias de mejora. En este ámbito, los LLM han comenzado a ser explorados como herramientas capaces de asistir tanto en la evaluación formativa como en la provisión de retroalimentación cualitativa.
+
+Una de las principales ventajas de los LLM en la evaluación educativa es su capacidad para analizar respuestas abiertas y generar comentarios explicativos de manera inmediata. Estudios recientes indican que estos modelos pueden ofrecer retroalimentación coherente y útil, especialmente en tareas que requieren razonamiento, argumentación o aplicación de conceptos, superando las limitaciones de los sistemas de evaluación automatizada basados exclusivamente en respuestas cerradas (Matelsky et al., 2023).
+
+En el contexto de certificaciones profesionales, como la PMP, la evaluación no se limita a verificar la corrección de una respuesta, sino que busca comprender el razonamiento que conduce a la elección de una alternativa determinada. Los LLM pueden contribuir a este proceso explicando por qué una respuesta es correcta o incorrecta, comparando opciones posibles y relacionando la decisión con principios y dominios del marco conceptual correspondiente.
+
+Además, los LLM permiten implementar evaluaciones de carácter diagnóstico y formativo, orientadas a identificar patrones de error recurrentes y áreas de debilidad conceptual. Esta información resulta clave para orientar el estudio posterior y optimizar el uso del tiempo de preparación, especialmente en contextos donde el margen temporal es limitado.
+
+No obstante, la utilización de LLM en procesos de evaluación plantea desafíos relevantes. Entre ellos se destacan la necesidad de garantizar la consistencia de los criterios de evaluación, la alineación con estándares oficiales y la prevención de sesgos en las respuestas generadas. Por este motivo, la literatura enfatiza que los LLM deben ser utilizados como herramientas de apoyo a la evaluación, complementando —pero no reemplazando— los mecanismos formales y humanos de validación del aprendizaje (Zawacki-Richter et al., 2023).
+
+
+\subsection{2.3.3 Personalización del aprendizaje}
+La personalización del aprendizaje es uno de los aportes más significativos de los LLM al ámbito educativo. A partir de su capacidad para mantener el contexto de interacción, analizar las respuestas del usuario y adaptar el contenido generado, estos modelos permiten construir experiencias educativas ajustadas a las necesidades, intereses y nivel de conocimiento de cada estudiante.
+
+La investigación reciente destaca que los LLM pueden actuar como sistemas adaptativos de aprendizaje, ajustando la complejidad de las explicaciones, el tipo de ejemplos utilizados y el enfoque pedagógico en función del progreso del usuario (Khosravi et al., 2022). Esta adaptabilidad resulta especialmente relevante en entornos de aprendizaje heterogéneos, donde los estudiantes presentan trayectorias previas y estilos cognitivos diversos.
+
+En el caso de la preparación para certificaciones profesionales, la personalización permite focalizar el estudio en aquellos dominios o áreas donde el aspirante presenta mayores dificultades, evitando enfoques generalistas que pueden resultar ineficientes o redundantes. Un asistente basado en LLM puede, por ejemplo, reforzar conceptos específicos, proponer preguntas de práctica orientadas a debilidades detectadas o reformular explicaciones utilizando analogías más cercanas al contexto profesional del usuario.
+
+Desde una perspectiva pedagógica, esta personalización favorece el aprendizaje significativo, ya que conecta los nuevos conocimientos con experiencias previas y necesidades concretas. Asimismo, contribuye a incrementar la motivación y el compromiso del estudiante, al percibir que el proceso de aprendizaje responde a sus objetivos individuales y no a un esquema rígido predefinido.
+
+Sin embargo, la literatura también advierte sobre el riesgo de una personalización excesiva, que podría limitar la exposición del estudiante a la diversidad de situaciones evaluadas en un examen estandarizado como el PMP. Por ello, resulta fundamental diseñar mecanismos que equilibren la adaptación individual con una cobertura adecuada de todos los dominios y enfoques requeridos, asegurando una preparación integral.
+
+En síntesis, los LLM ofrecen un conjunto de capacidades que, correctamente integradas, pueden transformar la forma en que se conciben el aprendizaje, la evaluación y la personalización en contextos educativos avanzados. Este potencial justifica su exploración sistemática como base tecnológica para el desarrollo del asistente virtual propuesto en el presente trabajo.
+
+
+\section{2.4 Técnicas de estudio y aprendizaje autodirigido}
+La preparación para certificaciones profesionales de alta exigencia cognitiva, como la Project Management Professional (PMP), requiere no solo el acceso a contenidos de calidad, sino también la aplicación de estrategias de estudio eficaces que permitan comprender, integrar y aplicar el conocimiento en contextos complejos. En este sentido, el aprendizaje autodirigido emerge como un enfoque clave, especialmente en el caso de profesionales adultos que combinan el estudio con responsabilidades laborales y personales.
+
+El aprendizaje autodirigido se define como un proceso en el cual el individuo asume un rol activo en la planificación, ejecución, monitoreo y evaluación de su propio aprendizaje (Knowles et al., 2020). Este enfoque pone énfasis en la autonomía, la autorregulación y la reflexión metacognitiva, aspectos que resultan fundamentales para afrontar procesos de formación prolongados y conceptualmente densos.
+
+Dentro de este marco, las técnicas de estudio pueden clasificarse en tres grandes grupos: técnicas tradicionales, técnicas modernas basadas en metacognición y técnicas específicamente relevantes para certificaciones profesionales. A continuación, se analizan estas categorías, destacando su relevancia y su potencial integración con asistentes educativos basados en modelos de lenguaje de gran escala (LLM).
+
+
+\subsection{2.4.1 Técnicas de estudio tradicionales}
+Las técnicas de estudio tradicionales han sido ampliamente utilizadas durante décadas en distintos niveles educativos y continúan siendo una base importante en los procesos de aprendizaje formal e informal. Entre las más difundidas se encuentran la lectura comprensiva, el subrayado, la elaboración de resúmenes, los esquemas conceptuales y la repetición espaciada de contenidos.
+
+La lectura comprensiva constituye una de las estrategias más básicas y extendidas, orientada a la adquisición inicial de información. Sin embargo, diversos estudios han señalado que la lectura pasiva, sin estrategias complementarias de procesamiento profundo, suele resultar insuficiente para lograr una comprensión duradera y transferible del conocimiento (Dunlosky et al., 2013).
+
+El subrayado y la toma de apuntes buscan focalizar la atención del estudiante en los conceptos considerados más relevantes. No obstante, su efectividad depende en gran medida de la habilidad del estudiante para identificar ideas clave y establecer relaciones entre los conceptos, lo cual no siempre ocurre de manera sistemática (Mueller \& Oppenheimer, 2014).
+
+Los resúmenes y esquemas, por su parte, promueven una reorganización activa del contenido, favoreciendo la integración y estructuración del conocimiento. Estas técnicas resultan especialmente útiles cuando se aplican a materiales extensos y conceptualmente densos, como los contenidos del PMBOK, ya que obligan al estudiante a sintetizar y jerarquizar la información.
+
+La repetición, particularmente en su forma distribuida en el tiempo, ha demostrado ser más efectiva que la repetición masiva o concentrada en un solo momento. El llamado spaced repetition contribuye a mejorar la retención a largo plazo, aunque por sí sola no garantiza una comprensión profunda si no se combina con estrategias de elaboración cognitiva (Cepeda et al., 2006).
+
+Si bien estas técnicas continúan siendo relevantes, la literatura reciente coincide en que su efectividad aumenta considerablemente cuando se integran con enfoques más activos y reflexivos, especialmente en contextos de aprendizaje autodirigido y profesional.
+
+\subsection{2.4.2 Técnicas modernas basadas en metacognición}
+Las técnicas modernas de estudio ponen un énfasis particular en la metacognición, entendida como la capacidad del individuo para reflexionar sobre su propio proceso de aprendizaje, monitorear su comprensión y ajustar sus estrategias en función de sus objetivos y resultados (Flavell, 1979; Zimmerman, 2002).
+
+Una de las técnicas más respaldadas por la evidencia empírica es la práctica de recuperación (retrieval practice), que consiste en intentar recordar activamente la información sin recurrir inmediatamente al material de estudio. Diversos estudios han demostrado que esta estrategia mejora significativamente la retención y la transferencia del conocimiento en comparación con la relectura pasiva (Agarwal \& Roediger, 2018).
+
+Otra técnica clave es la elaboración explicativa, que implica explicar los conceptos con palabras propias, justificar respuestas y vincular la nueva información con conocimientos previos. Este enfoque favorece la construcción de modelos mentales más robustos y facilita la aplicación del conocimiento en situaciones nuevas, lo cual resulta especialmente relevante para exámenes basados en escenarios, como el PMP (Fiorella \& Mayer, 2016).
+
+La autoevaluación sistemática también ocupa un lugar central en las estrategias metacognitivas. A través de la reflexión sobre errores, dudas recurrentes y áreas de debilidad, el estudiante puede orientar de manera más eficiente su esfuerzo de estudio. Esta técnica se ve potenciada cuando se dispone de retroalimentación inmediata y explicativa, en lugar de simples indicadores de acierto o error.
+
+Asimismo, la planificación y el monitoreo del aprendizaje —por ejemplo, mediante objetivos claros, cronogramas flexibles y revisiones periódicas del progreso— contribuyen a un aprendizaje más consciente y sostenido en el tiempo. Estas estrategias son particularmente relevantes en contextos de aprendizaje autodirigido, donde el estudiante asume la responsabilidad principal de su formación.
+
+En este punto, la literatura reciente destaca el potencial de las tecnologías basadas en inteligencia artificial para facilitar procesos metacognitivos, actuando como mediadores que guían la reflexión, formulan preguntas orientadoras y ofrecen retroalimentación personalizada (Panadero et al., 2023).
+
+
+\subsection{2.4.3 Técnicas relevantes para certificaciones profesionales}
+Las certificaciones profesionales, como la PMP, presentan características específicas que requieren la adaptación de las técnicas de estudio tradicionales y modernas a un contexto altamente orientado a la aplicación práctica y al razonamiento situacional. En este tipo de certificaciones, no basta con memorizar definiciones o procesos; es necesario comprender principios, interpretar escenarios complejos y tomar decisiones alineadas con marcos de referencia normativos.
+
+Una técnica ampliamente utilizada en este contexto es el aprendizaje basado en escenarios (scenario-based learning), que consiste en analizar situaciones similares a las que se presentan en el examen o en la práctica profesional. Esta estrategia permite desarrollar habilidades de análisis, juicio profesional y toma de decisiones, aspectos centrales en el examen PMP (Clark \& Mayer, 2016).
+
+El uso de simuladores de examen y bancos de preguntas contextualizadas también constituye una práctica habitual. Sin embargo, la literatura señala que su efectividad depende en gran medida de la calidad de la retroalimentación proporcionada. Las explicaciones detalladas del porqué una respuesta es correcta o incorrecta resultan más beneficiosas que la simple indicación del resultado (Nicol \& Macfarlane-Dick, 2006).
+
+Otra técnica relevante es la comparación entre enfoques y alternativas, especialmente en certificaciones que integran múltiples marcos conceptuales, como ocurre con la coexistencia de enfoques predictivos, ágiles e híbridos en el PMBOK séptima edición (Project Management Institute, 2021). Este tipo de análisis comparativo favorece una comprensión más flexible y contextualizada de los conceptos.
+
+Finalmente, el aprendizaje autodirigido apoyado por tecnologías inteligentes permite integrar de manera dinámica estas técnicas, adaptando el contenido, la dificultad y el tipo de actividades al progreso del usuario. En este sentido, los asistentes educativos basados en LLM ofrecen un entorno propicio para combinar práctica de recuperación, explicación elaborativa, simulación de escenarios y retroalimentación metacognitiva en un único sistema interactivo.
+
+La integración de estas técnicas dentro de un asistente virtual orientado a la preparación para certificaciones profesionales constituye uno de los pilares conceptuales del presente trabajo, al permitir alinear los avances tecnológicos con principios pedagógicos validados por la investigación educativa reciente.
+
+
+\section{2.5 Análisis de trabajos relacionados}
+El análisis de trabajos relacionados permite contextualizar la propuesta desarrollada dentro del conjunto de soluciones existentes para la preparación de la certificación Project Management Professional (PMP) y para el uso de inteligencia artificial, en particular modelos de lenguaje de gran escala (LLM), en entornos educativos. Este apartado aborda, en primer lugar, las principales herramientas actualmente disponibles para la preparación del examen PMP; en segundo lugar, los avances en asistentes educativos basados en IA; y finalmente, se analizan las diferencias sustanciales entre estas propuestas y el asistente virtual desarrollado en el presente trabajo.
+
+
+\subsection{2.5.1 Herramientas existentes de preparación PMP}
+En la actualidad, el mercado ofrece una amplia variedad de herramientas orientadas a la preparación del examen PMP, que pueden agruparse en tres grandes categorías: libros y guías de estudio, cursos estructurados (presenciales o en línea) y plataformas de simulación de exámenes.
+
+Las guías de estudio tradicionales, como las publicaciones especializadas de preparación para el examen PMP, continúan siendo uno de los recursos más utilizados por los aspirantes. Estas obras presentan el contenido alineado con el marco del PMI y ofrecen explicaciones detalladas de conceptos, procesos y dominios evaluados. Sin embargo, diversos autores señalan que este tipo de recursos tiende a fomentar un aprendizaje predominantemente pasivo y lineal, con escasas oportunidades de personalización o retroalimentación adaptativa (Phillips, 2021; Mulcahy, 2022).
+
+Por otro lado, los cursos de preparación —tanto presenciales como virtuales— suelen incorporar estrategias pedagógicas más dinámicas, incluyendo clases grabadas, sesiones en vivo y ejercicios prácticos. Si bien estos cursos ofrecen una estructura guiada y el acompañamiento de instructores, su eficacia depende en gran medida de la disponibilidad horaria del estudiante y de la adecuación del ritmo del curso a sus necesidades individuales. Además, la interacción suele ser limitada cuando se trata de cohortes numerosas, lo que reduce las posibilidades de profundizar en dudas específicas (Schwalbe, 2021).
+
+Finalmente, las plataformas de simulación de exámenes PMP constituyen un componente central de la preparación. Estas herramientas ofrecen bancos extensos de preguntas de práctica que reproducen el formato del examen real y permiten evaluar el desempeño del usuario. No obstante, la retroalimentación proporcionada suele ser genérica y estandarizada, enfocándose en la corrección de la respuesta más que en el razonamiento subyacente. Estudios recientes indican que este enfoque puede resultar insuficiente para promover una comprensión profunda de los principios evaluados, especialmente en exámenes de carácter situacional como el PMP (Marnewick \& Langerman, 2023).
+
+En síntesis, si bien las herramientas existentes resultan valiosas y ampliamente utilizadas, presentan limitaciones significativas en términos de personalización, adaptabilidad y acompañamiento cognitivo continuo, lo que abre espacio para la exploración de enfoques alternativos basados en tecnologías emergentes.
+
+
+\subsection{2.5.2 Asistentes educativos basados en IA}
+El uso de inteligencia artificial en educación ha experimentado un crecimiento acelerado en los últimos años, impulsado en gran medida por la aparición de los modelos de lenguaje de gran escala. Diversos trabajos recientes analizan el potencial de estos modelos para actuar como tutores virtuales, asistentes de aprendizaje y sistemas de retroalimentación inteligente (Meyer et al., 2023; Zawacki-Richter et al., 2024).
+
+A diferencia de los sistemas educativos tradicionales basados en reglas o flujos predefinidos, los asistentes educativos basados en LLM se caracterizan por su capacidad de interacción conversacional en lenguaje natural, lo que permite a los estudiantes formular preguntas abiertas, solicitar aclaraciones y explorar conceptos desde múltiples perspectivas. Investigaciones recientes destacan que este tipo de interacción favorece el aprendizaje activo y la autorregulación, especialmente en contextos de aprendizaje autodirigido (Kasneci et al., 2023).
+
+Asimismo, los LLM han demostrado ser particularmente efectivos en la generación de explicaciones elaboradas, ejemplos contextualizados y preguntas de práctica adaptativas. En el ámbito de la evaluación educativa, se ha observado que estos modelos pueden proporcionar retroalimentación inmediata y coherente sobre respuestas abiertas, contribuyendo a mejorar la reflexión y la comprensión conceptual del estudiante (Matelsky et al., 2023).
+
+No obstante, la literatura también señala desafíos relevantes asociados al uso de asistentes educativos basados en IA. Entre ellos se incluyen la posibilidad de generar respuestas incorrectas o imprecisas, la falta de alineación con marcos curriculares específicos y los riesgos de dependencia excesiva por parte del estudiante. En este sentido, varios autores coinciden en que el valor pedagógico de estos asistentes depende en gran medida de su diseño, de la definición clara de su rol como apoyo y de su integración responsable dentro de un ecosistema educativo más amplio (Holmes et al., 2023).
+
+En el contexto específico de certificaciones profesionales, la aplicación de asistentes basados en LLM aún constituye un campo emergente. Si bien existen exploraciones preliminares en áreas como certificaciones técnicas o educación continua, la literatura muestra una escasez de trabajos que analicen de manera sistemática el uso de estos asistentes para certificaciones complejas y altamente normadas como la PMP.
+
+
+\subsection{2.5.3 Diferencias con la propuesta desarrollada}
+La propuesta desarrollada en el presente trabajo se diferencia de las herramientas existentes y de los asistentes educativos genéricos en varios aspectos fundamentales, tanto desde una perspectiva técnica como pedagógica.
+
+En primer lugar, a diferencia de las plataformas tradicionales de preparación PMP, el asistente propuesto no se limita a la presentación de contenidos estáticos ni a la evaluación mediante preguntas cerradas. En cambio, se concibe como un sistema interactivo que acompaña al usuario durante su proceso de estudio, ofreciendo explicaciones dinámicas, razonamiento guiado y retroalimentación contextualizada en función de las consultas realizadas y del progreso observado.
+
+En segundo lugar, si bien comparte con otros asistentes basados en LLM la capacidad de interacción conversacional, la propuesta desarrollada se distingue por su enfoque específico en el dominio PMP. El asistente fue diseñado considerando explícitamente la estructura del examen, sus dominios, principios y enfoques conceptuales, lo que permite una alineación más precisa con los objetivos de aprendizaje propios de la certificación. Esta especialización contrasta con asistentes educativos generalistas, que suelen carecer de una contextualización profunda en dominios profesionales altamente normados.
+
+Otra diferencia clave radica en la integración consciente de técnicas de estudio y principios de aprendizaje autodirigido. Mientras que muchos asistentes basados en IA se enfocan principalmente en responder preguntas, la propuesta desarrollada incorpora estrategias orientadas a promover la reflexión metacognitiva, la explicación elaborativa y la práctica deliberada, aspectos identificados en la literatura como críticos para la preparación de certificaciones exigentes (Dunlosky et al., 2013; Fiorella \& Mayer, 2022).
+
+Finalmente, desde una perspectiva metodológica, este trabajo aporta una evaluación sistemática del asistente mediante estudios de caso, lo que permite analizar no solo su viabilidad técnica, sino también su utilidad percibida y su potencial impacto educativo. Este enfoque empírico contribuye a reducir la brecha identificada en la literatura respecto a la falta de evidencias concretas sobre el uso de LLM en contextos de certificación profesional.
+
+En conjunto, estas diferencias posicionan a la propuesta desarrollada como un aporte original dentro del estado del arte, al combinar modelos de lenguaje de gran escala, técnicas de estudio y un dominio profesional específico en una solución integrada, orientada al apoyo inteligente y responsable del aprendizaje.
+
+
+\section{Referencias}
+\begin{itemize}
+\item Agarwal, P. K., \& Roediger, H. L. (2018). Make it stick: The science of successful learning. Belknap Press.
+\item Bai, Y., et al. (2022). Training a helpful and harmless assistant with reinforcement learning from human feedback. arXiv preprint arXiv:2204.05862.
+\item Bender, E. M., Gebru, T., McMillan-Major, A., \& Shmitchell, S. (2021). On the dangers of stochastic parrots: Can language models be too big? Proceedings of the ACM Conference on Fairness, Accountability, and Transparency, 610–623.
+\item Bommasani, R., et al. (2021). On the opportunities and risks of foundation models. arXiv preprint arXiv:2108.07258.
+\item Brown, T., et al. (2020). Language models are few-shot learners. Advances in Neural Information Processing Systems, 33, 1877–1901.
+\item Cepeda, N. J., Pashler, H., Vul, E., Wixted, J. T., \& Rohrer, D. (2006). Distributed practice in verbal recall tasks: A review and quantitative synthesis. Psychological Bulletin, 132(3), 354–380. https://doi.org/10.1037/0033-2909.132.3.354
+\item Clark, R. C., \& Mayer, R. E. (2016). E-learning and the science of instruction (4th ed.). Wiley.
+\item Devlin, J., Chang, M.-W., Lee, K., \& Toutanova, K. (2019). BERT: Pre-training of deep bidirectional transformers for language understanding. Proceedings of NAACL-HLT, 4171–4186.
+\item Dunlosky, J., Rawson, K. A., Marsh, E. J., Nathan, M. J., \& Willingham, D. T. (2013). Improving students’ learning with effective learning techniques. Psychological Science in the Public Interest, 14(1), 4–58. https://doi.org/10.1177/1529100612453266
+\item Dunlosky, J., Rawson, K. A., Marsh, E. J., Nathan, M. J., \& Willingham, D. T. (2013). Improving students’ learning with effective learning techniques. Psychological Science in the Public Interest, 14(1), 4–58. https://doi.org/10.1177/1529100612453266
+\item Fiorella, L., \& Mayer, R. E. (2016). Learning as a generative activity: Eight learning strategies that promote understanding. Cambridge University Press.
+\item Fiorella, L., \& Mayer, R. E. (2022). Learning as a generative activity (2nd ed.). Cambridge University Press.
+\item Flavell, J. H. (1979). Metacognition and cognitive monitoring. American Psychologist, 34(10), 906–911. https://doi.org/10.1037/0003-066X.34.10.906
+\item Holmes, W., Bialik, M., \& Fadel, C. (2022). Artificial intelligence in education: Promise and implications for teaching and learning. Center for Curriculum Redesign.
+\item Holmes, W., Bialik, M., \& Fadel, C. (2023). Artificial intelligence in education: Promise and implications for teaching and learning. Center for Curriculum Redesign.
+\item Ji, Z., et al. (2023). Survey of hallucination in natural language generation. ACM Computing Surveys, 55(12), 1–38.
+\item Kaplan, J., et al. (2020). Scaling laws for neural language models. arXiv preprint arXiv:2001.08361.
+\item Kasneci, E., et al. (2023). ChatGPT for good? On opportunities and challenges of large language models for education. Learning and Individual Differences, 103, 102274. https://doi.org/10.1016/j.lindif.2023.102274
+\item Kasneci, E., Sessler, K., Küchemann, S., Bannert, M., Dementieva, D., Fischer, F., … Kasneci, G. (2023). ChatGPT for good? On opportunities and challenges of large language models for education. Learning and Individual Differences, 103, 102274. https://doi.org/10.1016/j.lindif.2023.102274
+\item Kerzner, H. (2022). Project management: A systems approach to planning, scheduling, and controlling (13th ed.). Wiley.
+\item Khosravi, H., Kitto, K., Williams, J. J., \& Martinez-Maldonado, R. (2022). Personalised learning analytics. British Journal of Educational Technology, 53(6), 1735–1751. https://doi.org/10.1111/bjet.13238
+\item Knowles, M. S., Holton, E. F., \& Swanson, R. A. (2020). The adult learner (9th ed.). Routledge.
+\item Lewis, P., et al. (2020). Retrieval-augmented generation for knowledge-intensive NLP tasks. Advances in Neural Information Processing Systems, 33, 9459–9474.
+\item Marnewick, C., \& Langerman, P. (2023). Professional certification and competence development in project management. International Journal of Project Management, 41(5), 102–114.
+\item Matelsky, J. K., Parodi, F., Liu, T., Lange, R. D., \& Kording, K. P. (2023). A large language model-assisted education tool to provide feedback on open-ended responses. arXiv preprint. https://arxiv.org/abs/2308.02439
+\item Matelsky, J. K., Parodi, F., Liu, T., Lange, R. D., \& Kording, K. P. (2023). A large language model-assisted education tool to provide feedback on open-ended responses. arXiv preprint arXiv:2308.02439.
+\item Meyer, J. G., et al. (2023). ChatGPT and large language models in academia: Opportunities and challenges. BioData Mining, 16(20). https://doi.org/10.1186/s13040-023-00339-9
+\item Mueller, P. A., \& Oppenheimer, D. M. (2014). The pen is mightier than the keyboard. Psychological Science, 25(6), 1159–1168. https://doi.org/10.1177/0956797614524581
+\item Mulcahy, R. (2022). PMP exam prep: Accelerated learning to pass the PMP exam (10th ed.). RMC Publications.
+\item Nicol, D. J., \& Macfarlane-Dick, D. (2006). Formative assessment and self‐regulated learning. Studies in Higher Education, 31(2), 199–218. https://doi.org/10.1080/03075070600572090
+\item OpenAI. (2023). GPT-4 technical report. arXiv preprint arXiv:2303.08774.
+\item Ouyang, L., et al. (2022). Training language models to follow instructions with human feedback. Advances in Neural Information Processing Systems, 35, 27730–27744.
+\item Panadero, E., Broadbent, J., Boud, D., \& Lodge, J. M. (2023). Using artificial intelligence to support self-regulated learning. Educational Psychologist, 58(3), 161–177. https://doi.org/10.1080/00461520.2023.2198571
+\item Phillips, J. (2021). PMP Project Management Professional all-in-one exam guide (9th ed.). McGraw-Hill Education.
+\item Project Management Institute. (2021). A guide to the project management body of knowledge (PMBOK® Guide) (7th ed.). PMI.
+\item Project Management Institute. (2021). A guide to the project management body of knowledge (PMBOK® Guide) (7th ed.). PMI.
+\item Project Management Institute. (2024). PMP® examination content outline. PMI.
+\item Qiu, X., et al. (2020). Pre-trained models for natural language processing: A survey. Science China Technological Sciences, 63(10), 1872–1897.
+\item Schwalbe, K. (2021). Information technology project management (9th ed.). Cengage Learning.
+\item Vaswani, A., et al. (2017). Attention is all you need. Advances in Neural Information Processing Systems, 30.
+\item Zawacki-Richter, O., et al. (2024). Systematic review of research on artificial intelligence applications in higher education. International Journal of Educational Technology in Higher Education, 21(4). https://doi.org/10.1186/s41239-024-00420-7
+\item Zawacki-Richter, O., Marín, V. I., Bond, M., \& Gouverneur, F. (2023). Systematic review of research on artificial intelligence applications in higher education – Where are the educators? International Journal of Educational Technology in Higher Education, 20(1), 1–27. https://doi.org/10.1186/s41239-023-00367-2
+\item Zimmerman, B. J. (2002). Becoming a self-regulated learner. Theory Into Practice, 41(2), 64–70. https://doi.org/10.1207/s15430421tip4102\_2
+\end{itemize}

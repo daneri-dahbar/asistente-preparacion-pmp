@@ -5,10 +5,10 @@ import { useState } from 'react';
 interface OnboardingModalProps {
     isOpen: boolean;
     onClose: () => void;
-    userInitials: string;
+    userName: string;
 }
 
-export default function OnboardingModal({ isOpen, onClose, userInitials }: OnboardingModalProps) {
+export default function OnboardingModal({ isOpen, onClose, userName }: OnboardingModalProps) {
     const [step, setStep] = useState(1);
     const totalSteps = 4;
 
@@ -30,7 +30,7 @@ export default function OnboardingModal({ isOpen, onClose, userInitials }: Onboa
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col animate-in zoom-in-95 duration-300">
+            <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col animate-in zoom-in-95 duration-300">
                 {/* Header with Progress */}
                 <div className="bg-gray-50 dark:bg-gray-800/50 p-6 border-b border-gray-100 dark:border-gray-800">
                     <div className="flex justify-between items-center mb-4">
@@ -62,7 +62,7 @@ export default function OnboardingModal({ isOpen, onClose, userInitials }: Onboa
                 </div>
 
                 {/* Content Area */}
-                <div className="p-8 flex-1 flex flex-col items-center text-center min-h-[300px]">
+                <div className="p-8 flex-1 flex flex-col items-center text-center min-h-[300px] overflow-y-auto">
                     {step === 1 && (
                         <div className="space-y-6 animate-in slide-in-from-right-8 duration-300">
                             <div className="w-24 h-24 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-4xl mx-auto mb-4 border-4 border-white dark:border-gray-800 shadow-xl">
@@ -72,7 +72,7 @@ export default function OnboardingModal({ isOpen, onClose, userInitials }: Onboa
                                 Tu Viaje hacia la Certificación
                             </h3>
                             <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
-                                Hola, <span className="font-semibold text-blue-600 dark:text-blue-400">{userInitials}</span>. 
+                                Hola, <span className="font-semibold text-blue-600 dark:text-blue-400">{userName}</span>. 
                                 Has dado el primer paso para convertirte en PMP. 
                                 Esta aplicación gamificada te guiará a través de todo el contenido del PMBOK 7ma Edición.
                             </p>

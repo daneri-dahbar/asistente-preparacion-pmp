@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import pb from '@/lib/pocketbase';
 import { WORLDS } from '@/lib/gameData';
-import { ChevronDown, ChevronRight, Clock, Folder, MessageSquare } from 'lucide-react';
+import { ChevronDown, ChevronRight, Clock, Folder, MessageSquare, PanelLeftClose } from 'lucide-react';
 
 interface SidebarProps {
     user: any;
@@ -16,6 +16,8 @@ interface SidebarProps {
     isLoadingChats?: boolean;
     isOpen?: boolean;
     onClose?: () => void;
+    isDesktopOpen?: boolean;
+    onToggleDesktop?: () => void;
 }
 
 export default function Sidebar({
@@ -28,7 +30,9 @@ export default function Sidebar({
     onGoHome,
     isLoadingChats = false,
     isOpen = false,
-    onClose
+    onClose,
+    isDesktopOpen = true,
+    onToggleDesktop
 }: SidebarProps) {
     const [viewMode, setViewMode] = useState<'recent' | 'structure'>('recent');
     const [expandedPhases, setExpandedPhases] = useState<Record<string, boolean>>({});
@@ -118,12 +122,14 @@ export default function Sidebar({
                     onClick={onClose}
                 />
             )}
-            <aside className={`fixed inset-y-0 left-0 z-50 w-80 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col h-full transition-transform duration-300 ${
+            <aside className={`fixed inset-y-0 left-0 z-50 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col h-full transition-all duration-300 ease-in-out ${
                 isOpen ? 'translate-x-0' : '-translate-x-full'
-            } md:relative md:translate-x-0`}>
+            } md:translate-x-0 md:relative ${
+                isDesktopOpen ? 'md:w-80' : 'md:w-0 md:border-r-0 md:overflow-hidden'
+            }`}>
             {/* Header / User Profile */}
-            <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold shadow-md overflow-hidden relative">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center gap-3 min-w-80">
+                <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold shadow-md overflow-hidden relative flex-shrink-0">
                     {user?.avatar ? (
                         <img 
                             src={pb.files.getUrl(user, user.avatar)} 
@@ -155,10 +161,19 @@ export default function Sidebar({
                         Cerrar Sesión
                     </button>
                 </div>
+                {onToggleDesktop && (
+                    <button 
+                        onClick={onToggleDesktop}
+                        className="hidden md:flex p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors ml-auto"
+                        title="Ocultar barra lateral"
+                    >
+                        <PanelLeftClose className="w-5 h-5" />
+                    </button>
+                )}
             </div>
 
             {/* Chats List (Single Session View) */}
-            <div className="flex-1 overflow-y-auto p-4 flex flex-col">
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col min-w-80">
                 <button 
                     onClick={onGoHome}
                     className="w-full flex items-center gap-3 p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors mb-4"

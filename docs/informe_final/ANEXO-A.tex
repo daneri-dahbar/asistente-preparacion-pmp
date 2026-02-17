@@ -1,0 +1,337 @@
+\chapter{ANEXO A: ESPECIFICACIÓN DETALLADA DE REQUISITOS (ÉPICAS E HISTORIAS DE USUARIO)}
+
+Este anexo presenta el desglose exhaustivo de los requisitos funcionales y no funcionales del proyecto "Asistente de Preparación PMP". Siguiendo la metodología ágil Scrum adaptada para este trabajo, el alcance se ha organizado en \textbf{Épicas} (grandes contenedores de funcionalidad) e \textbf{Historias de Usuario} (unidades de trabajo implementables), cada una con sus respectivos \textbf{Criterios de Aceptación} (\textit{Definition of Done}).
+
+Esta documentación sirvió como el \textit{Product Backlog} vivo del proyecto, guiando las decisiones de diseño arquitectónico (Capítulo 4) y la implementación técnica (Capítulo 5).
+
+\section{A.1. Mapa de Épicas}
+
+El sistema se estructura en torno a cinco ejes funcionales principales:
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{|l|p{4cm}|X|l|}
+\hline
+\textbf{ID} & \textbf{Épica} & \textbf{Descripción} & \textbf{Prioridad} \\
+\hline
+\textbf{E01} & \textbf{Gestión de Identidad y Personalización} & Funcionalidades para el registro, autenticación, gestión de perfil y personalización de la experiencia del usuario (Onboarding). & Alta \\
+\hline
+\textbf{E02} & \textbf{Núcleo de Aprendizaje Conversacional (IA)} & El motor de chat inteligente, incluyendo la gestión de prompts dinámicos, memoria de contexto y los múltiples roles pedagógicos del asistente. & Crítica \\
+\hline
+\textbf{E03} & \textbf{Simulación y Evaluación} & Herramientas para la generación procedural de exámenes, ejecución de simulacros cronometrados y análisis de resultados. & Crítica \\
+\hline
+\textbf{E04} & \textbf{Gamificación y Progresión} & Mecánicas de juego (niveles, XP, rachas, logros) diseñadas para fomentar el hábito de estudio y visualizar el avance. & Media \\
+\hline
+\textbf{E05} & \textbf{Arquitectura, Seguridad y Calidad} & Requisitos no funcionales transversales: rendimiento, privacidad de datos, seguridad de API y manejo de errores. & Alta \\
+\hline
+\end{tabularx}
+\caption{Resumen de Épicas del Proyecto}
+\label{tab:epicas}
+\end{table}
+
+---
+
+\section{A.2. Detalle de Historias de Usuario}
+
+A continuación, se detallan las historias de usuario que componen cada épica.
+
+\subsection{Épica 1: Gestión de Identidad y Personalización (E01)}
+
+\subsubsection{HU-01: Onboarding de Nuevo Usuario (Tutorial)}
+\textbf{Como} nuevo estudiante,
+\textbf{Quiero} ser guiado a través de un recorrido interactivo la primera vez que ingreso,
+\textbf{Para} comprender rápidamente la metodología de "Mundos" y cómo utilizar las herramientas de IA sin necesidad de leer un manual.
+
+\textbf{Criterios de Aceptación:}
+\begin{itemize}
+\item \textbf{[x]} El sistema debe detectar si es el primer inicio de sesión del usuario (`isNewUser`).
+\item \textbf{[x]} Se debe desplegar un modal multipaso (Wizard) que explique: 1) Estructura del PMBOK, 2) Uso del Chat, 3) Simulador.
+\item \textbf{[x]} El sistema debe solicitar el nombre preferido del usuario para personalizar los saludos de la IA.
+\item \textbf{[x]} Al finalizar, se debe persistir el estado `hasOnboarded: true` en la base de datos para no repetir el tour en futuras sesiones.
+\end{itemize}
+
+\subsubsection{HU-02: Autenticación y Persistencia de Sesión}
+\textbf{Como} estudiante recurrente,
+\textbf{Quiero} mantener mi sesión activa incluso si recargo la página o cierro el navegador,
+\textbf{Para} no tener que ingresar mis credenciales cada vez que quiero estudiar unos minutos.
+
+\textbf{Criterios de Aceptación:}
+\begin{itemize}
+\item \textbf{[x]} Implementación de autenticación mediante JWT (JSON Web Tokens).
+\item \textbf{[x]} El token debe almacenarse de forma segura en el almacenamiento local o cookies httpOnly.
+\item \textbf{[x]} El middleware de la aplicación debe verificar la validez del token en cada cambio de ruta (`Next.js Middleware`).
+\item \textbf{[x]} Si el token expira, el usuario debe ser redirigido automáticamente a la pantalla de Login.
+\end{itemize}
+
+\subsubsection{HU-03: Gestión de Perfil de Usuario}
+\textbf{Como} estudiante,
+\textbf{Quiero} poder ver y editar mis datos básicos (avatar, nombre),
+\textbf{Para} sentir que el entorno de estudio es personal y propio.
+
+\textbf{Criterios de Aceptación:}
+\begin{itemize}
+\item \textbf{[x]} Visualización del avatar del usuario en la barra lateral y en los mensajes del chat.
+\item \textbf{[x]} Integración con el servicio de avatares de PocketBase o uso de UI Avatars por defecto.
+\item \textbf{[x]} Opción de "Cerrar Sesión" claramente visible y accesible.
+\end{itemize}
+
+---
+
+\subsection{Épica 2: Núcleo de Aprendizaje Conversacional (E02)}
+
+\subsubsection{HU-04: Chat con Streaming en Tiempo Real}
+\textbf{Como} estudiante,
+\textbf{Quiero} ver la respuesta de la IA generándose progresivamente (efecto máquina de escribir),
+\textbf{Para} reducir la ansiedad de espera y leer a velocidad natural.
+
+\textbf{Criterios de Aceptación:}
+\begin{itemize}
+\item \textbf{[x]} Implementación de `ReadableStream` en el cliente y servidor.
+\item \textbf{[x]} La latencia inicial (TTFB) debe ser inferior a 1 segundo.
+\item \textbf{[x]} El chat debe realizar \textit{auto-scroll} inteligente (solo si el usuario está al final de la conversación).
+\item \textbf{[x]} Indicador visual de "La IA está escribiendo..." durante la generación.
+\end{itemize}
+
+\subsubsection{HU-05: Renderizado de Contenido Rico (Markdown)}
+\textbf{Como} estudiante,
+\textbf{Quiero} que las explicaciones incluyan formato (negritas, listas, tablas, código),
+\textbf{Para} facilitar la lectura y comprensión de conceptos estructurados.
+
+\textbf{Criterios de Aceptación:}
+\begin{itemize}
+\item \textbf{[x]} El componente de chat debe parsear Markdown estándar.
+\item \textbf{[x]} Las tablas deben renderizarse con estilos CSS claros y bordes definidos.
+\item \textbf{[x]} Los bloques de código deben tener resaltado de sintaxis (syntax highlighting).
+\item \textbf{[x]} Soporte para listas anidadas y citas en bloque.
+\end{itemize}
+
+\subsubsection{HU-06: Memoria Contextual de la Conversación}
+\textbf{Como} estudiante,
+\textbf{Quiero} hacer preguntas de seguimiento (ej. "¿Me das otro ejemplo de eso?"),
+\textbf{Para} profundizar en un tema sin tener que repetir el contexto anterior.
+
+\textbf{Criterios de Aceptación:}
+\begin{itemize}
+\item \textbf{[x]} El backend debe recibir una ventana deslizante de los últimos N mensajes (mínimo 10).
+\item \textbf{[x]} La IA debe ser capaz de resolver referencias anafóricas ("eso", "el anterior").
+\item \textbf{[x]} Botón para "Limpiar Conversación" que reinicia el contexto explícitamente.
+\end{itemize}
+
+\subsubsection{HU-07: Modo Tutor Socrático}
+\textbf{Como} estudiante que quiere profundizar,
+\textbf{Quiero} activar un modo donde la IA no me dé respuestas directas, sino que me haga preguntas,
+\textbf{Para} desarrollar mi propio razonamiento crítico.
+
+\textbf{Criterios de Aceptación:}
+\begin{itemize}
+\item \textbf{[x]} \textit{System Prompt} específico que instruya a la IA a responder \textit{siempre} con una pregunta guía.
+\item \textbf{[x]} La IA debe evaluar la respuesta del usuario y guiarlo hacia la conclusión correcta paso a paso.
+\item \textbf{[x]} Activación seleccionable desde el menú de herramientas.
+\end{itemize}
+
+\subsubsection{HU-08: Modo Roleplay (Simulación de Crisis)}
+\textbf{Como} futuro Project Manager,
+\textbf{Quiero} practicar mis habilidades blandas interactuando con "stakeholders virtuales",
+\textbf{Para} aprender a manejar conflictos y negociaciones difíciles.
+
+\textbf{Criterios de Aceptación:}
+\begin{itemize}
+\item \textbf{[x]} La IA debe adoptar una "persona" (ej. Cliente enojado, Patrocinador impaciente).
+\item \textbf{[x]} El escenario debe presentar un conflicto realista de proyecto.
+\item \textbf{[x]} La IA debe reaccionar emocionalmente a las respuestas del usuario (calmarse si se gestiona bien, escalar si no).
+\end{itemize}
+
+\subsubsection{HU-09: Modo Taller de Entregables (Workshop)}
+\textbf{Como} estudiante práctico,
+\textbf{Quiero} ayuda para redactar documentos reales (ej. Project Charter),
+\textbf{Para} entender la estructura y contenido de los artefactos del PMBOK.
+
+\textbf{Criterios de Aceptación:}
+\begin{itemize}
+\item \textbf{[x]} La IA debe guiar la redacción sección por sección.
+\item \textbf{[x]} Debe ofrecer ejemplos de redacción para cada apartado.
+\item \textbf{[x]} Al final, debe compilar el documento completo en formato Markdown.
+\end{itemize}
+
+\subsubsection{HU-10: Modo "Abogado del Diablo" (Debate)}
+\textbf{Como} estudiante avanzado,
+\textbf{Quiero} debatir contra la IA sobre temas polémicos de gestión,
+\textbf{Para} reforzar mis argumentos y convicciones éticas.
+
+\textbf{Criterios de Aceptación:}
+\begin{itemize}
+\item \textbf{[x]} La IA debe tomar deliberadamente una postura contraria o cuestionable (pero plausible).
+\item \textbf{[x]} Debe desafiar los argumentos del usuario basándose en falacias comunes o presiones del mundo real.
+\item \textbf{[x]} Debe conceder la victoria si el usuario argumenta sólidamente usando el PMBOK/Código de Ética.
+\end{itemize}
+
+---
+
+\subsection{Épica 3: Simulación y Evaluación (E03)}
+
+\subsubsection{HU-11: Generación Procedural de Exámenes}
+\textbf{Como} estudiante,
+\textbf{Quiero} generar exámenes de práctica ilimitados sobre temas específicos,
+\textbf{Para} no depender de un banco de preguntas finito que termine memorizando.
+
+\textbf{Criterios de Aceptación:}
+\begin{itemize}
+\item \textbf{[x]} Endpoint de API que acepte parámetros: `topic`, `questionCount`, `difficulty`.
+\item \textbf{[x]} Prompt de IA diseñado para generar salida estrictamente en formato JSON.
+\item \textbf{[x]} Las preguntas generadas deben ser inéditas (creadas en el momento).
+\item \textbf{[x]} Validación de estructura JSON antes de presentar al usuario (fallback en caso de error).
+\end{itemize}
+
+\subsubsection{HU-12: Simulador de Examen (Interfaz de Examen)}
+\textbf{Como} estudiante,
+\textbf{Quiero} una interfaz libre de distracciones con un temporizador,
+\textbf{Para} simular las condiciones de presión del examen real.
+
+\textbf{Criterios de Aceptación:}
+\begin{itemize}
+\item \textbf{[x]} Ocultar barras de navegación y chat durante el examen.
+\item \textbf{[x]} Temporizador decreciente visible.
+\item \textbf{[x]} Navegación secuencial (Anterior/Siguiente) y mapa de preguntas (acceso directo).
+\item \textbf{[x]} Posibilidad de marcar preguntas para revisión ("Mark for Review").
+\end{itemize}
+
+\subsubsection{HU-13: Evaluación y Feedback Detallado}
+\textbf{Como} estudiante,
+\textbf{Quiero} recibir una calificación inmediata y explicaciones de cada pregunta al finalizar,
+\textbf{Para} aprender de mis errores al instante.
+
+\textbf{Criterios de Aceptación:}
+\begin{itemize}
+\item \textbf{[x]} Cálculo automático de puntaje (Score/Total).
+\item \textbf{[x]} Desglose de respuestas correctas e incorrectas.
+\item \textbf{[x]} Explicación justificada para la opción correcta.
+\item \textbf{[x]} Explicación de por qué cada distractor (opción incorrecta) es erróneo.
+\end{itemize}
+
+\subsubsection{HU-14: Historial de Simulaciones}
+\textbf{Como} estudiante,
+\textbf{Quiero} acceder a un registro de mis exámenes pasados,
+\textbf{Para} revisar mi evolución y repasar preguntas falladas anteriormente.
+
+\textbf{Criterios de Aceptación:}
+\begin{itemize}
+\item \textbf{[x]} Listado de exámenes en el Dashboard con fecha y puntaje.
+\item \textbf{[x]} Posibilidad de abrir un examen pasado en modo "Solo lectura" para revisión.
+\item \textbf{[x]} Persistencia del objeto JSON completo del examen (para no perder las preguntas generadas).
+\end{itemize}
+
+---
+
+\subsection{Épica 4: Gamificación y Progresión (E04)}
+
+\subsubsection{HU-15: Sistema de Bloqueo de Niveles (Ruta de Aprendizaje)}
+\textbf{Como} estudiante novato,
+\textbf{Quiero} que el contenido se desbloquee progresivamente,
+\textbf{Para} seguir un orden lógico y no abrumarme.
+
+\textbf{Criterios de Aceptación:}
+\begin{itemize}
+\item \textbf{[x]} Visualización de niveles como nodos en un mapa o lista.
+\item \textbf{[x]} Estado visual claro: "Completado" (Verde), "Disponible" (Azul), "Bloqueado" (Gris/Candado).
+\item \textbf{[x]} Lógica de desbloqueo: Nivel N disponible ssi Nivel N-1 completado.
+\end{itemize}
+
+\subsubsection{HU-16: Puntos de Experiencia (XP) y Nivel de Usuario}
+\textbf{Como} estudiante,
+\textbf{Quiero} ganar puntos por cada actividad completada,
+\textbf{Para} tener una sensación de logro tangible.
+
+\textbf{Criterios de Aceptación:}
+\begin{itemize}
+\item \textbf{[x]} Asignación de XP por: Aprobar nivel, Completar simulación, Mantener racha.
+\item \textbf{[x]} Barra de progreso global en el Dashboard.
+\item \textbf{[x]} Algoritmo de subida de nivel (Nivel 1 -> Nivel 50) basado en umbrales de XP.
+\end{itemize}
+
+\subsubsection{HU-17: Racha de Estudio (Streak)}
+\textbf{Como} estudiante,
+\textbf{Quiero} ver cuántos días seguidos he estudiado,
+\textbf{Para} motivarme a mantener la constancia diaria.
+
+\textbf{Criterios de Aceptación:}
+\begin{itemize}
+\item \textbf{[x]} Contador de días consecutivos visible.
+\item \textbf{[x]} Lógica de actualización: Incrementar si `last_login` == hoy.
+\item \textbf{[x]} Lógica de reinicio: Resetear a 0 si `last_login` < ayer.
+\end{itemize}
+
+\subsubsection{HU-18: Dashboard de Métricas de Desempeño}
+\textbf{Como} estudiante,
+\textbf{Quiero} ver mi rendimiento desglosado por los 3 dominios del examen (Personas, Procesos, Negocio),
+\textbf{Para} identificar mis áreas débiles.
+
+\textbf{Criterios de Aceptación:}
+\begin{itemize}
+\item \textbf{[x]} Gráficos de barra o radar por dominio.
+\item \textbf{[x]} Cálculo basado en el histórico de preguntas respondidas en simulaciones.
+\item \textbf{[x]} Indicadores de tendencia (mejorando/empeorando).
+\end{itemize}
+
+---
+
+\subsection{Épica 5: Arquitectura, Seguridad y Calidad (E05)}
+
+\subsubsection{HU-19: Privacidad de Datos (Multi-tenancy Lógico)}
+\textbf{Como} usuario consciente de la privacidad,
+\textbf{Quiero} que mis conversaciones y errores sean absolutamente privados,
+\textbf{Para} estudiar con confianza y sin miedo al juicio.
+
+\textbf{Criterios de Aceptación:}
+\begin{itemize}
+\item \textbf{[x]} Implementación estricta de \textbf{Row Level Security (RLS)} en la base de datos.
+\item \textbf{[x]} Reglas de API que impidan físicamente leer registros donde `user_id != auth.id`.
+\item \textbf{[x]} Validación de seguridad en el backend antes de procesar cualquier solicitud.
+\end{itemize}
+
+\subsubsection{HU-20: Protección de Infraestructura (API Keys)}
+\textbf{Como} administrador,
+\textbf{Quiero} que la llave de API de Google Gemini esté oculta y protegida,
+\textbf{Para} evitar robos de cuota y costos inesperados.
+
+\textbf{Criterios de Aceptación:}
+\begin{itemize}
+\item \textbf{[x]} Uso exclusivo de `GOOGLE_API_KEY` en el entorno de servidor (Node.js).
+\item \textbf{[x]} Prohibición de exponer la variable con prefijo `NEXT_PUBLIC_`.
+\item \textbf{[x]} Proxy de API (`/api/chat`) que actúa como intermediario único.
+\end{itemize}
+
+\subsubsection{HU-21: Manejo de Errores y Resiliencia}
+\textbf{Como} usuario,
+\textbf{Quiero} que el sistema me informe amigablemente si algo falla (ej. IA no responde),
+\textbf{Para} no quedarme esperando indefinidamente ante una pantalla congelada.
+
+\textbf{Criterios de Aceptación:}
+\begin{itemize}
+\item \textbf{[x]} Bloques `try-catch` en todas las llamadas asíncronas.
+\item \textbf{[x]} Mensajes de error legibles por humanos ("La IA está tardando demasiado", "Error de conexión").
+\item \textbf{[x]} Capacidad de reintentar una acción fallida sin recargar toda la página.
+\end{itemize}
+
+\subsubsection{HU-22: Diseño Responsivo (Mobile First)}
+\textbf{Como} estudiante ocupado,
+\textbf{Quiero} poder estudiar desde mi celular en el transporte público,
+\textbf{Para} aprovechar los tiempos muertos.
+
+\textbf{Criterios de Aceptación:}
+\begin{itemize}
+\item \textbf{[x]} Interfaz adaptable a pantallas móviles (Sidebar colapsable).
+\item \textbf{[x]} Tamaños de fuente y botones táctiles adecuados (min 44px).
+\item \textbf{[x]} El chat y el simulador deben ser plenamente funcionales en viewport móvil.
+\end{itemize}
+
+\subsubsection{HU-23: Validación de Integridad de Datos}
+\textbf{Como} sistema,
+\textbf{Quiero} asegurar que los datos generados por la IA tengan el formato correcto,
+\textbf{Para} evitar que la aplicación se rompa (crashee) al intentar mostrar una pregunta mal formada.
+
+\textbf{Criterios de Aceptación:}
+\begin{itemize}
+\item \textbf{[x]} Parsing robusto de JSON proveniente de la IA (manejo de posibles caracteres extraños).
+\item \textbf{[x]} Verificación de existencia de campos obligatorios (`question`, `options`, `answer`) antes de renderizar.
+\item \textbf{[x]} Fallback seguro (descartar pregunta o regenerar) si la validación falla.
+\end{itemize}

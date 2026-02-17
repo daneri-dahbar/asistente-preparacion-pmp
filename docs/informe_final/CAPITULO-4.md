@@ -1,205 +1,288 @@
-# Capítulo 4: Diseño de la Solución Propuesta
-
-El presente capítulo se centra en el diseño conceptual y técnico de la solución propuesta: un asistente virtual basado en modelos de lenguaje de gran escala, orientado a brindar soporte inteligente a la preparación del examen de certificación Project Management Professional (PMP). Luego de haber establecido el marco teórico y el estado del arte, y de haber descrito en detalle la metodología de trabajo y el proceso iterativo seguido durante el desarrollo, este capítulo traduce dichos fundamentos en decisiones concretas de diseño.
-
-El diseño de la solución se concibe como un puente entre los objetivos académicos del trabajo y su materialización en un sistema de software funcional, usable y alineado con principios pedagógicos sólidos. En este sentido, el capítulo aborda el diseño desde una perspectiva integral, considerando no solo los aspectos técnicos y arquitectónicos del sistema, sino también las necesidades de los usuarios finales, los objetivos educativos perseguidos y la experiencia de interacción propuesta.
-
-En primer lugar, se definen los objetivos de diseño del asistente, distinguiendo entre objetivos funcionales, educativos y de experiencia de usuario. Esta distinción permite explicitar de manera clara qué se espera que el sistema haga, cómo debe contribuir al proceso de aprendizaje y de qué manera debe interactuar con los usuarios para resultar efectivo y aceptable en un contexto de estudio autónomo.
-
-Posteriormente, se adopta un enfoque de diseño centrado en el usuario, caracterizando los perfiles de uso esperados, identificando las principales necesidades de aprendizaje asociadas a la preparación del examen PMP y describiendo los flujos de interacción previstos. Este enfoque busca asegurar que las decisiones de diseño no se basen únicamente en criterios tecnológicos, sino que respondan a problemáticas reales y a contextos de uso concretos.
-
-A continuación, se presenta la arquitectura general del sistema, detallando su implementación moderna basada en Next.js 16 y PocketBase, así como los componentes principales que conforman la solución. Esta descripción permite comprender cómo se organizan y articulan los distintos elementos del sistema —modelo de lenguaje, backend, frontend y mecanismos de gamificación— y de qué manera se soportan los objetivos definidos previamente.
-
-Finalmente, el capítulo aborda el diseño de la interfaz de usuario, exponiendo los principios de usabilidad aplicados, el diseño de las pantallas principales (Dashboard, Chat, Sidebar) y el sistema de retroalimentación implementado. Estos aspectos resultan clave para garantizar una experiencia de uso clara, coherente y orientada al aprendizaje, especialmente en un sistema basado en interacción conversacional avanzada.
-
-En conjunto, este capítulo establece las bases de diseño que guían la implementación del asistente virtual presentada en el capítulo siguiente, proporcionando un marco claro y justificado para las decisiones adoptadas y facilitando la comprensión integral de la solución propuesta.
-
-## 4.1 Objetivos de diseño del asistente
-
-El diseño del asistente virtual propuesto se fundamentó en la necesidad de articular de manera coherente los aspectos tecnológicos, educativos y experienciales involucrados en la preparación para el examen de certificación Project Management Professional (PMP). Dado que el asistente se concibe como un sistema socio-técnico basado en un modelo de lenguaje de gran escala, su diseño no se limitó únicamente a la implementación de funcionalidades técnicas, sino que incorporó explícitamente objetivos pedagógicos y criterios de experiencia de usuario.
-
-En este sentido, los objetivos de diseño fueron definidos como un conjunto de lineamientos que orientaron las decisiones tomadas a lo largo del desarrollo del asistente, asegurando la alineación entre el problema planteado, la solución propuesta y la hipótesis de investigación. Estos objetivos se agrupan en tres dimensiones complementarias: objetivos funcionales, objetivos educativos y objetivos de experiencia de usuario. La articulación de estas tres dimensiones permitió concebir un asistente equilibrado, capaz de ofrecer soporte efectivo al estudio, sin perder de vista la usabilidad, la claridad conceptual ni la coherencia con el dominio de la certificación PMP.
-
-### 4.1.1 Objetivos funcionales
-
-Los objetivos funcionales del asistente se orientaron a definir qué acciones debía ser capaz de realizar el sistema desde una perspectiva operativa y técnica. Estos objetivos se establecieron considerando tanto las necesidades de los usuarios finales como las posibilidades y limitaciones inherentes al uso de modelos de lenguaje de gran escala.
-
-En primer lugar, uno de los objetivos funcionales centrales fue permitir la interacción conversacional en lenguaje natural, posibilitando que el usuario formule consultas, plantee dudas y solicite explicaciones de manera flexible, sin necesidad de utilizar comandos estructurados o interfaces rígidas. Esta característica resulta esencial para favorecer un uso fluido del asistente y reducir las barreras de acceso al sistema.
-
-Asimismo, se definió como objetivo funcional que el asistente fuera capaz de responder consultas conceptuales vinculadas al dominio de la certificación PMP, ofreciendo explicaciones claras, coherentes y alineadas con los marcos conceptuales promovidos por el Project Management Institute. Esto incluyó la capacidad de explicar principios, dominios, enfoques predictivos, ágiles e híbridos, así como de contextualizar dichos conceptos en escenarios prácticos.
-
-Otro objetivo funcional relevante consistió en la generación y análisis de preguntas tipo examen PMP. El asistente debía ser capaz de presentar escenarios situacionales, analizar alternativas de respuesta y justificar de manera razonada por qué una opción resulta más adecuada que las demás. Este objetivo fue clave para simular, en la medida de lo posible, el razonamiento esperado en el examen real.
-
-Adicionalmente, se estableció como objetivo funcional la provisión de retroalimentación explicativa ante las respuestas del usuario. El asistente no debía limitarse a indicar si una respuesta es correcta o incorrecta, sino que debía ofrecer una justificación detallada, orientada a corregir errores conceptuales y reforzar el aprendizaje.
-
-Finalmente, se consideró como objetivo funcional la posibilidad de adaptar el nivel de profundidad y el estilo de las respuestas mediante una arquitectura de **modos de interacción especializados**. El sistema implementó más de 12 modos distintos para cubrir diferentes necesidades pedagógicas:
-*   **Modos de Estudio General:** Modo Estándar, Tutor Socrático, Explícamelo como a un niño y Entrenador de Fórmulas.
-*   **Modos de Simulación Profesional:** Simulación de Crisis, Taller de Entregables, Caso de Estudio y Debate (Abogado del Diablo).
-*   **Modos de Evaluación:** Examen Rápido y modos específicos por nivel (Lección, Práctica, Oráculo, Examen).
-
-### 4.1.2 Objetivos educativos
-
-Los objetivos educativos del asistente se definieron a partir de los principios pedagógicos analizados en el marco teórico y de las dificultades identificadas en los métodos tradicionales de preparación para el examen PMP. En este sentido, el asistente fue concebido como una herramienta de apoyo al aprendizaje, orientada a promover la comprensión profunda y el razonamiento aplicado, más que la memorización mecánica de contenidos.
-
-Uno de los principales objetivos educativos fue facilitar la comprensión conceptual de los contenidos evaluados en la certificación PMP. Esto implicó diseñar el asistente para que explicara no solo el “qué” de cada concepto, sino también el “por qué” detrás de las decisiones, principios y prácticas de la gestión de proyectos.
-
-Otro objetivo educativo clave consistió en promover el aprendizaje activo del usuario. El asistente fue diseñado para fomentar la reflexión, el análisis de escenarios y la justificación de decisiones, estimulando la participación cognitiva del estudiante y evitando una interacción pasiva basada únicamente en la recepción de información.
-
-Asimismo, se estableció como objetivo educativo integrar técnicas de estudio reconocidas, tales como la práctica de recuperación, el aprendizaje basado en escenarios, la elaboración cognitiva y la metacognición. Estas técnicas se incorporaron en la forma de estructurar las respuestas del asistente, en las preguntas de seguimiento y en los mecanismos de retroalimentación, con el fin de fortalecer la retención y transferencia del conocimiento.
-
-Otro objetivo relevante fue acompañar el proceso de aprendizaje autodirigido mediante una estructura de **gamificación progresiva**. El sistema organiza el contenido en "Fases" (ej. Fundamentos, Dominios de Desempeño, Principios) y "Mundos", cada uno con niveles específicos que el usuario debe completar. Esto permite trazar una ruta de aprendizaje clara y motivante.
-
-Finalmente, desde una perspectiva educativa, se buscó que el asistente contribuyera a reducir la brecha entre el conocimiento teórico y su aplicación práctica. Dado que el examen PMP se basa en situaciones reales de gestión de proyectos, el asistente fue diseñado para contextualizar los conceptos en escenarios verosímiles, facilitando el desarrollo del juicio profesional requerido por la certificación.
-
-### 4.1.3 Objetivos de experiencia de usuario
-
-Los objetivos de experiencia de usuario se orientaron a garantizar que la interacción con el asistente resultara clara, intuitiva y cognitivamente sostenible, especialmente considerando que los usuarios son profesionales o aspirantes que suelen utilizar la herramienta en contextos de estudio prolongados.
-
-Uno de los objetivos principales en esta dimensión fue diseñar una experiencia de interacción simple e intuitiva, minimizando la carga cognitiva asociada al uso de la herramienta. El asistente debía ser fácil de utilizar, sin requerir conocimientos técnicos previos ni procesos complejos de aprendizaje de la interfaz.
-
-Asimismo, se estableció como objetivo ofrecer respuestas estructuradas y comprensibles, priorizando la claridad del discurso y la organización lógica de la información mediante el uso de formato Markdown renderizado. Esto resultó especialmente relevante para evitar confusión en explicaciones complejas y para facilitar la lectura y comprensión de respuestas extensas.
-
-Otro objetivo de experiencia de usuario fue mantener un tono comunicacional coherente, profesional y didáctico. El asistente debía transmitir confianza, claridad y consistencia conceptual, utilizando terminología alineada con el dominio de la gestión de proyectos y evitando ambigüedades innecesarias.
-
-Adicionalmente, se consideró fundamental que el asistente ofreciera una experiencia de uso flexible, adaptándose a distintos estilos de estudio y a diferentes momentos del proceso de preparación. El usuario debía poder utilizar el asistente tanto para consultas rápidas como para sesiones de estudio más profundas, sin que ello afectara negativamente la calidad de la interacción.
-
-Finalmente, desde la perspectiva de la experiencia de usuario, se buscó que el asistente generara una percepción de utilidad real y acompañamiento continuo. El sistema debía ser percibido como un apoyo efectivo al proceso de estudio, capaz de aportar valor tangible y de integrarse de manera natural en la rutina de preparación del aspirante a la certificación PMP.
-
-## 4.2 Diseño centrado en el usuario
-
-El diseño de la solución propuesta se fundamentó en un enfoque de diseño centrado en el usuario, entendiendo que la efectividad de un asistente virtual educativo no depende únicamente de sus capacidades técnicas o de la potencia del modelo de lenguaje subyacente, sino de su adecuación a las características, necesidades y contextos reales de uso de las personas que lo utilizan. En el marco de este trabajo, dicho enfoque resultó especialmente relevante debido a la diversidad de perfiles que se preparan para la certificación PMP y a la complejidad cognitiva asociada a dicho proceso.
-
-Adoptar un diseño centrado en el usuario implicó priorizar, desde las etapas iniciales del desarrollo, la comprensión de quiénes serían los usuarios del asistente, cuáles son sus objetivos de aprendizaje, qué dificultades enfrentan durante la preparación del examen y de qué manera interactúan con herramientas digitales de estudio. Este enfoque permitió orientar las decisiones de diseño funcional, pedagógico y experiencial hacia la generación de una herramienta verdaderamente útil, accesible y alineada con las expectativas del usuario final.
-
-En este sentido, el diseño centrado en el usuario se abordó a partir de tres dimensiones complementarias: la caracterización del perfil de usuarios esperados, la identificación de sus necesidades de aprendizaje y la definición de flujos de interacción coherentes con dichos perfiles y necesidades.
-
-### 4.2.1 Perfil de usuarios
-
-El asistente virtual desarrollado está orientado principalmente a aspirantes a la certificación Project Management Professional (PMP), un grupo de usuarios que presenta características particulares tanto desde el punto de vista profesional como cognitivo y contextual. En términos generales, se trata de profesionales adultos, con experiencia previa en gestión de proyectos o roles afines, que buscan validar y formalizar sus competencias mediante una certificación reconocida internacionalmente.
-
-Estos usuarios suelen presentar trayectorias laborales diversas, provenientes de sectores como tecnología, ingeniería, construcción, administración, consultoría u organismos públicos y privados. En consecuencia, poseen conocimientos prácticos heterogéneos, adquiridos en contextos reales de trabajo, pero no siempre alineados de manera explícita con los marcos conceptuales, principios y enfoques promovidos por el Project Management Institute. Esta situación genera, en muchos casos, una brecha entre la experiencia práctica y el razonamiento esperado en el examen PMP.
-
-Desde el punto de vista del uso de tecnologías digitales, los usuarios objetivo presentan un nivel de alfabetización tecnológica medio a alto. Están familiarizados con plataformas de aprendizaje en línea, simuladores de examen, materiales digitales y herramientas de consulta, aunque no necesariamente con sistemas basados en inteligencia artificial avanzada. Por este motivo, el asistente debía resultar intuitivo y accesible, evitando barreras de entrada asociadas a interfaces complejas o a modos de interacción poco familiares.
-
-Asimismo, se identificó que los usuarios objetivo suelen preparar el examen PMP en paralelo con responsabilidades laborales y personales, lo que condiciona el tiempo disponible para el estudio y favorece el uso de herramientas flexibles, accesibles bajo demanda y adaptables a distintos momentos y duraciones de estudio. En este contexto, el asistente fue concebido como una herramienta de apoyo autónomo, capaz de integrarse de manera natural en rutinas de estudio fragmentadas o no lineales.
-
-Finalmente, se contempló también un perfil secundario de usuarios, compuesto por profesionales ya certificados PMP, interesados en utilizar el asistente como herramienta de repaso, reflexión conceptual o contraste de enfoques frente a situaciones complejas de gestión de proyectos. Este perfil aportó una perspectiva experta valiosa para validar la profundidad conceptual y la coherencia del asistente.
-
-### 4.2.2 Necesidades de aprendizaje
-
-A partir del análisis del perfil de usuarios, se identificaron una serie de necesidades de aprendizaje específicas asociadas a la preparación del examen PMP, las cuales orientaron de manera directa el diseño del asistente virtual y su lógica de interacción.
-
-Una de las necesidades centrales detectadas fue la comprensión profunda de conceptos y principios, más allá de su definición superficial. Los aspirantes suelen enfrentar dificultades para interpretar correctamente los fundamentos que subyacen a las decisiones esperadas en el examen, especialmente cuando estas difieren de prácticas habituales en sus entornos laborales. En este sentido, el asistente debía facilitar explicaciones que abordaran tanto el contenido conceptual como el razonamiento que justifica su aplicación en distintos escenarios.
-
-Otra necesidad clave se relaciona con la interpretación de preguntas situacionales. El examen PMP presenta escenarios complejos, con múltiples alternativas plausibles, donde la respuesta correcta no siempre es evidente a primera vista. Los usuarios requieren apoyo para analizar el contexto del problema, identificar qué se está evaluando realmente y comprender por qué una opción resulta más adecuada que las demás. El asistente fue diseñado para acompañar este proceso de análisis, guiando el razonamiento del usuario de manera estructurada.
-
-Asimismo, se identificó la necesidad de retroalimentación explicativa y contextualizada. A diferencia de los simuladores tradicionales, que suelen limitarse a indicar si una respuesta es correcta o incorrecta, los usuarios demandan explicaciones que les permitan aprender de sus errores, comprender sus malentendidos conceptuales y ajustar su forma de razonar frente a preguntas similares.
-
-Otra necesidad relevante corresponde al aprendizaje autodirigido y flexible. Los aspirantes requieren herramientas que les permitan estudiar a su propio ritmo, profundizar en temas específicos según sus debilidades y adaptar el proceso de estudio a su disponibilidad temporal. En este marco, el asistente debía actuar como un tutor virtual que acompañe, oriente y refuerce el aprendizaje, sin imponer un recorrido rígido o lineal.
-
-Finalmente, se identificó la necesidad de alineación con el enfoque del PMI, particularmente en lo referido a la integración de enfoques predictivos, ágiles e híbridos. Muchos aspirantes presentan confusión respecto a cuándo aplicar cada enfoque y cómo interpretar escenarios que combinan elementos de distintos marcos. El asistente fue diseñado para ayudar a clarificar estas distinciones y a contextualizar adecuadamente cada decisión dentro del marco conceptual esperado por la certificación.
-
-### 4.2.3 Flujos de interacción
-
-Los flujos de interacción del asistente virtual fueron definidos en coherencia con los perfiles de usuarios y las necesidades de aprendizaje identificadas, priorizando una interacción conversacional natural, flexible y orientada al razonamiento. En lugar de proponer recorridos rígidos o secuencias predefinidas de contenido, se optó por flujos adaptativos que permiten al usuario dirigir la interacción según sus objetivos inmediatos de estudio.
-
-Uno de los flujos principales corresponde a la consulta conceptual, en la cual el usuario plantea una duda específica sobre un concepto, principio o dominio del examen PMP. En este flujo, el asistente interpreta la consulta, ofrece una explicación estructurada y, cuando resulta pertinente, propone ejemplos o preguntas de seguimiento que refuercen la comprensión.
-
-Otro flujo relevante es el de resolución guiada de preguntas tipo examen. En este caso, el usuario puede solicitar la generación de una pregunta o presentar una pregunta concreta. El asistente analiza el escenario, descompone el problema, discute las alternativas posibles y justifica la respuesta más adecuada, promoviendo un razonamiento alineado con el enfoque del PMI.
-
-Asimismo, se definió un flujo orientado a la retroalimentación sobre respuestas del usuario, en el cual el asistente evalúa la respuesta propuesta, identifica aciertos y errores conceptuales y brinda explicaciones orientadas a corregir el razonamiento. Este flujo fue diseñado para fomentar el aprendizaje a partir del error y para reforzar la reflexión metacognitiva.
-
-Un flujo adicional corresponde al acompañamiento progresivo del estudio, donde el asistente actúa como un tutor que sugiere temas a reforzar, propone ejercicios adicionales o invita al usuario a reflexionar sobre su nivel de comprensión. Este flujo no se basa en un seguimiento automatizado estricto, sino en interacciones orientativas que respetan la autonomía del usuario.
-
-En todos los flujos de interacción se priorizó la claridad del lenguaje, la coherencia conceptual y la adaptación del nivel de profundidad de las respuestas. El asistente fue diseñado para sostener interacciones tanto breves como prolongadas, permitiendo que el usuario lo utilice de manera puntual o como apoyo durante sesiones de estudio más extensas.
-
-En conjunto, estos flujos de interacción materializan el enfoque de diseño centrado en el usuario adoptado en este trabajo, asegurando que el asistente virtual no solo sea técnicamente funcional, sino también pedagógicamente pertinente y experiencialmente adecuado para el proceso de preparación del examen PMP.
-
-## 4.3 Arquitectura general del sistema
-
-La arquitectura general del sistema fue diseñada con el objetivo de soportar de manera robusta, escalable y flexible el funcionamiento de un asistente virtual educativo de última generación. Para lograr esto, se seleccionó un stack tecnológico moderno basado en el ecosistema de React y Next.js, integrando servicios de backend en tiempo real y modelos de lenguaje avanzados.
-
-La solución se estructura como una aplicación web progresiva (PWA) de página única (SPA), lo que garantiza una experiencia de usuario fluida y reactiva, similar a una aplicación de escritorio nativa. Esta arquitectura permite una clara separación de responsabilidades entre el cliente, el servidor de datos y el motor de inteligencia artificial.
-
-### 4.3.1 Arquitectura lógica y tecnologías clave
-
-La arquitectura lógica del sistema se organiza en capas que interactúan entre sí para ofrecer la funcionalidad completa:
-
-1.  **Capa de Presentación (Frontend):** Construida sobre **Next.js 16.1 (con Turbopack)** y **React 19.2**. Esta capa es responsable de renderizar la interfaz de usuario, gestionar el estado local de la aplicación (sesiones, chats, progreso) y manejar la interacción directa con el usuario. Se utiliza **Tailwind CSS v4** para el diseño visual, permitiendo una interfaz moderna, responsiva y adaptable (modo oscuro/claro).
-2.  **Capa de Datos y Autenticación (Backend as a Service):** Se implementó **PocketBase v0.26**, una solución de backend ligera y de alto rendimiento basada en SQLite. PocketBase gestiona:
-    *   **Autenticación:** Registro y login de usuarios.
-    *   **Persistencia:** Almacenamiento de sesiones de estudio (`study_sessions`), historiales de chat (`chats`), mensajes (`messages`) y progreso del usuario (`user_progress`).
-    *   **Tiempo Real:** Sincronización de datos entre el cliente y el servidor.
-3.  **Capa de Inteligencia Artificial:** El núcleo inteligente del sistema utiliza **LangChain.js** como framework integral de orquestación y gestión del flujo de respuestas (streaming). El sistema se conecta a modelos de lenguaje avanzados (como GPT-4o-mini) a través de la API de OpenAI, permitiendo generar respuestas contextualizadas y pedagógicamente ricas.
-
-### 4.3.2 Arquitectura física y despliegue
-
-La arquitectura física sigue un modelo distribuido y "serverless" en gran medida:
-
-*   **Cliente Web:** Se ejecuta en el navegador del usuario, minimizando la latencia en la interacción de la interfaz.
-*   **Servidor de Aplicación (Next.js):** Alojado en una infraestructura de nube escalable (como Vercel), gestiona el enrutamiento y las API routes (`app/api/chat/route.ts`) que actúan como proxy seguro para las llamadas al modelo de lenguaje.
-*   **Servidor de Base de Datos (PocketBase):** Se despliega como un servicio independiente, proporcionando una API REST para las operaciones de datos.
-*   **Proveedor de LLM:** Los modelos de lenguaje se consumen como servicios externos (SaaS), garantizando acceso a la última tecnología sin necesidad de infraestructura de entrenamiento o inferencia propia.
-
-### 4.3.3 Componentes principales del sistema
-
-A partir de las arquitecturas lógica y física, se identifican los siguientes componentes esenciales desarrollados:
-
-*   **Chat Interface & AI Orchestrator:** El corazón del sistema. Gestiona el envío de mensajes, la construcción de prompts dinámicos según el modo seleccionado y el rendering de respuestas en formato Markdown. Utiliza `StringOutputParser` de LangChain para procesar el flujo de texto en tiempo real y `ChatOpenAI` para la conexión con el modelo.
-*   **Dashboard Inteligente:** Un componente visual dinámico que actúa como centro de mando. Integra un banner de recomendación ("Tu Siguiente Paso") que guía al usuario hacia la actividad prioritaria, y un sistema de pestañas para navegar por las Fases y Etapas del plan de estudio.
-*   **Gestor de Sesiones (Sidebar):** Permite al usuario acceder al historial de sesiones de estudio, crear nuevas conversaciones y gestionar su perfil, manteniendo la interfaz limpia y organizada.
-*   **Motor de Gamificación:** Lógica interna (`lib/gameData.ts`) que gestiona la estructura curricular (Fases, Etapas, Niveles). Controla el desbloqueo progresivo de contenido (candados en fases futuras) y calcula el porcentaje de avance en cada etapa, asegurando que el usuario domine los fundamentos antes de avanzar a temas complejos.
-
-## 4.4 Diseño de la interfaz de usuario
-
-El diseño de la interfaz de usuario (UI) del asistente virtual constituye un componente central de la solución propuesta, ya que actúa como el principal punto de contacto entre el sistema y el usuario final. Dado que el asistente está orientado a apoyar procesos de estudio complejos, la interfaz debía facilitar una interacción clara, fluida y cognitivamente sostenible.
-
-Se adoptó un enfoque de diseño centrado en la simplicidad, utilizando una estética limpia y moderna que reduce la carga cognitiva.
-
-### 4.4.1 Principios de usabilidad y Estilo Visual
-
-El diseño visual se apoya en **Tailwind CSS v4**, utilizando una paleta de colores neutra con acentos de color para indicar estados (verde para éxito, rojo para errores, azul para acciones principales).
-
-*   **Simplicidad:** La interfaz elimina el ruido visual. El foco está siempre en el contenido de la conversación o en el panel de control.
-*   **Modo Oscuro/Claro:** Se implementó soporte nativo para temas oscuros y claros, permitiendo al usuario adaptar la interfaz a sus preferencias y condiciones de iluminación, algo crucial para largas sesiones de estudio nocturno.
-*   **Tipografía:** Se seleccionaron fuentes sans-serif modernas y legibles (`Geist`, `Inter`), optimizadas para la lectura en pantalla.
-
-### 4.4.2 Estructura de Pantallas
-
-La aplicación se organiza en una estructura de "Single Page Application" optimizada para la concentración, dividida en tres áreas funcionales principales:
-
-1.  **Barra Lateral (Sidebar):**
-    *   Actúa como el centro de navegación global.
-    *   Permite el acceso rápido al "Inicio" y la gestión de "Sesiones de Estudio" (historial de conversaciones).
-    *   Incluye el perfil del usuario y opciones de sesión en la parte inferior.
-    *   Su diseño minimalista busca no distraer al usuario del contenido principal.
-
-2.  **Panel de Control (Dashboard):**
-    *   Es el "hub" central del estudiante, diseñado para adaptarse a diferentes estilos de aprendizaje mediante un sistema de pestañas superiores:
-        *   **Modo Guiado:** La vista por defecto. Presenta una ruta de aprendizaje estructurada y lineal. Destaca un banner de **"Tu Siguiente Paso"** que dirige al usuario inmediatamente a la lección o práctica pendiente más prioritaria. Debajo, un sistema de navegación por pestañas permite explorar las 5 Fases principales del contenido (desde "El Estándar" hasta "Esquema de Contenido (ECO)"), desplegando listas de niveles y etapas con indicadores de progreso porcentual.
-        *   **Modo Desbloqueado:** Una vista alternativa para usuarios avanzados que desean navegar libremente por todo el contenido estructurado sin restricciones de progreso.
-        *   **Modo Libre:** Transforma el dashboard en una "caja de herramientas". Muestra una cuadrícula de tarjetas con acceso directo a todos los modos especializados del asistente (ej. "Simulación de Crisis", "Tutor Socrático", "Debate"), permitiendo al usuario practicar habilidades específicas bajo demanda sin seguir una secuencia lineal.
-        *   **Simulación Examen:** Un entorno dedicado exclusivamente a la práctica intensiva de exámenes. A diferencia del modo guiado, este modo elimina la estructura jerárquica de fases y mundos, presentando directamente cuatro tarjetas de simulación de alto nivel (45, 90, 135 y 180 preguntas). Esto permite un acceso inmediato a los simulacros, facilitando sesiones de práctica enfocadas y sin distracciones.
-
-3.  **Modales de Actividad (Niveles):**
-    *   Al seleccionar un nivel en el Modo Guiado, el sistema no inicia un chat genérico, sino que despliega un modal de selección de actividad.
-    *   Este diseño permite al usuario elegir *cómo* quiere aprender ese tema específico:
-        *   **Lección Magistral:** Para aprender conceptos teóricos.
-        *   **Entrenamiento Práctico:** Para aplicar conocimientos en escenarios.
-        *   **Oráculo:** Para resolver dudas específicas.
-        *   **Prueba de Fuego:** Para demostrar dominio y avanzar.
-
-4.  **Área de Chat (Workspace):**
-    *   Es el espacio donde ocurre la interacción educativa.
-    *   Adapta su "personalidad" y funcionalidad según el modo seleccionado (ej. en modo "Debate" la IA es confrontativa; en "Explícamelo como a un niño" es didáctica y simple).
-    *   Renderiza el contenido en formato Markdown rico para facilitar la lectura de estructuras complejas, listas y tablas.
-
-### 4.4.3 Sistema de Retroalimentación y Gamificación
-
-El sistema de retroalimentación va más allá del texto. Se integraron elementos visuales para reforzar el aprendizaje y la motivación:
-
-*   **Feedback Inmediato:** En el modo examen y prácticas de nivel, las respuestas correctas o incorrectas se acompañan de explicaciones claras y distintivos visuales.
-*   **Modales de Logro:** Al completar un nivel o alcanzar un hito (ej. "Racha de 7 días"), el sistema despliega modales de celebración (`LevelCompletedModal`), reforzando positivamente la conducta de estudio.
-*   **Indicadores de Estado:** El uso de iconos (`Lucide React`) y colores semánticos ayuda al usuario a entender rápidamente el estado del sistema (cargando, error, éxito).
-
-En síntesis, la interfaz fue diseñada no solo como un medio de entrada y salida, sino como un entorno de aprendizaje inmersivo que combina la seriedad del contenido PMP con la interactividad y el "engagement" de las aplicaciones modernas.
+# CAPÍTULO 4: DISEÑO DE LA SOLUCIÓN
+
+## 4.1. Introducción
+Este capítulo detalla el diseño técnico y arquitectónico del "Asistente Virtual para la Preparación del Examen PMP". Se describe la estructura lógica y física del sistema, los componentes de software desarrollados, los modelos de datos implementados y los flujos de interacción que permiten el funcionamiento de las capacidades de inteligencia artificial generativa. El diseño se ha orientado a dar respuesta a los requisitos funcionales definidos en las Épicas y Historias de Usuario (ver **Anexo A**), creando una solución escalable, modular y mantenible, que prioriza la experiencia del usuario y la precisión pedagógica.
+
+## 4.2. Arquitectura General del Sistema
+La arquitectura del sistema ha sido diseñada siguiendo los principios modernos de la ingeniería de software para aplicaciones web distribuidas, adoptando un enfoque **Serverless** y **Jamstack** (JavaScript, APIs, and Markup). Este paradigma arquitectónico permite desacoplar completamente la capa de presentación (frontend) de la lógica de negocio y los datos (backend), lo que resulta en un sistema altamente modular, escalable y seguro.
+
+La elección de esta arquitectura responde a la necesidad de ofrecer una experiencia de usuario fluida y de baja latencia, crucial para un entorno de estudio interactivo, minimizando al mismo tiempo la carga operativa de administración de servidores. Al utilizar servicios gestionados y funciones sin servidor ("serverless functions"), el sistema puede escalar automáticamente según la demanda de los usuarios, optimizando costos y recursos computacionales. Además, este enfoque facilita la integración continua y el despliegue rápido de nuevas funcionalidades pedagógicas.
+
+### 4.2.1. Diagrama de Arquitectura de Alto Nivel
+El sistema se estructura en cuatro capas lógicas claramente diferenciadas, cada una con responsabilidades específicas y canales de comunicación definidos:
+
+1.  **Capa de Presentación (Frontend - Client Side):**
+    Esta capa es responsable de toda la interacción con el usuario final. Desarrollada con **React** y ejecutada principalmente en el navegador del usuario, se encarga de renderizar la interfaz gráfica, gestionar el estado local de la sesión de estudio (como las respuestas seleccionadas en el simulador o el historial de chat visible) y capturar los eventos de entrada. Gracias al modelo de "hidratación" de React, la aplicación ofrece una experiencia de "Single Page Application" (SPA), donde la navegación entre secciones es instantánea y no requiere recargas completas de página.
+
+2.  **Capa de Aplicación y Orquestación (Backend - Server Side):**
+    Implementada mediante **Next.js API Routes**, esta capa actúa como el cerebro lógico del sistema. Funciona como un conjunto de microservicios ligeros que se ejecutan bajo demanda. Sus responsabilidades incluyen:
+    *   Validación de seguridad y autenticación de las peticiones entrantes.
+    *   Orquestación del flujo de datos entre el cliente, la base de datos y el servicio de IA.
+    *   Construcción de contextos (prompts) enriquecidos para el modelo de lenguaje, inyectando información pedagógica específica según el modo de estudio seleccionado.
+    *   Gestión de la lógica de negocio crítica, como el cálculo de puntajes de exámenes o la generación dinámica de preguntas.
+
+3.  **Capa de Datos y Persistencia (Data Layer):**
+    Esta capa garantiza la integridad y disponibilidad de la información a largo plazo. Se utiliza un servicio de **Backend-as-a-Service (BaaS)** que provee:
+    *   Una base de datos relacional para almacenar perfiles de usuarios, historiales de chat y registros de simulaciones.
+    *   Un sistema de autenticación seguro (JWT) que gestiona el ciclo de vida de las sesiones de usuario.
+    *   Reglas de seguridad a nivel de fila (Row Level Security) que aseguran que cada estudiante solo pueda acceder a sus propios datos.
+
+4.  **Capa de Inteligencia Cognitiva (AI Service Layer):**
+    Es el componente externo que dota de "inteligencia" al asistente. El sistema consume la API de un Modelo de Lenguaje Grande (LLM) de última generación. Esta capa no almacena estado de la aplicación; funciona como un motor de procesamiento de lenguaje natural puro, recibiendo contexto y devolviendo explicaciones, preguntas o feedback pedagógico en tiempo real.
+
+> **[Figura 4.1: Diagrama de arquitectura de alto nivel]**
+> *Sugerencia: Incluir un diagrama de bloques detallado mostrando: Cliente Web (Navegador) -> Next.js (Vercel) -> API Routes (Node.js) -> PocketBase (SQLite) / Google Gemini API.*
+
+### 4.2.2. Stack Tecnológico Detallado
+Para materializar la arquitectura propuesta, se ha realizado una selección rigurosa de tecnologías, priorizando aquellas que ofrecen un equilibrio óptimo entre rendimiento, mantenibilidad y soporte de la comunidad (ecosistema).
+
+#### A. Core Framework y Lenguaje
+*   **Next.js 16.1 (App Router):** Se utiliza la última versión estable del framework full-stack de React. La adopción del "App Router" permite aprovechar capacidades avanzadas como los **React Server Components (RSC)** y el **Streaming SSR**. Esto significa que gran parte del HTML se genera en el servidor de manera incremental, reduciendo el tamaño del paquete JavaScript que el usuario debe descargar y mejorando drásticamente el tiempo de carga inicial (First Contentful Paint).
+*   **TypeScript:** Todo el código base está escrito en TypeScript. El tipado estático fuerte es fundamental en este proyecto para garantizar que las estructuras de datos complejas (como los objetos JSON de las preguntas del examen PMP o las respuestas de la API de IA) se manejen correctamente, previniendo errores en tiempo de ejecución "undefined is not a function" antes de que ocurran.
+
+#### B. Interfaz de Usuario y Experiencia (UX)
+*   **React 19:** La biblioteca de interfaz de usuario subyacente. Se aprovechan sus nuevos hooks y primitivas para la gestión eficiente del estado y las transiciones concurrentes.
+*   **Tailwind CSS 4:** Framework de estilos "utility-first". Permite construir interfaces consistentes y adaptables (responsive) directamente desde el HTML. La versión 4 introduce un motor de compilación JIT (Just-in-Time) de nueva generación, ultrarrápido y con detección automática de clases.
+*   **Framer Motion:** Biblioteca utilizada para las animaciones de la interfaz (transiciones entre preguntas, aparición de mensajes de chat, confeti de celebración), proporcionando una sensación de fluidez y modernidad esencial para mantener el compromiso del usuario (engagement).
+*   **Lucide React:** Conjunto de iconos vectoriales SVG ligeros y consistentes visualmente, utilizados para mejorar la usabilidad de la navegación y los controles.
+
+#### C. Backend y Base de Datos
+*   **PocketBase:** Una solución de backend ultra-portátil escrita en **Go**. A diferencia de bases de datos tradicionales como PostgreSQL que requieren una administración compleja, PocketBase utiliza **SQLite** en modo WAL (Write-Ahead Logging) embebido, lo que ofrece un rendimiento excepcional para el volumen de lectura/escritura esperado en una aplicación educativa (miles de operaciones por segundo). Su API en tiempo real permite futuras expansiones.
+*   **LangChain.js:** Framework de orquestación para LLMs. Actúa como una capa de abstracción sobre la API de Gemini. Permite cambiar de modelo de IA con cambios mínimos en el código, y facilita la gestión de cadenas de pensamiento y la estructuración de las salidas (parsers) para asegurar que la IA siempre responda en el formato esperado (por ejemplo, JSON válido para las simulaciones).
+
+#### D. Motor de Inteligencia Artificial
+*   **Google Gemini 3.0 Flash (Preview):** Se ha seleccionado el modelo más reciente y experimental de Google para aprovechar sus capacidades superiores de razonamiento y velocidad. Esta versión "Flash" está optimizada para respuestas de latencia ultra baja, esencial para mantener una conversación fluida en tiempo real, mientras mantiene una ventana de contexto masiva que permite analizar documentos extensos del PMBOK sin perder coherencia.
+
+## 4.3. Componentes Principales del Asistente Virtual
+El sistema ha sido construido mediante una arquitectura modular basada en componentes reutilizables, ubicados principalmente en `app/components`. Esta estrategia no solo facilita el desarrollo paralelo y las pruebas unitarias, sino que también asegura que el mantenimiento futuro sea menos propenso a errores en cascada.
+
+### 4.3.1. Estructura del Proyecto (Frontend)
+El frontend de la aplicación, desarrollado sobre **Next.js**, aprovecha la distinción entre *Server Components* (para renderizado estático y acceso a datos seguro) y *Client Components* (para interactividad).
+
+#### A. Layout y Navegación (`Sidebar` y `Dashboard`)
+*   **Componente `Sidebar`:**
+    Implementado como un componente de cliente (`'use client'`), gestiona la navegación global de la aplicación. Mantiene el estado de la ruta activa y colapsa/expande el menú en dispositivos móviles para garantizar la responsividad. Utiliza iconos vectoriales de la librería `lucide-react` para ofrecer pistas visuales claras. Además, integra el control de cierre de sesión, que invoca directamente al cliente de autenticación de PocketBase para limpiar el almacenamiento local (LocalStorage) y redirigir al login.
+
+*   **Componente `Dashboard`:**
+    Actúa como el centro de mando del estudiante. Al cargarse, realiza consultas asíncronas a la colección `user_progress` y `simulations` para calcular métricas en tiempo real. Visualiza:
+    *   **Nivel de Usuario:** Una barra de progreso animada con `framer-motion` que muestra la experiencia (XP) actual relativa al siguiente nivel.
+    *   **Racha de Estudio:** Lógica que compara la fecha de la última actividad registrada con la fecha actual para determinar la continuidad del hábito de estudio.
+    *   **Resumen de Dominios:** Tarjetas informativas que desglosan el rendimiento por áreas del PMBOK (Personas, Procesos, Entorno de Negocio).
+    *   **Historial de Simulaciones:** Una lista filtrable de los exámenes realizados, permitiendo retomar los que están "en progreso" o revisar los "completados".
+
+#### B. Módulo de Chat Inteligente (`ChatArea`)
+Este componente representa el núcleo interactivo de la solución y es técnicamente el más complejo del frontend.
+*   **Gestión de Estado Avanzada:** Utiliza `useRef` para mantener referencias mutables al contenedor de scroll (logrando un auto-scroll suave cuando llegan nuevos mensajes) y `useState` para gestionar la cola de mensajes y el estado de "pensando" (loading state) del asistente.
+*   **Streaming de Respuesta:** La comunicación con el backend utiliza flujos de datos (`streams`). El cliente procesa los chunks de texto a medida que llegan desde la API de Gemini, reduciendo la percepción de latencia y mostrando la respuesta carácter por carácter.
+*   **Inyección de Contexto Dinámico:** El componente permite al usuario seleccionar "Modos" (Socrático, Simulación, Workshop, etc.). Al cambiar el modo, se actualiza un estado que se envía como metadato en el payload de la API, alterando el comportamiento de la IA sin recargar la página.
+*   **Renderizado Markdown:** Los mensajes recibidos se procesan a través de `react-markdown`. Esto permite que el asistente estructure sus explicaciones con listas, tablas, negritas y bloques de código con resaltado de sintaxis.
+
+#### C. Simulador de Examen (`ExamSimulator`)
+Diseñado para replicar fielmente las condiciones del examen de certificación PMP.
+*   **Motor de Preguntas:** Este componente maneja un array de objetos JSON que representan las preguntas. Puede operar en dos modos:
+    1.  **Carga Estática/Histórica:** Recupera un examen existente desde PocketBase (colección `simulations`) para continuar una sesión previa.
+    2.  **Generación Dinámica:** Invoca a la API de IA (`/api/simulation/generate`) para crear un set de preguntas único basado en un tema específico y una cantidad definida (ej. 10, 45, 90 preguntas).
+*   **Control de Tiempo y Navegación:** Implementa un temporizador decreciente (`useEffect` con `setInterval`) que alerta al usuario cuando el tiempo se agota. La navegación entre preguntas se gestiona mediante un índice de estado.
+*   **Lógica de Evaluación:** Al finalizar, compara las respuestas del usuario (`selectedOptions`) con las `correctAnswer` almacenadas. Calcula el porcentaje de aciertos y actualiza el registro en la base de datos, marcando el examen como `completed` y guardando el puntaje final.
+
+#### D. Componentes Auxiliares de UX
+*   **`OnboardingModal`:** Un asistente tipo "wizard" de 4 pasos que se presenta a los nuevos usuarios, explicando la metodología de estudio y las funcionalidades principales.
+*   **`LevelCompletedModal`:** Un componente de celebración que se activa cuando el usuario alcanza el 100% de progreso en un nivel. Utiliza animaciones de confeti y transiciones de entrada para proporcionar refuerzo positivo inmediato.
+
+> **[Figura 4.2: Componentes de la Interfaz de Usuario]**
+> *Sugerencia: Captura de pantalla compuesta mostrando: 1) El Dashboard con métricas, 2) Una sesión de Chat activa con streaming de texto, y 3) La interfaz del Simulador con una pregunta de selección múltiple.*
+
+### 4.3.1.E Estrategias de Navegación y Modos de Estudio
+El Dashboard principal actúa como un controlador de estado que adapta la experiencia de aprendizaje a través de cuatro modos de visualización distintos, gestionados por el estado `viewMode`. Esta flexibilidad permite que la aplicación sirva tanto a estudiantes novatos que necesitan estructura como a expertos que buscan práctica específica.
+
+1.  **Modo Guiado (🗺️):**
+    *   **Enfoque:** Gamificación y Progresión Lineal.
+    *   **Comportamiento:** Es la vista predeterminada. Presenta el contenido organizado en "Mundos" (Fases) y "Niveles". Implementa una lógica de bloqueo estricta donde un nivel solo se habilita (`isLocked: false`) cuando el inmediatamente anterior ha sido marcado como completado en la colección `user_progress`.
+    *   **Objetivo:** Garantizar que el estudiante construya su conocimiento sobre bases sólidas antes de avanzar a conceptos complejos.
+
+2.  **Modo Desbloqueado (🔓):**
+    *   **Enfoque:** Referencia y Consulta.
+    *   **Comportamiento:** Utiliza la misma interfaz visual de mapas y mundos que el Modo Guiado, pero elimina todas las restricciones de acceso. Todos los niveles son accesibles instantáneamente.
+    *   **Objetivo:** Permitir a usuarios avanzados o repetidores navegar libremente para reforzar áreas específicas sin la fricción de tener que "desbloquear" contenido ya conocido.
+
+3.  **Modo Libre (♾️):**
+    *   **Enfoque:** Herramientas de IA a la Carta.
+    *   **Comportamiento:** Reemplaza completamente la visualización del mapa de niveles por un menú de tarjetas ("Grid Layout"). Ofrece 9 herramientas especializadas diseñadas para cubrir diferentes estilos de aprendizaje y necesidades específicas:
+        *   **Modo Estándar:** El asistente clásico. Proporciona preguntas y respuestas directas sobre cualquier tema del PMBOK. Es ideal para resolver dudas rápidas y obtener definiciones precisas.
+        *   **Simulación de Crisis:** Un roleplay inmersivo donde la IA actúa como un stakeholder difícil, un miembro del equipo conflictivo o un patrocinador exigente. El usuario debe actuar como Project Manager para resolver la situación aplicando habilidades blandas y técnicas.
+        *   **Taller de Entregables:** Una herramienta de creación guiada paso a paso. Ayuda al usuario a redactar documentos clave como el Project Charter, la Matriz de Riesgos o el Plan de Gestión de Comunicaciones, asegurando que se incluyan todos los componentes estándar.
+        *   **Examen Rápido:** Genera una serie corta de preguntas tipo PMP para poner a prueba el conocimiento del usuario. Ofrece feedback inmediato y explicaciones detalladas para cada opción de respuesta (correcta e incorrectas).
+        *   **Tutor Socrático:** Diseñado para profundizar en conceptos complejos. En lugar de dar la respuesta directa, la IA guía al usuario mediante una serie de preguntas reflexivas para que él mismo descubra la solución y construya su conocimiento.
+        *   **Debate (Abogado del Diablo):** Un ejercicio de argumentación donde la IA adopta deliberadamente una postura polémica o incorrecta sobre un tema de gestión de proyectos. El usuario debe convencer a la IA utilizando argumentos basados en los estándares del PMBOK y el Código de Ética.
+        *   **Caso de Estudio:** Presenta escenarios complejos y multifacéticos de proyectos. El usuario actúa como consultor externo para diagnosticar problemas raíz (root cause analysis) y proponer un plan de acción correctivo integral.
+        *   **Explícamelo como a un niño (ELI5):** Simplifica conceptos densos o abstractos utilizando analogías cotidianas y lenguaje sencillo. Es especialmente útil para entender la esencia de procesos complejos antes de estudiar los detalles técnicos.
+        *   **Entrenador de Fórmulas:** Se centra exclusivamente en la parte cuantitativa del examen. Genera ejercicios prácticos sobre Gestión del Valor Ganado (EVM), análisis de Ruta Crítica (CPM) y proyecciones financieras, enseñando a interpretar los resultados numéricos.
+    *   **Objetivo:** Ofrecer acceso directo a las capacidades del LLM fuera del contexto de un "nivel" específico, ideal para sesiones de estudio auto-dirigidas o exploración de conceptos abstractos.
+
+4.  **Simulación Examen (🎓):**
+    *   **Enfoque:** Evaluación y Métricas.
+    *   **Comportamiento:** Transforma el Dashboard en un centro de análisis de datos. Muestra gráficos de rendimiento acumulado, desglose de aciertos por dominio (Personas, Procesos, Entorno) y permite lanzar generadores de exámenes de longitud variable (simulacros de 45 a 180 preguntas).
+    *   **Objetivo:** Validar la preparación del estudiante bajo condiciones controladas y proporcionar feedback cuantitativo sobre su preparación real para el examen.
+
+### 4.3.2. Servicios de Backend (API Routes)
+Las API Routes de Next.js actúan como una capa de abstracción segura (Backend-for-Frontend) que oculta las credenciales de servicios terceros y centraliza la lógica de negocio.
+
+#### A. Ruta de Chat (`/api/chat`)
+Esta ruta orquesta la interacción con el modelo de lenguaje Google Gemini.
+*   **Validación:** Verifica que la solicitud contenga un array de mensajes válido y un modo de operación soportado.
+*   **Integración con LangChain:** Utiliza la librería `LangChain.js` para instanciar el modelo `ChatGoogleGenerativeAI` configurado con el modelo **gemini-3-flash-preview**.
+*   **Ingeniería de Prompts (System Prompting):** La ruta selecciona dinámicamente el "Prompt del Sistema" basándose en el parámetro `mode` recibido:
+    *   **Estándar:** Tutor experto en PMBOK 7ma Edición.
+    *   **Simulación:** Stakeholder o miembro del equipo en un escenario de crisis (Roleplay).
+    *   **Workshop:** Facilitador senior que guía en la creación de entregables (Project Charter, WBS, etc.).
+    *   **Socrático:** Profesor que responde solo con preguntas para fomentar el análisis.
+    *   **Quiz:** Examinador oficial que lanza preguntas situacionales difíciles.
+*   **Manejo de Streaming:** La respuesta del modelo se canaliza para devolver un flujo de datos continuo al cliente, permitiendo tiempos de respuesta percibidos casi instantáneos.
+
+#### B. Ruta de Generación de Simulación (`/api/simulation/generate`)
+Esta ruta es crítica para la funcionalidad de generación infinita de contenido.
+*   **Prompt de Estructura Estricta (JSON Mode):** Se instruye al modelo Gemini para que actúe como un generador de datos estructurados. El prompt exige que la salida sea estrictamente un array JSON válido de objetos `Question`, definiendo campos como `text`, `options`, `correctAnswer` y `explanation`.
+*   **Parsing y Validación:** La respuesta cruda de la IA se limpia y parsea. Aunque se confía en la capacidad del modelo, se implementan bloques `try-catch` para manejar posibles errores de formato JSON ("alucinaciones sintácticas") y asegurar que el frontend siempre reciba datos consumibles.
+
+### 4.3.3. Modelo de Datos (PocketBase)
+La base de datos se ha diseñado utilizando el esquema relacional ligero de PocketBase. A continuación se detallan las colecciones y sus estructuras de datos.
+
+> **[Tabla 4.1: Esquema de Base de Datos Detallado]**
+> *Sugerencia: Tabla técnica describiendo tipos de datos y relaciones.*
+
+| Colección | Tipo | Campos Clave | Relaciones | Descripción |
+| :--- | :--- | :--- | :--- | :--- |
+| **users** | Auth | `id`, `username`, `email`, `avatar`, `name` | - | Colección del sistema para gestión de identidad. Almacena también preferencias de UI. |
+| **user_progress** | Base | `user_id` (relation), `level` (int), `xp` (int), `streak_days` (int), `last_login` (date) | 1:1 con `users` | Almacena la gamificación y métricas acumuladas del estudiante. |
+| **chats** | Base | `id`, `user_id` (relation), `title` (text), `mode` (select), `created` (date) | N:1 con `users` | Cabecera de una sesión de conversación. Permite listar el historial en el sidebar. |
+| **messages** | Base | `chat_id` (relation), `role` (select: 'user'\|'assistant'), `content` (text), `created` (date) | N:1 con `chats` | Almacena cada interacción individual. Indexado por `chat_id` para recuperación rápida. |
+| **simulations** | Base | `user_id` (relation), `score` (int), `questions` (json), `answers` (json), `status` (select: 'in_progress'\|'completed') | N:1 con `users` | Almacena exámenes completos. El campo `questions` guarda el array completo de preguntas generadas para mantener la integridad histórica del examen realizado. |
+
+*   **Seguridad a Nivel de Fila (RLS):**
+    Todas las colecciones tienen reglas de API configuradas para garantizar la privacidad.
+    *   `List/View Rule`: `user_id = @request.auth.id` (El usuario solo ve sus propios registros).
+    *   `Create/Update Rule`: `user_id = @request.auth.id` (El usuario solo puede crear/modificar datos asociados a su ID).
+    *   Esto asegura que, incluso si un atacante intentara acceder a la API directamente, no podría leer datos de otros estudiantes.
+
+## 4.4. Flujos de Interacción y Procesos
+El diseño dinámico de la solución se detalla a través de los flujos de datos que ocurren entre el usuario, el sistema y los servicios externos. A continuación, se describen los algoritmos y secuencias de operación para los casos de uso principales.
+
+### 4.4.1. Flujo de Autenticación y Onboarding
+Este proceso es la puerta de entrada al sistema y garantiza que cada sesión de estudio esté personalizada y segura.
+1.  **Detección de Sesión (Middleware):**
+    Al intentar acceder a cualquier ruta protegida (ej. `/dashboard`), el sistema verifica la validez del estado de autenticación de PocketBase.
+    *   *Si es válida:* Permite el acceso a la aplicación.
+    *   *Si es inválida/inexistente:* Redirige al usuario a la ruta pública de bienvenida.
+2.  **Autenticación (Login/Registro):**
+    El usuario introduce sus credenciales. El cliente JS invoca al método `pb.collection('users').authWithPassword()`.
+    *   PocketBase valida el hash de la contraseña (bcrypt).
+    *   Si es correcto, retorna un token JWT firmado y el objeto `User`.
+    *   El cliente guarda el token en el almacenamiento seguro y actualiza el estado global.
+3.  **Onboarding (Primer Acceso):**
+    Tras el primer login, se presenta el `OnboardingModal`. Este componente guía al usuario a través de 4 pasos clave, explicando cómo usar el chat, el simulador y cómo interpretar su progreso.
+
+### 4.4.2. Flujo de Consulta al Asistente (Chat)
+Este flujo representa el ciclo completo de una interacción conversacional, desde que el usuario presiona "Enviar" hasta que la respuesta completa se visualiza.
+
+1.  **Captura y Optimización (Cliente):**
+    *   El usuario escribe un mensaje. El componente `ChatArea` bloquea inmediatamente el input.
+    *   Se añade el mensaje del usuario al estado local de la UI ("Optimistic UI update") para una sensación de respuesta instantánea.
+2.  **Construcción del Payload (Cliente -> Servidor):**
+    Se envía una solicitud POST a `/api/chat` conteniendo:
+    *   `messages`: El historial reciente de la conversación.
+    *   `mode`: El modo pedagógico actual (ej. `'socratic'`, `'workshop'`).
+3.  **Orquestación de IA (Servidor):**
+    *   **Inyección de System Prompt:** La API selecciona la "personalidad" de la IA adecuada para el modo solicitado.
+    *   **Llamada a Gemini:** Se invoca la API de Google usando `streaming: true`.
+4.  **Streaming y Persistencia (Respuesta):**
+    *   El servidor transmite los tokens generados al cliente en tiempo real.
+    *   Una vez finalizada la transmisión, el cliente envía una petición asíncrona a PocketBase para guardar el mensaje del usuario y la respuesta completa de la IA en la colección `messages`.
+
+> **[Figura 4.3: Diagrama de Secuencia - Interacción de Chat]**
+> *Sugerencia: Diagrama UML de secuencia detallado mostrando: Usuario -> Chat UI -> Next.js API (LangChain) -> Google Gemini -> PocketBase (Async Save).*
+
+### 4.4.3. Flujo de Simulación de Examen
+El proceso de simulación es técnicamente el más riguroso, ya que involucra generación procedimental y evaluación lógica.
+
+1.  **Configuración del Examen:**
+    El usuario define los parámetros: Cantidad de preguntas (ej. 10, 50, 180) y Tópico (ej. "Gestión de Riesgos").
+2.  **Generación Procedimental (AI-Driven):**
+    *   El sistema construye un prompt complejo que incluye la estructura JSON exacta requerida.
+    *   Gemini retorna el JSON. El backend lo parsea y valida.
+    *   Se crea un registro en la colección `simulations` con estado `in_progress`.
+3.  **Ejecución del Examen:**
+    *   Las preguntas se cargan en el `ExamSimulator`.
+    *   El usuario responde secuencialmente. Las respuestas se guardan temporalmente en el estado local o se sincronizan periódicamente.
+4.  **Envío y Evaluación (Scoring Algorithm):**
+    *   Al finalizar, se comparan las respuestas del usuario con las correctas.
+    *   Algoritmo de puntuación:
+        ```typescript
+        score = 0
+        for (q of questions) {
+           if (userAnswers[q.id] === q.correctAnswer) score++
+        }
+        percentage = (score / total) * 100
+        ```
+5.  **Cierre y Análisis:**
+    *   Se actualiza el registro en `simulations` con el puntaje final y el estado `completed`.
+    *   Si el usuario aprueba un nivel (en el contexto de la gamificación), se muestra el `LevelCompletedModal`.
+
+## 4.5. Decisiones de Diseño y Justificación Tecnológica
+
+Esta sección detalla las decisiones críticas de ingeniería y diseño tomadas durante el desarrollo del Asistente PMP. Cada decisión se justifica no solo desde una perspectiva técnica (rendimiento, escalabilidad), sino también desde una perspectiva pedagógica.
+
+### 4.5.1. Selección del Motor de IA: Google Gemini 3.0 Flash (Preview)
+La elección del modelo de lenguaje fundacional (LLM) fue una de las decisiones más trascendentales del proyecto. Se evaluaron opciones como OpenAI GPT-4o y Anthropic Claude 3.5 Sonnet. Finalmente, se seleccionó **Gemini 3.0 Flash (Preview)** por las siguientes razones técnicas y estratégicas:
+
+1.  **Ventana de Contexto Masiva (1M+ Tokens):** Permite que el asistente mantenga en memoria todo el historial de conversaciones y documentos de referencia del PMBOK sin sufrir "amnesia".
+2.  **Velocidad de Inferencia Superior:** La variante "Flash" está optimizada para respuestas de ultra baja latencia. Esto es vital para mantener la "ilusión de conversación" y evitar que el estudiante pierda el foco esperando una respuesta.
+3.  **Capacidades de Razonamiento Avanzado:** A pesar de ser un modelo optimizado para velocidad, la versión 3.0 muestra mejoras significativas en lógica deductiva, crucial para explicar preguntas situacionales complejas del examen PMP.
+4.  **Eficiencia de Costos:** Ofrece una relación rendimiento/costo superior para tareas educativas de alto volumen en comparación con modelos más pesados.
+
+### 4.5.2. Arquitectura de "Prompt Engineering" y Roles Pedagógicos
+En lugar de depender de un único "System Prompt" genérico, se diseñó una arquitectura de inyección de prompts dinámica basada en el concepto pedagógico de **Andamiaje Instruccional**. El sistema cambia su comportamiento interno según el "Modo de Estudio":
+
+*   **Modo Estándar:** Tutor equilibrado, claro y conciso.
+*   **Modo Tutor Socrático:** No da respuestas directas. Responde con preguntas guía para fomentar el pensamiento crítico (Nivel de Análisis en Bloom).
+*   **Modo Simulador de Examen:** Adopta un tono de "Roleplay" (Stakeholder enojado, Patrocinador exigente) para preparar al estudiante para la presión emocional y la resolución de conflictos en escenarios realistas.
+*   **Modo Workshop (Taller):** Actúa como un facilitador experto que guía al usuario paso a paso en la redacción de entregables formales (ej. Acta de Constitución), asegurando que se cumplan los estándares del PMBOK.
+*   **Modo Quiz:** Un examinador estricto que lanza preguntas rápidas y directas para evaluar la retención de conocimientos específicos.
+
+La implementación técnica utiliza plantillas de prompts que se ensamblan en tiempo de ejecución inyectando variables de contexto, logrando una experiencia altamente personalizada.
+
+### 4.5.3. Estrategia de Interfaz de Usuario (UI/UX) para el Aprendizaje Profundo
+La interfaz gráfica no es meramente estética; se diseñó como una herramienta para gestionar la carga cognitiva del estudiante.
+
+*   **Diseño "Distraction-Free":** Se adoptó una filosofía minimalista donde los elementos de navegación se atenúan durante el estudio profundo.
+*   **Modo Oscuro por Defecto:** Reduce la fatiga visual durante sesiones de estudio nocturnas.
+*   **Feedback Inmediato y Optimista:** Patrones de UI que reaccionan instantáneamente a las acciones del usuario para mantener el estado de "flow".
+
+### 4.5.4. Arquitectura de Datos Híbrida (Static vs. Dynamic)
+Se diseñó un modelo de datos híbrido que combina la inmutabilidad de los estándares educativos con la flexibilidad del progreso del usuario.
+
+*   **Contenido Estático en Código (`gameData.ts`):** La estructura del PMBOK (Dominios, Tareas, Principios) se codifica directamente en el cliente para garantizar acceso instantáneo y tipado estático.
+*   **Datos Dinámicos en PocketBase:** Solo los datos generados por el usuario se persisten en la base de datos, separando claramente la lógica de dominio del estado del usuario.
+
+### 4.5.5. Enfoque de Gamificación Estructural
+La gamificación se integró en el núcleo de la navegación.
+
+*   **Progresión Bloqueada:** El usuario debe "conquistar" conceptos para desbloquear los siguientes, asegurando una ruta de aprendizaje coherente.
+*   **Sistema de XP y Celebración:** Los puntos de experiencia y las modales de "Nivel Completado" (`LevelCompletedModal`) utilizan recompensas visuales (confeti) para motivar al usuario a completar sus objetivos diarios.
+
+## 4.6. Consideraciones de Seguridad y Robustez
+
+La seguridad en el desarrollo de software educativo garantiza la integridad del proceso de aprendizaje.
+
+### 4.6.1. Gestión Segura de Credenciales
+Las claves API sensibles (`GOOGLE_API_KEY`) se almacenan en variables de entorno del lado del servidor, nunca expuestas al cliente. Next.js garantiza este aislamiento por diseño.
+
+### 4.6.2. Validación de Datos y Prevención de Inyecciones
+*   **Validación de Esquema:** Todas las entradas a los API Endpoints se validan rigurosamente (aunque el código actual utiliza validación manual y tipos TypeScript, la arquitectura está preparada para esquemas Zod).
+*   **Sanitización:** Se verifica la estructura de los JSON generados por la IA antes de renderizarlos.
+
+### 4.6.3. Aislamiento de Datos Multi-Inquilino (Row Level Security)
+Se implementa RLS en PocketBase:
+*   `user_id = @request.auth.id`: Regla inmutable que asegura que cada estudiante solo acceda a sus propios datos, independientemente de la lógica del frontend.
+
+### 4.6.4. Privacidad
+El sistema minimiza la recolección de datos, almacenando solo lo necesario para la continuidad pedagógica y el seguimiento del progreso.
