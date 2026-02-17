@@ -204,10 +204,10 @@ export default function Sidebar({
                     className={`flex items-center gap-3 p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors mb-4 ${
                         isDesktopOpen ? 'w-full' : 'justify-center w-full aspect-square'
                     }`}
-                    title="Nuevo Chat"
+                    title="Nuevo Chat General"
                 >
                     <PlusCircle className="w-5 h-5" />
-                    {isDesktopOpen && <span className="font-medium animate-in fade-in">Nuevo Chat</span>}
+                    {isDesktopOpen && <span className="font-medium animate-in fade-in">Nuevo Chat General</span>}
                 </button>
 
                 {isDesktopOpen ? (
