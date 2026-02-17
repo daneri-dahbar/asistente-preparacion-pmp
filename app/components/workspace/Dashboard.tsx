@@ -147,7 +147,7 @@ export default function Dashboard({
             className="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-50/50 dark:bg-gray-900/50"
             style={{ scrollbarGutter: 'stable' }}
         >
-            <div className="max-w-5xl mx-auto space-y-8 md:space-y-12">
+            <div className="w-full mx-auto space-y-8 md:space-y-12">
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
                     <div>

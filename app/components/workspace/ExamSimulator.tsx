@@ -276,7 +276,7 @@ export default function ExamSimulator({ simulationId, initialQuestionCount, topi
                     </button>
                 </div>
 
-                <div className="max-w-4xl mx-auto w-full p-6 flex-1">
+                <div className="w-full mx-auto p-6 flex-1">
                     {/* Score Card */}
                     <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 mb-8 text-center shadow-lg relative overflow-hidden">
                         <div className={`absolute top-0 left-0 w-full h-2 ${passed ? 'bg-green-500' : 'bg-red-500'}`}></div>
@@ -410,7 +410,7 @@ export default function ExamSimulator({ simulationId, initialQuestionCount, topi
 
             {/* Main Stage */}
             <main className="flex-1 overflow-y-auto w-full scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
-                <div className="max-w-5xl mx-auto w-full p-6 min-h-full flex flex-col justify-center">
+                <div className="w-full mx-auto p-6 min-h-full flex flex-col justify-center">
                     <AnimatePresence mode='wait'>
                         <motion.div
                             key={currentQuestion.id}
