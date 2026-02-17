@@ -854,19 +854,7 @@ export default function WelcomePage() {
 
             {/* Main Content Area */}
             <main className="flex-1 flex flex-col relative min-w-0">
-                {/* Desktop Expand Button */}
-                {!isDesktopSidebarOpen && (
-                    <div className="hidden md:flex w-full px-4 md:px-8 pt-4 pb-0 z-30 shrink-0">
-                        <button 
-                            onClick={() => setIsDesktopSidebarOpen(true)}
-                            className="p-2 bg-white dark:bg-gray-800 rounded-md shadow-md border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
-                            title="Mostrar barra lateral"
-                        >
-                            <PanelLeftOpen className="w-5 h-5" />
-                        </button>
-                    </div>
-                )}
-
+                
                 {/* Mobile Header */}
                 <div className="md:hidden flex items-center p-3 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 sticky top-0 z-30">
                     <button 

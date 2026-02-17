@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import pb from '@/lib/pocketbase';
 import { WORLDS } from '@/lib/gameData';
-import { ChevronDown, ChevronRight, Clock, Folder, MessageSquare, PanelLeftClose } from 'lucide-react';
+import { ChevronDown, ChevronRight, Clock, Folder, MessageSquare, PanelLeftClose, PanelLeftOpen, Home, PlusCircle } from 'lucide-react';
 
 interface SidebarProps {
     user: any;
@@ -125,11 +125,16 @@ export default function Sidebar({
             <aside className={`fixed inset-y-0 left-0 z-50 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col h-full transition-all duration-300 ease-in-out ${
                 isOpen ? 'translate-x-0' : '-translate-x-full'
             } md:translate-x-0 md:relative ${
-                isDesktopOpen ? 'md:w-80' : 'md:w-0 md:border-r-0 md:overflow-hidden'
-            }`}>
+                isDesktopOpen ? 'md:w-80' : 'md:w-20'
+            } overflow-hidden`}>
+            
             {/* Header / User Profile */}
-            <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center gap-3 min-w-80">
-                <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold shadow-md overflow-hidden relative flex-shrink-0">
+            <div className={`border-b border-gray-200 dark:border-gray-800 flex items-center transition-all duration-300 ${
+                isDesktopOpen ? 'p-4 gap-3' : 'flex-col justify-center py-4 gap-4 px-2'
+            }`}>
+                <div className={`rounded-full bg-blue-600 flex items-center justify-center text-white font-bold shadow-md overflow-hidden relative flex-shrink-0 transition-all duration-300 ${
+                    isDesktopOpen ? 'w-10 h-10' : 'w-10 h-10'
+                }`}>
                     {user?.avatar ? (
                         <img 
                             src={pb.files.getUrl(user, user.avatar)} 
@@ -152,37 +157,62 @@ export default function Sidebar({
                         </div>
                     )}
                 </div>
-                <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 dark:text-white truncate">{user?.name || 'Usuario'}</h3>
-                    <button 
-                        onClick={onLogout}
-                        className="text-xs text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 truncate transition-colors flex items-center gap-1"
-                    >
-                        Cerrar Sesión
-                    </button>
-                </div>
+                
+                {isDesktopOpen && (
+                    <div className="flex-1 min-w-0 animate-in fade-in duration-300">
+                        <h3 className="font-semibold text-gray-900 dark:text-white truncate">{user?.name || 'Usuario'}</h3>
+                        <button 
+                            onClick={onLogout}
+                            className="text-xs text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 truncate transition-colors flex items-center gap-1"
+                        >
+                            Cerrar Sesión
+                        </button>
+                    </div>
+                )}
+
                 {onToggleDesktop && (
                     <button 
                         onClick={onToggleDesktop}
-                        className="hidden md:flex p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors ml-auto"
-                        title="Ocultar barra lateral"
+                        className={`hidden md:flex p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors ${
+                            isDesktopOpen ? 'ml-auto' : ''
+                        }`}
+                        title={isDesktopOpen ? "Contraer barra lateral" : "Expandir barra lateral"}
                     >
-                        <PanelLeftClose className="w-5 h-5" />
+                        {isDesktopOpen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeftOpen className="w-5 h-5" />}
                     </button>
                 )}
             </div>
 
-            {/* Chats List (Single Session View) */}
-            <div className="flex-1 overflow-y-auto p-4 flex flex-col min-w-80">
+            {/* Content Area */}
+            <div className={`flex-1 overflow-y-auto flex flex-col ${isDesktopOpen ? 'p-4' : 'p-2 items-center'} scrollbar-thin`}>
+                
+                {/* Home Button */}
                 <button 
                     onClick={onGoHome}
-                    className="w-full flex items-center gap-3 p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors mb-4"
+                    className={`flex items-center gap-3 p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors mb-2 ${
+                        isDesktopOpen ? 'w-full' : 'justify-center w-full aspect-square'
+                    }`}
+                    title="Inicio"
                 >
-                    <span className="text-xl">🏠</span>
-                    <span className="font-medium">Inicio</span>
+                    <Home className="w-5 h-5" />
+                    {isDesktopOpen && <span className="font-medium animate-in fade-in">Inicio</span>}
                 </button>
 
-                <div className="flex items-center justify-between mb-4">
+                {/* New Chat Button (Visible in collapsed mode for quick access) */}
+                <button 
+                    onClick={onCreateChat}
+                    className={`flex items-center gap-3 p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors mb-4 ${
+                        isDesktopOpen ? 'w-full' : 'justify-center w-full aspect-square'
+                    }`}
+                    title="Nuevo Chat"
+                >
+                    <PlusCircle className="w-5 h-5" />
+                    {isDesktopOpen && <span className="font-medium animate-in fade-in">Nuevo Chat</span>}
+                </button>
+
+                {isDesktopOpen ? (
+                    <>
+                        <div className="flex items-center justify-between mb-4 animate-in fade-in">
                     <div className="flex bg-gray-200 dark:bg-gray-800 rounded-lg p-1 text-xs font-medium">
                         <button 
                             onClick={() => setViewMode('recent')}
@@ -370,6 +400,8 @@ export default function Sidebar({
                         </div>
                     )}
                 </div>
+                </>
+            ) : null}
             </div>
         </aside>
         </>
