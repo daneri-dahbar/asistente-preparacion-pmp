@@ -27,6 +27,7 @@ export default function Sidebar({
     currentChatId,
     onSelectChat,
     onCreateChat,
+    onRenameChat,
     onLogout,
     onGoHome,
     isLoadingChats = false,
