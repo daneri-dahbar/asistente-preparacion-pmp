@@ -282,6 +282,25 @@ export default function WelcomePage() {
         }
     };
 
+    const handleDeleteChat = async (chatId: string) => {
+        try {
+            await pb.collection('chats').delete(chatId);
+            
+            // Update local state
+            setChats(prev => prev.filter(chat => chat.id !== chatId));
+            
+            // If deleted chat was active, clear view
+            if (currentChatId === chatId) {
+                setCurrentChatId(null);
+                setMessages([]);
+                setChatMode('standard');
+                setIsChatViewOpen(false);
+            }
+        } catch (error) {
+            console.error("Error deleting chat:", error);
+        }
+    };
+
     // Helper to generate start message for a given mode
     const getStartMessageForMode = (mode: string) => {
         if (mode === 'simulation') return 'START_SIMULATION';
@@ -852,6 +871,7 @@ export default function WelcomePage() {
                 onSelectChat={handleSelectChat}
                 onCreateChat={handleNewChat}
                 onRenameChat={handleRenameChat}
+                onDeleteChat={handleDeleteChat}
                 onLogout={handleLogout}
                 onGoHome={handleGoHome}
                 isLoadingChats={isLoadingChats}

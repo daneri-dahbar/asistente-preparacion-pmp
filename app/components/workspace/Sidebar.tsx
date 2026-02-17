@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import pb from '@/lib/pocketbase';
 import { WORLDS } from '@/lib/gameData';
-import { ChevronDown, ChevronRight, Clock, Folder, MessageSquare, PanelLeftClose, PanelLeftOpen, Home, PlusCircle, Edit2, Check, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Clock, Folder, MessageSquare, PanelLeftClose, PanelLeftOpen, Home, PlusCircle, Edit2, Check, X, Trash2 } from 'lucide-react';
 
 interface SidebarProps {
     user: any;
@@ -12,6 +12,7 @@ interface SidebarProps {
     onSelectChat: (chatId: string, mode?: string) => void;
     onCreateChat: () => void;
     onRenameChat?: (chatId: string, newTitle: string) => void;
+    onDeleteChat?: (chatId: string) => void;
     onLogout: () => void;
     onGoHome: () => void;
     isLoadingChats?: boolean;
@@ -28,6 +29,7 @@ export default function Sidebar({
     onSelectChat,
     onCreateChat,
     onRenameChat,
+    onDeleteChat,
     onLogout,
     onGoHome,
     isLoadingChats = false,
@@ -40,6 +42,7 @@ export default function Sidebar({
     const [expandedPhases, setExpandedPhases] = useState<Record<string, boolean>>({});
     const [expandedWorlds, setExpandedWorlds] = useState<Record<string, boolean>>({});
     const [editingChatId, setEditingChatId] = useState<string | null>(null);
+    const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState('');
 
     const togglePhase = (phaseId: string) => {
@@ -54,6 +57,7 @@ export default function Sidebar({
         e.stopPropagation();
         setEditingChatId(chat.id);
         setEditTitle(chat.title || 'Chat');
+        setDeletingChatId(null);
     };
 
     const saveEditing = (e: React.MouseEvent) => {
@@ -67,6 +71,25 @@ export default function Sidebar({
     const cancelEditing = (e: React.MouseEvent) => {
         e.stopPropagation();
         setEditingChatId(null);
+    };
+
+    const startDeleting = (e: React.MouseEvent, chat: any) => {
+        e.stopPropagation();
+        setDeletingChatId(chat.id);
+        setEditingChatId(null);
+    };
+
+    const confirmDelete = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (deletingChatId && onDeleteChat) {
+            onDeleteChat(deletingChatId);
+        }
+        setDeletingChatId(null);
+    };
+
+    const cancelDelete = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setDeletingChatId(null);
     };
 
     const formatRelativeTime = (dateString: string) => {
@@ -314,6 +337,26 @@ export default function Sidebar({
                                                 </div>
                                             </div>
                                         </div>
+                                    ) : deletingChatId === chat.id ? (
+                                        <div className="flex-1 flex items-center justify-between min-w-0 text-red-600 animate-in fade-in" onClick={e => e.stopPropagation()}>
+                                            <span className="text-xs font-bold">¿Eliminar?</span>
+                                            <div className="flex items-center gap-1">
+                                                <div 
+                                                    onClick={confirmDelete}
+                                                    className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 rounded cursor-pointer"
+                                                    title="Confirmar"
+                                                >
+                                                    <Check className="w-3 h-3" />
+                                                </div>
+                                                <div 
+                                                    onClick={cancelDelete}
+                                                    className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 rounded cursor-pointer"
+                                                    title="Cancelar"
+                                                >
+                                                    <X className="w-3 h-3" />
+                                                </div>
+                                            </div>
+                                        </div>
                                     ) : (
                                         <div className="flex-1 min-w-0 flex items-center justify-between group/item">
                                             <div className="min-w-0 overflow-hidden flex-1">
@@ -324,16 +367,28 @@ export default function Sidebar({
                                                 </div>
                                             </div>
                                             
-                                            {/* Edit button for general chats only */}
-                                            {onRenameChat && (!chat.mode || chat.mode === 'standard') && (
-                                                <div 
-                                                    onClick={(e) => startEditing(e, chat)}
-                                                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-500 transition-opacity"
-                                                    title="Renombrar chat"
-                                                >
-                                                    <Edit2 className="w-3 h-3" />
-                                                </div>
-                                            )}
+                                            <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                {/* Edit button for general chats only */}
+                                                {onRenameChat && (!chat.mode || chat.mode === 'standard') && (
+                                                    <div 
+                                                        onClick={(e) => startEditing(e, chat)}
+                                                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-500 transition-colors"
+                                                        title="Renombrar chat"
+                                                    >
+                                                        <Edit2 className="w-3 h-3" />
+                                                    </div>
+                                                )}
+                                                {/* Delete button */}
+                                                {onDeleteChat && (
+                                                    <div 
+                                                        onClick={(e) => startDeleting(e, chat)}
+                                                        className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-500 transition-colors"
+                                                        title="Eliminar chat"
+                                                    >
+                                                        <Trash2 className="w-3 h-3" />
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
                                 </button>
@@ -362,20 +417,55 @@ export default function Sidebar({
                                                         <button
                                                             key={chat.id}
                                                             onClick={() => onSelectChat(chat.id, chat.mode)}
-                                                            className={`w-full text-left px-3 py-2 rounded-lg text-sm truncate transition-colors flex items-center gap-2 ${
+                                                            className={`w-full text-left px-3 py-2 rounded-lg text-sm truncate transition-colors flex items-center gap-2 group relative ${
                                                                 currentChatId === chat.id
                                                                     ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
                                                                     : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                                                             }`}
                                                         >
                                                             <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0 mt-0.5"></span>
-                                                            <div className="flex-1 min-w-0">
-                                                                <div className="truncate">{chat.title || 'Chat'}</div>
-                                                                <div className="text-[10px] text-gray-400 truncate flex items-center gap-1">
-                                                                    <Clock className="w-2.5 h-2.5" />
-                                                                    {formatRelativeTime(chat.last_active || chat.updated || chat.created)}
+                                                            
+                                                            {deletingChatId === chat.id ? (
+                                                                <div className="flex-1 flex items-center justify-between min-w-0 text-red-600 animate-in fade-in" onClick={e => e.stopPropagation()}>
+                                                                    <span className="text-xs font-bold">¿Eliminar?</span>
+                                                                    <div className="flex items-center gap-1">
+                                                                        <div 
+                                                                            onClick={confirmDelete}
+                                                                            className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 rounded cursor-pointer"
+                                                                        >
+                                                                            <Check className="w-3 h-3" />
+                                                                        </div>
+                                                                        <div 
+                                                                            onClick={cancelDelete}
+                                                                            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 rounded cursor-pointer"
+                                                                        >
+                                                                            <X className="w-3 h-3" />
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
-                                                            </div>
+                                                            ) : (
+                                                                <div className="flex-1 min-w-0 flex items-center justify-between group/item">
+                                                                    <div className="min-w-0 overflow-hidden flex-1">
+                                                                        <div className="truncate font-medium">{chat.title || 'Chat'}</div>
+                                                                        <div className="text-[10px] text-gray-400 truncate flex items-center gap-1">
+                                                                            <Clock className="w-2.5 h-2.5" />
+                                                                            {formatRelativeTime(chat.last_active || chat.updated || chat.created)}
+                                                                        </div>
+                                                                    </div>
+                                                                    
+                                                                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                        {onDeleteChat && (
+                                                                            <div 
+                                                                                onClick={(e) => startDeleting(e, chat)}
+                                                                                className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-500 transition-colors"
+                                                                                title="Eliminar chat"
+                                                                            >
+                                                                                <Trash2 className="w-3 h-3" />
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </button>
                                                     ))}
                                                 </div>
@@ -393,20 +483,55 @@ export default function Sidebar({
                                         <button
                                             key={chat.id}
                                             onClick={() => onSelectChat(chat.id, chat.mode)}
-                                            className={`w-full text-left px-3 py-2 rounded-lg text-sm truncate transition-colors flex items-center gap-2 ${
+                                            className={`w-full text-left px-3 py-2 rounded-lg text-sm truncate transition-colors flex items-center gap-2 group relative ${
                                                 currentChatId === chat.id
                                                     ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300'
                                                     : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                                             }`}
                                         >
                                             <span className="w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0 mt-0.5"></span>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="truncate">{chat.title || 'Simulación'}</div>
-                                                <div className="text-[10px] text-gray-400 truncate flex items-center gap-1">
-                                                    <Clock className="w-2.5 h-2.5" />
-                                                    {formatRelativeTime(chat.last_active || chat.updated || chat.created)}
+                                            
+                                            {deletingChatId === chat.id ? (
+                                                <div className="flex-1 flex items-center justify-between min-w-0 text-red-600 animate-in fade-in" onClick={e => e.stopPropagation()}>
+                                                    <span className="text-xs font-bold">¿Eliminar?</span>
+                                                    <div className="flex items-center gap-1">
+                                                        <div 
+                                                            onClick={confirmDelete}
+                                                            className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 rounded cursor-pointer"
+                                                        >
+                                                            <Check className="w-3 h-3" />
+                                                        </div>
+                                                        <div 
+                                                            onClick={cancelDelete}
+                                                            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 rounded cursor-pointer"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            ) : (
+                                                <div className="flex-1 min-w-0 flex items-center justify-between group/item">
+                                                    <div className="min-w-0 overflow-hidden flex-1">
+                                                        <div className="truncate font-medium">{chat.title || 'Simulación'}</div>
+                                                        <div className="text-[10px] text-gray-400 truncate flex items-center gap-1">
+                                                            <Clock className="w-2.5 h-2.5" />
+                                                            {formatRelativeTime(chat.last_active || chat.updated || chat.created)}
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        {onDeleteChat && (
+                                                            <div 
+                                                                onClick={(e) => startDeleting(e, chat)}
+                                                                className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-500 transition-colors"
+                                                                title="Eliminar chat"
+                                                            >
+                                                                <Trash2 className="w-3 h-3" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </button>
                                     ))}
                                 </div>
@@ -420,20 +545,55 @@ export default function Sidebar({
                                         <button
                                             key={chat.id}
                                             onClick={() => onSelectChat(chat.id, chat.mode)}
-                                            className={`w-full text-left px-3 py-2 rounded-lg text-sm truncate transition-colors flex items-center gap-2 ${
+                                            className={`w-full text-left px-3 py-2 rounded-lg text-sm truncate transition-colors flex items-center gap-2 group relative ${
                                                 currentChatId === chat.id
                                                     ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300'
                                                     : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                                             }`}
                                         >
                                             <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0 mt-0.5"></span>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="truncate">{chat.title || 'Entrenamiento'}</div>
-                                                <div className="text-[10px] text-gray-400 truncate flex items-center gap-1">
-                                                    <Clock className="w-2.5 h-2.5" />
-                                                    {formatRelativeTime(chat.last_active || chat.updated || chat.created)}
+                                            
+                                            {deletingChatId === chat.id ? (
+                                                <div className="flex-1 flex items-center justify-between min-w-0 text-red-600 animate-in fade-in" onClick={e => e.stopPropagation()}>
+                                                    <span className="text-xs font-bold">¿Eliminar?</span>
+                                                    <div className="flex items-center gap-1">
+                                                        <div 
+                                                            onClick={confirmDelete}
+                                                            className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 rounded cursor-pointer"
+                                                        >
+                                                            <Check className="w-3 h-3" />
+                                                        </div>
+                                                        <div 
+                                                            onClick={cancelDelete}
+                                                            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 rounded cursor-pointer"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            ) : (
+                                                <div className="flex-1 min-w-0 flex items-center justify-between group/item">
+                                                    <div className="min-w-0 overflow-hidden flex-1">
+                                                        <div className="truncate font-medium">{chat.title || 'Entrenamiento'}</div>
+                                                        <div className="text-[10px] text-gray-400 truncate flex items-center gap-1">
+                                                            <Clock className="w-2.5 h-2.5" />
+                                                            {formatRelativeTime(chat.last_active || chat.updated || chat.created)}
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        {onDeleteChat && (
+                                                            <div 
+                                                                onClick={(e) => startDeleting(e, chat)}
+                                                                className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-500 transition-colors"
+                                                                title="Eliminar chat"
+                                                            >
+                                                                <Trash2 className="w-3 h-3" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </button>
                                     ))}
                                 </div>
@@ -484,6 +644,24 @@ export default function Sidebar({
                                                         </div>
                                                     </div>
                                                 </div>
+                                            ) : deletingChatId === chat.id ? (
+                                                <div className="flex-1 flex items-center justify-between min-w-0 text-red-600 animate-in fade-in" onClick={e => e.stopPropagation()}>
+                                                    <span className="text-xs font-bold">¿Eliminar?</span>
+                                                    <div className="flex items-center gap-1">
+                                                        <div 
+                                                            onClick={confirmDelete}
+                                                            className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 rounded cursor-pointer"
+                                                        >
+                                                            <Check className="w-3 h-3" />
+                                                        </div>
+                                                        <div 
+                                                            onClick={cancelDelete}
+                                                            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 rounded cursor-pointer"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             ) : (
                                                 <div className="flex-1 min-w-0 flex items-center justify-between group/item">
                                                     <div className="min-w-0 overflow-hidden flex-1">
@@ -494,16 +672,28 @@ export default function Sidebar({
                                                         </div>
                                                     </div>
 
-                                                    {/* Edit button for general chats only */}
-                                                    {onRenameChat && (!chat.mode || chat.mode === 'standard') && (
-                                                        <div 
-                                                            onClick={(e) => startEditing(e, chat)}
-                                                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-500 transition-opacity"
-                                                            title="Renombrar chat"
-                                                        >
-                                                            <Edit2 className="w-3 h-3" />
-                                                        </div>
-                                                    )}
+                                                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        {/* Edit button for general chats only */}
+                                                        {onRenameChat && (!chat.mode || chat.mode === 'standard') && (
+                                                            <div 
+                                                                onClick={(e) => startEditing(e, chat)}
+                                                                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-500 transition-colors"
+                                                                title="Renombrar chat"
+                                                            >
+                                                                <Edit2 className="w-3 h-3" />
+                                                            </div>
+                                                        )}
+                                                        {/* Delete button */}
+                                                        {onDeleteChat && (
+                                                            <div 
+                                                                onClick={(e) => startDeleting(e, chat)}
+                                                                className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-500 transition-colors"
+                                                                title="Eliminar chat"
+                                                            >
+                                                                <Trash2 className="w-3 h-3" />
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             )}
                                         </button>
