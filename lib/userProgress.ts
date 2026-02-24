@@ -5,7 +5,6 @@ export interface UserProgress {
     user: string;
     completed_levels: string[];
     stats?: {
-        total_xp?: number;
         accuracy?: string;
         streak?: number;
         correct_answers?: number;
