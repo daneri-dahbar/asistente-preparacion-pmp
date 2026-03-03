@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import pb from '@/lib/pocketbase';
 import { useRouter } from 'next/navigation';
 
@@ -52,8 +53,18 @@ export default function Home() {
 
     return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-6 dark:bg-gray-900">
-            <div className="w-full max-w-md space-y-8 rounded-xl bg-white p-10 shadow-lg dark:bg-gray-800">
+            <div className="w-full max-w-md space-y-8 rounded-xl bg-white p-10 shadow-lg dark:bg-gray-700">
                 <div className="text-center">
+                    <div className="flex justify-center mb-6">
+                        <Image 
+                            src="/asistente-pmp-300.png" 
+                            alt="Asistente PMP Logo" 
+                            width={150} 
+                            height={150} 
+                            priority
+                            className="h-auto w-auto"
+                        />
+                    </div>
                     <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">
                         Asistente PMP
                     </h1>
