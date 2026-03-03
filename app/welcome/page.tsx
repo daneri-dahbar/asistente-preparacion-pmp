@@ -53,7 +53,9 @@ export default function WelcomePage() {
         sessions: 0,
         accuracy: 'N/A',
         masteredAreas: 0,
-        streak: 0
+        streak: 0,
+        level: 1,
+        title: 'Novato'
     });
 
     // Calculate local stats (synchronous)
@@ -64,7 +66,11 @@ export default function WelcomePage() {
         // 2. Streak Calculation (simplified or removed)
         let currentStreak = 0;
         
-        // 3. Calculate Mastered Areas (Worlds fully completed)
+        // 3. Title Calculation
+        let level = 1;
+        let title = 'Novato';
+
+        // 4. Calculate Mastered Areas (Worlds fully completed)
         const masteredAreasCount = WORLDS.filter(w => {
             if (w.levels.length === 0) return false;
             return w.levels.every((_, idx) => completedLevels.includes(`${w.id}-${idx}`));
@@ -74,7 +80,9 @@ export default function WelcomePage() {
             ...prev,
             sessions: totalSessions,
             masteredAreas: masteredAreasCount,
-            streak: currentStreak
+            streak: currentStreak,
+            level,
+            title
         }));
     }, [completedLevels]);
 

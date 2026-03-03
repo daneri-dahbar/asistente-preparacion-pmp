@@ -35,6 +35,11 @@ async function main() {
                         required: true,
                     },
                     {
+                        name: 'last_active',
+                        type: 'date',
+                        required: false,
+                    },
+                    {
                         name: 'user',
                         type: 'relation',
                         required: true,
@@ -91,6 +96,53 @@ async function main() {
             } catch (e) {
                 console.log('ℹ️ Colección messages ya existe o error:', e.message);
             }
+        }
+
+        // 4. User Progress Collection
+        try {
+            await pb.collections.create({
+                name: 'user_progress',
+                type: 'base',
+                fields: [
+                    { name: 'user', type: 'relation', collectionId: '_pb_users_auth_', maxSelect: 1, required: true },
+                    { name: 'completed_levels', type: 'json' },
+                    { name: 'stats', type: 'json' }
+                ],
+                listRule: 'user = @request.auth.id',
+                viewRule: 'user = @request.auth.id',
+                createRule: 'user = @request.auth.id',
+                updateRule: 'user = @request.auth.id',
+                deleteRule: 'user = @request.auth.id',
+            });
+            console.log('✅ Colección user_progress creada.');
+        } catch (e) {
+            console.log('ℹ️ Colección user_progress ya existe o error:', e.message);
+        }
+
+        // 5. Simulations Collection
+        try {
+            await pb.collections.create({
+                name: 'simulations',
+                type: 'base',
+                fields: [
+                    { name: 'user', type: 'relation', collectionId: '_pb_users_auth_', maxSelect: 1, required: true },
+                    { name: 'status', type: 'text' },
+                    { name: 'type', type: 'text' },
+                    { name: 'total_questions', type: 'number' },
+                    { name: 'current_index', type: 'number' },
+                    { name: 'questions', type: 'json' },
+                    { name: 'answers', type: 'json' },
+                    { name: 'score', type: 'number' }
+                ],
+                listRule: 'user = @request.auth.id',
+                viewRule: 'user = @request.auth.id',
+                createRule: 'user = @request.auth.id',
+                updateRule: 'user = @request.auth.id',
+                deleteRule: 'user = @request.auth.id',
+            });
+            console.log('✅ Colección simulations creada.');
+        } catch (e) {
+            console.log('ℹ️ Colección simulations ya existe o error:', e.message);
         }
 
         console.log('🎉 Configuración de base de datos completada.');

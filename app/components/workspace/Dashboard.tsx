@@ -44,6 +44,8 @@ interface DashboardProps {
         accuracy: string;
         masteredAreas: number;
         streak: number;
+        level?: number;
+        title?: string;
     };
     selectedLevel?: LevelData | null;
     onSelectLevel?: (level: LevelData | null) => void;
