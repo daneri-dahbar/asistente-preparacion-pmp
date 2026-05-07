@@ -1,8 +1,12 @@
 import PocketBase from 'pocketbase';
+import fs from 'node:fs';
+import path from 'node:path';
 
-const PB_URL = process.env.PB_URL || 'http://127.0.0.1:8090';
-const PB_ADMIN_EMAIL = process.env.PB_ADMIN_EMAIL;
-const PB_ADMIN_PASSWORD = process.env.PB_ADMIN_PASSWORD;
+loadEnvFile(path.resolve('.env.local'));
+
+const PB_URL = process.env.PB_URL || process.env.POCKETBASE_URL || process.env.NEXT_PUBLIC_POCKETBASE_URL || 'http://127.0.0.1:8090';
+const PB_ADMIN_EMAIL = process.env.PB_ADMIN_EMAIL || process.env.POCKETBASE_ADMIN_EMAIL;
+const PB_ADMIN_PASSWORD = process.env.PB_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD;
 
 if (!PB_ADMIN_EMAIL || !PB_ADMIN_PASSWORD) {
     console.error('Error: Por favor define PB_ADMIN_EMAIL y PB_ADMIN_PASSWORD en las variables de entorno.');
@@ -12,10 +16,19 @@ if (!PB_ADMIN_EMAIL || !PB_ADMIN_PASSWORD) {
 
 const pb = new PocketBase(PB_URL);
 
+async function authAsAdmin() {
+    if (pb.admins?.authWithPassword) {
+        await pb.admins.authWithPassword(PB_ADMIN_EMAIL, PB_ADMIN_PASSWORD);
+        return;
+    }
+
+    await pb.collection('_superusers').authWithPassword(PB_ADMIN_EMAIL, PB_ADMIN_PASSWORD);
+}
+
 async function main() {
     try {
         console.log(`Conectando a ${PB_URL}...`);
-        await pb.admins.authWithPassword(PB_ADMIN_EMAIL, PB_ADMIN_PASSWORD);
+        await authAsAdmin();
         console.log('Autenticado como Admin.');
 
         // 2. Chats Collection
@@ -153,3 +166,29 @@ async function main() {
 }
 
 main();
+
+function loadEnvFile(filePath) {
+    if (!fs.existsSync(filePath)) return;
+
+    const content = fs.readFileSync(filePath, 'utf8');
+    for (const line of content.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+
+        const separator = trimmed.indexOf('=');
+        if (separator === -1) continue;
+
+        const key = trimmed.slice(0, separator).trim();
+        let value = trimmed.slice(separator + 1).trim();
+        if (!key || process.env[key] !== undefined) continue;
+
+        if (
+            (value.startsWith('"') && value.endsWith('"')) ||
+            (value.startsWith("'") && value.endsWith("'"))
+        ) {
+            value = value.slice(1, -1);
+        }
+
+        process.env[key] = value;
+    }
+}

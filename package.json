@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "mcp:pocketbase": "node mcp/pocketbase-mcp-server.mjs",
     "lint": "eslint"
   },
   "dependencies": {

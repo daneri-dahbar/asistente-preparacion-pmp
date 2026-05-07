@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "pocketbase": {
+      "command": "node",
+      "args": ["mcp/pocketbase-mcp-server.mjs"]
+    }
+  }
+}
