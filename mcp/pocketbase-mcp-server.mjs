@@ -326,7 +326,7 @@ async function authenticate() {
 
   if (process.env.PB_AUTH_TOKEN) {
     pb.authStore.save(process.env.PB_AUTH_TOKEN, parseJsonEnv('PB_AUTH_MODEL') || null);
-    return;
+    return pb;
   }
 
   const adminEmail = process.env.PB_ADMIN_EMAIL || process.env.POCKETBASE_ADMIN_EMAIL;
@@ -334,11 +334,11 @@ async function authenticate() {
   if (adminEmail && adminPassword) {
     if (pb.admins?.authWithPassword) {
       await pb.admins.authWithPassword(adminEmail, adminPassword);
-      return;
+      return pb;
     }
 
     await pb.collection('_superusers').authWithPassword(adminEmail, adminPassword);
-    return;
+    return pb;
   }
 
   if (process.env.PB_AUTH_EMAIL && process.env.PB_AUTH_PASSWORD) {
