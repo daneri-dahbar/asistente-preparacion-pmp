@@ -32,8 +32,15 @@ interface SimulationRecord {
     score: number;
     created: string;
     updated: string;
+    started_at?: string;
+    completed_at?: string;
     questions: Question[];
     answers: Record<string, string>;
+}
+
+function getSimulationDate(simulation: SimulationRecord) {
+    const value = simulation.completed_at || simulation.started_at || simulation.updated || simulation.created;
+    return new Date(value);
 }
 
 interface DashboardProps {
@@ -76,7 +83,9 @@ export default function Dashboard({
                         sort: '-created',
                         filter: `user="${pb.authStore.model?.id}"`,
                     });
-                    setUserSimulations(records as unknown as SimulationRecord[]);
+                    const simulations = records as unknown as SimulationRecord[];
+                    simulations.sort((a, b) => getSimulationDate(b).getTime() - getSimulationDate(a).getTime());
+                    setUserSimulations(simulations);
                 } catch (err) {
                     console.error("Error fetching simulations:", err);
                 }
@@ -576,7 +585,7 @@ export default function Dashboard({
                                                             ? (sim.score / sim.total_questions >= 0.7 ? 'APROBADO' : 'REPROBADO')
                                                             : 'EN PROGRESO'}
                                                     </span>
-                                                    <span className="text-sm text-gray-500">{new Date(sim.created).toLocaleDateString()}</span>
+                                                    <span className="text-sm text-gray-500">{getSimulationDate(sim).toLocaleDateString()}</span>
                                                 </div>
                                                 <h4 className="font-bold text-gray-900 dark:text-white text-lg">
                                                     {sim.total_questions === 45 ? 'Simulación Inicial (45)' : 

@@ -15,6 +15,16 @@ if (!PB_ADMIN_EMAIL || !PB_ADMIN_PASSWORD) {
 }
 
 const pb = new PocketBase(PB_URL);
+pb.autoCancellation(false);
+
+const USER_ROLES = ['usuario', 'admin'];
+const DEFAULT_USER_ROLE = 'usuario';
+const ADMIN_ROLE_RULE = '@request.auth.role = "admin"';
+const OWNER_RULE = 'user = @request.auth.id';
+const USER_SELF_RULE = 'id = @request.auth.id';
+const USER_READ_RULE = `${ADMIN_ROLE_RULE} || ${USER_SELF_RULE}`;
+const USER_UPDATE_RULE = `${USER_SELF_RULE} && (@request.body.role:isset = false || @request.body.role = role)`;
+const OWNER_READ_RULE = `${ADMIN_ROLE_RULE} || ${OWNER_RULE}`;
 
 async function authAsAdmin() {
     if (pb.admins?.authWithPassword) {
@@ -30,6 +40,11 @@ async function main() {
         console.log(`Conectando a ${PB_URL}...`);
         await authAsAdmin();
         console.log('Autenticado como Admin.');
+
+        await ensureUserRoles();
+        await ensurePlatformReadRules();
+        await ensureUserResearchInstruments();
+        await ensureUserResearchSessions();
 
         // 2. Chats Collection
         try {
@@ -166,6 +181,194 @@ async function main() {
 }
 
 main();
+
+async function ensureUserRoles() {
+    const usersCollection = await pb.collections.getOne('users');
+    const roleField = usersCollection.fields.find((field) => field.name === 'role');
+    const fields = roleField
+        ? usersCollection.fields.map((field) => (
+            field.name === 'role'
+                ? {
+                    ...field,
+                    type: 'select',
+                    required: false,
+                    maxSelect: 1,
+                    values: USER_ROLES,
+                    hidden: false,
+                }
+                : field
+        ))
+        : [
+            ...usersCollection.fields,
+            {
+                name: 'role',
+                type: 'select',
+                required: false,
+                maxSelect: 1,
+                values: USER_ROLES,
+                hidden: false,
+            },
+        ];
+
+    await pb.collections.update(usersCollection.id, {
+        fields,
+        listRule: USER_READ_RULE,
+        viewRule: USER_READ_RULE,
+        updateRule: USER_UPDATE_RULE,
+    });
+
+    const users = await pb.collection('users').getFullList({
+        fields: 'id,email,role,emailVisibility',
+    });
+
+    let updatedCount = 0;
+    for (const user of users) {
+        const data = {};
+
+        if (!USER_ROLES.includes(user.role)) {
+            data.role = DEFAULT_USER_ROLE;
+        }
+
+        if (user.emailVisibility !== true) {
+            data.emailVisibility = true;
+        }
+
+        if (Object.keys(data).length > 0) {
+            await pb.collection('users').update(user.id, data);
+            updatedCount += 1;
+        }
+    }
+
+    console.log(`Usuarios configurados. ${updatedCount} usuario(s) actualizado(s) con rol valido y email publico.`);
+}
+
+async function ensurePlatformReadRules() {
+    const ownedCollections = ['chats', 'messages', 'user_progress', 'simulations'];
+
+    for (const collectionName of ownedCollections) {
+        const collection = await pb.collections.getOne(collectionName).catch(() => null);
+        if (!collection) continue;
+
+        await pb.collections.update(collection.id, {
+            listRule: OWNER_READ_RULE,
+            viewRule: OWNER_READ_RULE,
+            createRule: OWNER_RULE,
+            updateRule: OWNER_RULE,
+            deleteRule: OWNER_RULE,
+        });
+    }
+
+    console.log('Reglas de lectura admin configuradas para datos de plataforma.');
+}
+
+async function ensureUserResearchSessions() {
+    const usersCollection = await pb.collections.getOne('users');
+    const instrumentsCollection = await pb.collections.getOne('user_research_instruments').catch(() => null);
+    const existing = await pb.collections.getOne('user_research_sessions').catch(() => null);
+    const fields = [
+        { name: 'user', type: 'relation', collectionId: usersCollection.id, maxSelect: 1, required: true },
+        { name: 'admin', type: 'relation', collectionId: usersCollection.id, maxSelect: 1, required: false },
+        ...(instrumentsCollection ? [{ name: 'instrument', type: 'relation', collectionId: instrumentsCollection.id, maxSelect: 1, required: false }] : []),
+        { name: 'session_date', type: 'date', required: true },
+        { name: 'session_type', type: 'text', required: true },
+        { name: 'context', type: 'text', required: false },
+        { name: 'feedback', type: 'text', required: true },
+        { name: 'pain_points', type: 'json', required: false },
+        { name: 'design_decisions', type: 'json', required: false },
+        { name: 'nps', type: 'number', required: false },
+        { name: 'usefulness_score', type: 'number', required: false },
+        { name: 'usability_score', type: 'number', required: false },
+        { name: 'follow_up', type: 'text', required: false },
+        { name: 'evidence_tag', type: 'text', required: false },
+    ];
+
+    const rules = {
+        listRule: ADMIN_ROLE_RULE,
+        viewRule: ADMIN_ROLE_RULE,
+        createRule: ADMIN_ROLE_RULE,
+        updateRule: ADMIN_ROLE_RULE,
+        deleteRule: ADMIN_ROLE_RULE,
+    };
+
+    if (!existing) {
+        await pb.collections.create({
+            name: 'user_research_sessions',
+            type: 'base',
+            fields,
+            ...rules,
+        });
+        console.log('Coleccion user_research_sessions creada.');
+        return;
+    }
+
+    const mergedFields = [...existing.fields];
+    for (const field of fields) {
+        const index = mergedFields.findIndex((current) => current.name === field.name);
+        if (index === -1) {
+            mergedFields.push(field);
+        } else {
+            mergedFields[index] = { ...mergedFields[index], ...field };
+        }
+    }
+
+    await pb.collections.update(existing.id, {
+        fields: mergedFields,
+        ...rules,
+    });
+
+    console.log('Coleccion user_research_sessions configurada.');
+}
+
+async function ensureUserResearchInstruments() {
+    const existing = await pb.collections.getOne('user_research_instruments').catch(() => null);
+    const fields = [
+        { name: 'title', type: 'text', required: true },
+        { name: 'instrument_type', type: 'text', required: true },
+        { name: 'objective', type: 'text', required: false },
+        { name: 'target_profile', type: 'text', required: false },
+        { name: 'questions', type: 'json', required: false },
+        { name: 'scale_items', type: 'json', required: false },
+        { name: 'instructions', type: 'text', required: false },
+        { name: 'evidence_tag', type: 'text', required: false },
+        { name: 'version', type: 'text', required: false },
+        { name: 'status', type: 'text', required: false },
+    ];
+    const rules = {
+        listRule: ADMIN_ROLE_RULE,
+        viewRule: ADMIN_ROLE_RULE,
+        createRule: ADMIN_ROLE_RULE,
+        updateRule: ADMIN_ROLE_RULE,
+        deleteRule: ADMIN_ROLE_RULE,
+    };
+
+    if (!existing) {
+        await pb.collections.create({
+            name: 'user_research_instruments',
+            type: 'base',
+            fields,
+            ...rules,
+        });
+        console.log('Coleccion user_research_instruments creada.');
+        return;
+    }
+
+    const mergedFields = [...existing.fields];
+    for (const field of fields) {
+        const index = mergedFields.findIndex((current) => current.name === field.name);
+        if (index === -1) {
+            mergedFields.push(field);
+        } else {
+            mergedFields[index] = { ...mergedFields[index], ...field };
+        }
+    }
+
+    await pb.collections.update(existing.id, {
+        fields: mergedFields,
+        ...rules,
+    });
+
+    console.log('Coleccion user_research_instruments configurada.');
+}
 
 function loadEnvFile(filePath) {
     if (!fs.existsSync(filePath)) return;

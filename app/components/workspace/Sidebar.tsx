@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import pb from '@/lib/pocketbase';
 import { WORLDS } from '@/lib/gameData';
-import { ChevronDown, ChevronRight, Clock, Folder, MessageSquare, PanelLeftClose, PanelLeftOpen, Home, PlusCircle, Edit2, Check, X, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Clock, Folder, MessageSquare, PanelLeftClose, PanelLeftOpen, Home, PlusCircle, Edit2, Check, X, Trash2, ShieldCheck } from 'lucide-react';
 
 interface SidebarProps {
     user: any;
@@ -38,6 +38,7 @@ export default function Sidebar({
     isDesktopOpen = true,
     onToggleDesktop
 }: SidebarProps) {
+    const isAdmin = user?.role === 'admin';
     const [viewMode, setViewMode] = useState<'recent' | 'structure'>('recent');
     const [expandedPhases, setExpandedPhases] = useState<Record<string, boolean>>({});
     const [expandedWorlds, setExpandedWorlds] = useState<Record<string, boolean>>({});
@@ -238,25 +239,33 @@ export default function Sidebar({
                     className={`flex items-center gap-3 p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors mb-2 ${
                         isDesktopOpen ? 'w-full' : 'justify-center w-full aspect-square'
                     }`}
-                    title="Inicio"
+                    title={isAdmin ? 'Panel admin' : 'Inicio'}
                 >
-                    <Home className="w-5 h-5" />
-                    {isDesktopOpen && <span className="font-medium animate-in fade-in">Inicio</span>}
+                    {isAdmin ? <ShieldCheck className="w-5 h-5" /> : <Home className="w-5 h-5" />}
+                    {isDesktopOpen && <span className="font-medium animate-in fade-in">{isAdmin ? 'Panel admin' : 'Inicio'}</span>}
                 </button>
 
                 {/* New Chat Button (Visible in collapsed mode for quick access) */}
-                <button 
-                    onClick={onCreateChat}
-                    className={`flex items-center gap-3 p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors mb-4 ${
-                        isDesktopOpen ? 'w-full' : 'justify-center w-full aspect-square'
-                    }`}
-                    title="Nuevo Chat General"
-                >
-                    <PlusCircle className="w-5 h-5" />
-                    {isDesktopOpen && <span className="font-medium animate-in fade-in">Nuevo Chat General</span>}
-                </button>
+                {!isAdmin && (
+                    <button 
+                        onClick={onCreateChat}
+                        className={`flex items-center gap-3 p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors mb-4 ${
+                            isDesktopOpen ? 'w-full' : 'justify-center w-full aspect-square'
+                        }`}
+                        title="Nuevo Chat General"
+                    >
+                        <PlusCircle className="w-5 h-5" />
+                        {isDesktopOpen && <span className="font-medium animate-in fade-in">Nuevo Chat General</span>}
+                    </button>
+                )}
 
-                {isDesktopOpen ? (
+                {isAdmin && isDesktopOpen && (
+                    <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-200">
+                        Usuario administrador: acceso limitado al dashboard.
+                    </div>
+                )}
+
+                {!isAdmin && isDesktopOpen ? (
                     <>
                         <div className="flex items-center justify-between mb-4 animate-in fade-in">
                     <div className="flex bg-gray-200 dark:bg-gray-800 rounded-lg p-1 text-xs font-medium">

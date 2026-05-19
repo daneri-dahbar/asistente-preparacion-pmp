@@ -10,6 +10,7 @@ import { PanelLeftOpen } from 'lucide-react';
 // Components
 import Sidebar from '@/app/components/workspace/Sidebar';
 import Dashboard from '@/app/components/workspace/Dashboard';
+import AdminDashboard from '@/app/components/workspace/AdminDashboard';
 import ChatArea from '@/app/components/workspace/ChatArea';
 import ExamSimulator from '@/app/components/workspace/ExamSimulator';
 import LevelCompletedModal from '@/app/components/LevelCompletedModal';
@@ -105,21 +106,49 @@ export default function WelcomePage() {
 
     // Auth Check
     useEffect(() => {
-        if (!pb.authStore.isValid) {
-            router.push('/');
-        } else {
-            setUser(pb.authStore.model);
+        let cancelled = false;
+
+        const initializeUser = async () => {
+            if (!pb.authStore.isValid) {
+                router.push('/');
+                return;
+            }
+
             if (pb.authStore.model) {
-                const userId = pb.authStore.model.id;
-                loadChats(userId);
-                
+                let currentUser = pb.authStore.model;
+
+                try {
+                    currentUser = await pb.collection('users').getOne(pb.authStore.model.id, { requestKey: null });
+                    pb.authStore.save(pb.authStore.token, currentUser);
+                } catch (error) {
+                    console.warn('No se pudo refrescar el usuario autenticado:', error);
+                }
+
+                if (cancelled) return;
+
+                setUser(currentUser);
+                if (currentUser.role === 'admin') {
+                    setChats([]);
+                    setCurrentChatId(null);
+                    setMessages([]);
+                    setIsChatViewOpen(false);
+                } else {
+                    loadChats(currentUser.id);
+                }
+
                 // Check for onboarding
-                const hasSeenOnboarding = localStorage.getItem(`onboarding_seen_${userId}`);
-                if (!hasSeenOnboarding) {
+                const hasSeenOnboarding = localStorage.getItem(`onboarding_seen_${currentUser.id}`);
+                if (currentUser.role !== 'admin' && !hasSeenOnboarding) {
                     setShowOnboarding(true);
                 }
             }
-        }
+        };
+
+        initializeUser();
+
+        return () => {
+            cancelled = true;
+        };
     }, [router]);
 
     // Load Completed Levels from LocalStorage on mount AND Sync with DB
@@ -261,6 +290,8 @@ export default function WelcomePage() {
     };
 
     const handleNewChat = () => {
+        if (user?.role === 'admin') return;
+
         setCurrentChatId(null);
         setMessages([]);
         setChatMode('standard'); 
@@ -319,6 +350,11 @@ export default function WelcomePage() {
     };
 
     const handleSelectChat = async (chatId: string, mode?: string) => {
+        if (user?.role === 'admin') {
+            handleGoHome();
+            return;
+        }
+
         setIsMobileSidebarOpen(false);
         // Prevent race conditions by tracking the latest request
         activeChatIdRef.current = chatId;
@@ -355,6 +391,8 @@ export default function WelcomePage() {
 
     // Extracted AI conversation starter
     const startAIConversation = async (chatId: string, startMessage: string, mode: string) => {
+        if (user?.role === 'admin') return;
+
         setIsLoading(true);
         try {
              // Don't save start command to DB/UI, just use it to trigger the AI
@@ -421,6 +459,8 @@ export default function WelcomePage() {
 
     // Function to handle automatic first message for modes like simulation
     const triggerAutoStart = async (mode: string) => {
+        if (user?.role === 'admin') return;
+
         setIsLoading(true);
         try {
             // Check if chat with this mode already exists
@@ -536,6 +576,8 @@ export default function WelcomePage() {
     };
 
     const handleStartChatMode = async (mode: string) => {
+        if (user?.role === 'admin') return;
+
         // Intercept Resume Simulation
         if (mode.startsWith('resume_simulation:')) {
             const parts = mode.split(':');
@@ -643,6 +685,11 @@ export default function WelcomePage() {
 
     const handleSubmit = async (e?: React.FormEvent, textOverride?: string) => {
         if (e) e.preventDefault();
+
+        if (user?.role === 'admin') {
+            handleGoHome();
+            return;
+        }
         
         const messageContent = textOverride || input;
 
@@ -832,10 +879,12 @@ export default function WelcomePage() {
 
     if (!user) return null; // Or a loading spinner
 
+    const isAdmin = user?.role === 'admin';
+
     // ----------------------------------------------------------------------
     // RENDER: EXAM SIMULATION MODE
     // ----------------------------------------------------------------------
-    if (isExamMode && examConfig) {
+    if (isExamMode && examConfig && !isAdmin) {
         return (
             <ExamSimulator 
                 simulationId={examConfig.simulationId || null}
@@ -866,7 +915,7 @@ export default function WelcomePage() {
             {/* Sidebar Navigation */}
             <Sidebar
                 user={user}
-                chats={chats}
+                chats={isAdmin ? [] : chats}
                 currentChatId={currentChatId}
                 onSelectChat={handleSelectChat}
                 onCreateChat={handleNewChat}
@@ -927,6 +976,8 @@ export default function WelcomePage() {
                         userInitials={user?.name?.[0] || 'U'}
                         onBack={() => setIsChatViewOpen(false)}
                     />
+                ) : isAdmin ? (
+                    <AdminDashboard />
                 ) : (
                     <Dashboard 
                         userName={user?.name?.split(' ')[0] || 'Estudiante'} 

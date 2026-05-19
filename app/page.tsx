@@ -1,47 +1,85 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import pb from '@/lib/pocketbase';
 import { useRouter } from 'next/navigation';
+import pb from '@/lib/pocketbase';
 
 export default function Home() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
 
     useEffect(() => {
-        // Si ya está logueado, redirigir a bienvenida
+        // Si ya está logueado, redirigir a bienvenida.
         if (pb.authStore.isValid) {
             router.push('/welcome');
         }
     }, [router]);
 
-    const loginWithGoogle = async () => {
-        setLoading(true);
-        
-        // Timeout de seguridad para evitar carga infinita
-        const timeout = setTimeout(() => {
+    const finishLogin = async () => {
+        if (!pb.authStore.isValid) {
+            console.warn('Autenticación completada pero el token no es válido.');
             setLoading(false);
-            alert("El proceso de inicio de sesión ha tardado demasiado. Por favor, inténtalo de nuevo.");
-        }, 60000); // 60 segundos
+            return;
+        }
+
+        if (pb.authStore.model && pb.authStore.model.emailVisibility !== true) {
+            try {
+                const updatedUser = await pb.collection('users').update(pb.authStore.model.id, {
+                    emailVisibility: true,
+                }, { requestKey: null });
+                pb.authStore.save(pb.authStore.token, updatedUser);
+            } catch (error) {
+                console.warn('No se pudo actualizar la visibilidad del email:', error);
+            }
+        }
+
+        router.push('/welcome');
+    };
+
+    const loginWithEmail = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        if (!email.trim() || !password.trim()) {
+            alert('Ingresa tu email y contraseña para continuar.');
+            return;
+        }
+
+        setLoading(true);
 
         try {
-            console.log("Iniciando autenticación con Google...");
+            await pb.collection('users').authWithPassword(email.trim(), password);
+            await finishLogin();
+        } catch (error) {
+            console.error('Error logging in with email:', error);
+            alert(`Error al iniciar sesión: ${error instanceof Error ? error.message : String(error)}`);
+            setLoading(false);
+        }
+    };
+
+    const loginWithGoogle = async () => {
+        setLoading(true);
+
+        // Timeout de seguridad para evitar carga infinita.
+        const timeout = setTimeout(() => {
+            setLoading(false);
+            alert('El proceso de inicio de sesión ha tardado demasiado. Por favor, inténtalo de nuevo.');
+        }, 60000);
+
+        try {
+            console.log('Iniciando autenticación con Google...');
             const authData = await pb.collection('users').authWithOAuth2({ provider: 'google' });
             clearTimeout(timeout);
-            console.log("Autenticación completada:", authData);
-            
-            if (pb.authStore.isValid) {
-                console.log("Usuario válido, redirigiendo...");
-                router.push('/welcome');
-            } else {
-                console.warn("Autenticación completada pero el token no es válido.");
-                setLoading(false);
-            }
+            console.log('Autenticación completada:', authData);
+
+            await finishLogin();
         } catch (error) {
             clearTimeout(timeout);
             console.error('Error logging in:', error);
-            // Ignorar el error si el usuario canceló el popup manualmente
+
+            // Ignorar el error si el usuario canceló el popup manualmente.
             if (String(error).includes('popup')) {
                 console.log('Popup cerrado por el usuario');
             } else {
@@ -55,12 +93,12 @@ export default function Home() {
         <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-6 dark:bg-gray-900">
             <div className="w-full max-w-md space-y-8 rounded-xl bg-white p-10 shadow-lg dark:bg-gray-700">
                 <div className="text-center">
-                    <div className="flex justify-center mb-6">
-                        <Image 
-                            src="/asistente-pmp-300.png" 
-                            alt="Asistente PMP Logo" 
-                            width={150} 
-                            height={150} 
+                    <div className="mb-6 flex justify-center">
+                        <Image
+                            src="/asistente-pmp-300.png"
+                            alt="Asistente PMP Logo"
+                            width={150}
+                            height={150}
                             priority
                             className="h-auto w-auto"
                         />
@@ -72,8 +110,56 @@ export default function Home() {
                         Inicia sesión para continuar
                     </p>
                 </div>
-                
+
                 <div className="mt-8 space-y-6">
+                    <form onSubmit={loginWithEmail} className="space-y-4">
+                        <div>
+                            <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                                Email
+                            </label>
+                            <input
+                                id="email"
+                                type="email"
+                                value={email}
+                                onChange={(event) => setEmail(event.target.value)}
+                                autoComplete="email"
+                                disabled={loading}
+                                className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:disabled:bg-gray-800/60"
+                                placeholder="tu@email.com"
+                            />
+                        </div>
+
+                        <div>
+                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                                Contraseña
+                            </label>
+                            <input
+                                id="password"
+                                type="password"
+                                value={password}
+                                onChange={(event) => setPassword(event.target.value)}
+                                autoComplete="current-password"
+                                disabled={loading}
+                                className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:disabled:bg-gray-800/60"
+                                placeholder="Tu contraseña"
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="group relative flex w-full justify-center rounded-md border border-transparent bg-gray-900 px-4 py-3 text-sm font-medium text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 disabled:bg-gray-500 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100 dark:disabled:bg-gray-300"
+                        >
+                            {loading ? 'Cargando...' : 'Iniciar sesión'}
+                        </button>
+                    </form>
+
+                    <div className="flex items-center gap-3">
+                        <div className="h-px flex-1 bg-gray-200 dark:bg-gray-600" />
+                        <span className="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-300">o</span>
+                        <div className="h-px flex-1 bg-gray-200 dark:bg-gray-600" />
+                    </div>
+
                     <button
                         onClick={loginWithGoogle}
                         disabled={loading}
@@ -82,8 +168,8 @@ export default function Home() {
                         {loading ? (
                             <span className="flex items-center gap-2">
                                 <svg className="h-5 w-5 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                 </svg>
                                 Cargando...
                             </span>

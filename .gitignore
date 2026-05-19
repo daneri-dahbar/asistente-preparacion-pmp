@@ -12,6 +12,10 @@
 
 # testing
 /coverage
+/test-results
+
+# local codex config
+/.codex
 
 # next.js
 /.next/
