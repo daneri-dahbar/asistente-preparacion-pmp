@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import pb from '@/lib/pocketbase';
 import { useRouter } from 'next/navigation';
 import { WORLDS } from '@/lib/gameData';
-import { syncLocalProgress, saveCompletedLevel, updateUserStats, getUserProgress } from '@/lib/userProgress';
+import { saveCompletedLevel, updateUserStats, getUserProgress } from '@/lib/userProgress';
 import { PanelLeftOpen } from 'lucide-react';
 
 // Components
@@ -151,36 +151,24 @@ export default function WelcomePage() {
         };
     }, [router]);
 
-    // Load Completed Levels from LocalStorage on mount AND Sync with DB
+    // Load completed levels from PocketBase only. LocalStorage must not repopulate DB progress on login.
     useEffect(() => {
-        const syncProgress = async () => {
+        const loadProgress = async () => {
             if (user) {
-                // 1. Load from LocalStorage
-                let localLevels: string[] = [];
-                const savedLevels = localStorage.getItem(`completed_levels_${user.id}`);
-                if (savedLevels) {
-                    try {
-                        localLevels = JSON.parse(savedLevels);
-                        setCompletedLevels(localLevels);
-                    } catch (e) {
-                        console.error("Error parsing completed levels:", e);
-                    }
-                }
-
-                // 2. Sync with PocketBase
                 try {
-                    const syncedLevels = await syncLocalProgress(user.id, localLevels);
-                    if (JSON.stringify(syncedLevels) !== JSON.stringify(localLevels)) {
-                        setCompletedLevels(syncedLevels);
-                        localStorage.setItem(`completed_levels_${user.id}`, JSON.stringify(syncedLevels));
-                    }
+                    const progress = await getUserProgress(user.id);
+                    const remoteLevels = progress?.completed_levels || [];
+
+                    setCompletedLevels(remoteLevels);
+                    localStorage.removeItem(`completed_levels_${user.id}`);
                 } catch (error) {
-                    console.error("Error syncing progress:", error);
+                    console.error("Error loading progress:", error);
+                    setCompletedLevels([]);
                 }
             }
         };
 
-        syncProgress();
+        loadProgress();
     }, [user]);
 
     const loadChats = async (userId: string) => {
@@ -247,7 +235,9 @@ export default function WelcomePage() {
             return records.map(r => ({
                 id: r.id,
                 role: r.role,
-                content: r.content
+                content: r.content,
+                created: r.created,
+                updated: r.updated
             }));
         } catch (error: any) {
             // Check for auto-cancellation (abort) errors
@@ -278,7 +268,9 @@ export default function WelcomePage() {
                     return filtered.map((r: any) => ({
                         id: r.id,
                         role: r.role,
-                        content: r.content
+                        content: r.content,
+                        created: r.created,
+                        updated: r.updated
                     }));
                 } catch (fallbackErr) {
                     console.error("[loadMessages] Fallback failed:", fallbackErr);
@@ -412,8 +404,9 @@ export default function WelcomePage() {
             const decoder = new TextDecoder();
             let assistantMessageContent = '';
             const assistantMessageId = (Date.now() + 1).toString();
+            const assistantMessageCreated = new Date().toISOString();
             
-            setMessages([{ id: assistantMessageId, role: 'assistant', content: '' }]);
+            setMessages([{ id: assistantMessageId, role: 'assistant', content: '', created: assistantMessageCreated }]);
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -427,7 +420,8 @@ export default function WelcomePage() {
                     newMessages[0] = { 
                         id: assistantMessageId, 
                         role: 'assistant', 
-                        content: assistantMessageContent 
+                        content: assistantMessageContent,
+                        created: assistantMessageCreated
                     };
                     return newMessages;
                 });
@@ -663,9 +657,6 @@ export default function WelcomePage() {
                 setCompletedLevels(newLevels);
                 
                 if (user) {
-                    // Update LocalStorage
-                    localStorage.setItem(`completed_levels_${user.id}`, JSON.stringify(newLevels));
-                    
                     // Update PocketBase
                     try {
                         await saveCompletedLevel(user.id, foundId);
@@ -727,7 +718,8 @@ export default function WelcomePage() {
         }
 
         const tempId = Date.now().toString();
-        const userMessage = { id: tempId, role: 'user', content: messageContent };
+        const userMessageCreated = new Date().toISOString();
+        const userMessage = { id: tempId, role: 'user', content: messageContent, created: userMessageCreated };
         setMessages(prev => [...prev, userMessage]);
         setInput('');
         setIsLoading(true);
@@ -772,8 +764,9 @@ export default function WelcomePage() {
             const decoder = new TextDecoder();
             let assistantMessageContent = '';
             const assistantMessageId = (Date.now() + 1).toString();
+            const assistantMessageCreated = new Date().toISOString();
             
-            setMessages(prev => [...prev, { id: assistantMessageId, role: 'assistant', content: '' }]);
+            setMessages(prev => [...prev, { id: assistantMessageId, role: 'assistant', content: '', created: assistantMessageCreated }]);
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -787,7 +780,8 @@ export default function WelcomePage() {
                     newMessages[newMessages.length - 1] = { 
                         id: assistantMessageId, 
                         role: 'assistant', 
-                        content: assistantMessageContent 
+                        content: assistantMessageContent,
+                        created: assistantMessageCreated
                     };
                     return newMessages;
                 });

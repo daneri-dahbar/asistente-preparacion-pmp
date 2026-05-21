@@ -459,10 +459,6 @@ export default function AdminDashboard() {
         const regularResearchSessions = researchSessions.filter((session) => regularUserIds.has(session.user));
         const progressByUser = new Map(regularProgress.map((item) => [item.user, item]));
         const completedSimulations = regularSimulations.filter((simulation) => simulation.status === 'completed');
-        const scoredSimulations = completedSimulations.filter((simulation) => typeof simulation.score === 'number');
-        const averageScore = scoredSimulations.length
-            ? scoredSimulations.reduce((sum, simulation) => sum + Number(simulation.score), 0) / scoredSimulations.length
-            : 0;
         const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
         const activeUsers = new Set([
             ...regularChats.filter((chat) => new Date(chat.last_active || chat.updated || chat.created || 0).getTime() >= sevenDaysAgo).map((chat) => chat.user),
@@ -509,7 +505,6 @@ export default function AdminDashboard() {
 
         return {
             activeUsers: activeUsers.size,
-            averageScore,
             completedSimulations: completedSimulations.length,
             regularChats,
             regularMessages,
@@ -529,7 +524,6 @@ export default function AdminDashboard() {
         { label: 'Activos 7 dias', value: dashboard.activeUsers, detail: 'con actividad reciente', icon: Activity, tone: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-300' },
         { label: 'Chats', value: dashboard.regularChats.length, detail: `${dashboard.regularMessages.length} mensajes`, icon: MessageSquare, tone: 'text-cyan-600 bg-cyan-50 dark:bg-cyan-900/20 dark:text-cyan-300' },
         { label: 'Simulaciones', value: dashboard.regularSimulations.length, detail: `${dashboard.completedSimulations} completadas`, icon: CheckCircle, tone: 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-300' },
-        { label: 'Promedio score', value: `${dashboard.averageScore.toFixed(1)}`, detail: 'simulaciones completas', icon: BarChart2, tone: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 dark:text-indigo-300' },
         { label: 'Feedback UX', value: dashboard.regularResearchSessions.length, detail: `${researchInstruments.length} instrumentos`, icon: ClipboardList, tone: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-300' },
     ];
 
@@ -662,7 +656,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {activeAdminView === 'overview' && (
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                     {metricCards.map((card) => {
                         const Icon = card.icon;
                         return (

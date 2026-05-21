@@ -9,6 +9,8 @@ interface Message {
     id: string;
     role: string;
     content: string;
+    created?: string;
+    updated?: string;
 }
 
 interface ChatAreaProps {
@@ -163,6 +165,20 @@ export default function ChatArea({
     const styles = getThemeStyles();
     const modeEmoji = getModeEmoji();
 
+    const formatMessageDateTime = (value?: string) => {
+        if (!value) return null;
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return null;
+
+        return new Intl.DateTimeFormat('es-AR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        }).format(date);
+    };
+
     // Voice Recognition Logic
     const [isListening, setIsListening] = useState(false);
     const recognitionRef = useRef<any>(null);
@@ -270,6 +286,7 @@ export default function ChatArea({
                             {messages.map((m, idx) => {
                         // Parse options if present
                         const [contentBody, optionsPart] = m.content.split('---OPTIONS---');
+                        const messageDateTime = formatMessageDateTime(m.created || m.updated);
                         let options: string[] = [];
                         if (optionsPart && m.role === 'assistant') {
                              try {
@@ -300,6 +317,14 @@ export default function ChatArea({
                                 <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
                                     {m.role === 'user' ? 'Tú' : isSimulation ? 'Stakeholder' : 'Asistente'}
                                 </span>
+                                {messageDateTime && (
+                                    <time
+                                        dateTime={m.created || m.updated}
+                                        className="text-[11px] font-medium text-gray-400 dark:text-gray-500"
+                                    >
+                                        {messageDateTime}
+                                    </time>
+                                )}
                             </div>
                             
                             {/* Message Bubble */}

@@ -37,11 +37,9 @@ export const getUserProgress = async (userId: string): Promise<UserProgress | nu
 
 export const saveCompletedLevel = async (userId: string, levelId: string) => {
     try {
-        // 1. Get existing progress
         let progress = await getUserProgress(userId);
         
         if (progress) {
-            // Update existing
             const currentLevels = progress.completed_levels || [];
             if (!currentLevels.includes(levelId)) {
                 const newLevels = [...currentLevels, levelId];
@@ -51,20 +49,9 @@ export const saveCompletedLevel = async (userId: string, levelId: string) => {
                 return newLevels;
             }
             return currentLevels;
-        } else {
-            // Create new
-            try {
-                const newRecord = await pb.collection('user_progress').create({
-                    user: userId,
-                    completed_levels: [levelId],
-                    stats: {}
-                });
-                return [levelId];
-            } catch (createError) {
-                console.error("Error creating user_progress record:", createError);
-                throw createError;
-            }
         }
+
+        return [];
     } catch (error) {
         console.error("Error saving completed level:", error);
         throw error;
@@ -95,37 +82,5 @@ export const updateUserStats = async (userId: string, correct: number, total: nu
         }
     } catch (error) {
         console.error("Error updating stats:", error);
-    }
-};
-
-export const syncLocalProgress = async (userId: string, localLevels: string[]) => {
-    try {
-        let progress = await getUserProgress(userId);
-        
-        if (progress) {
-            // Merge
-            const dbLevels = progress.completed_levels || [];
-            const merged = Array.from(new Set([...dbLevels, ...localLevels]));
-            
-            if (merged.length > dbLevels.length) {
-                await pb.collection('user_progress').update(progress.id!, {
-                    completed_levels: merged
-                });
-            }
-            return merged;
-        } else {
-            // Create
-            if (localLevels.length > 0) {
-                 await pb.collection('user_progress').create({
-                    user: userId,
-                    completed_levels: localLevels,
-                    stats: {}
-                });
-            }
-            return localLevels;
-        }
-    } catch (error) {
-        console.error("Error syncing progress:", error);
-        return localLevels;
     }
 };
