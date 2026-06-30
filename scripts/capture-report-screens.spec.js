@@ -68,7 +68,7 @@ async function preparePage(page, auth, options = {}) {
       }
     `,
   });
-  await page.waitForSelector(`text=${options.waitText || 'Datos de la plataforma'}`, { timeout: 20000 });
+  await page.waitForSelector(`text=${options.waitText || 'Resumen'}`, { timeout: 20000 });
 }
 
 async function screenshot(page, fileName) {
@@ -80,14 +80,16 @@ async function screenshot(page, fileName) {
 }
 
 test('capture updated report screenshots', async () => {
+  test.setTimeout(120000);
+
   if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
     throw new Error('CAPTURE_ADMIN_EMAIL/CAPTURE_ADMIN_PASSWORD or POCKETBASE_ADMIN_EMAIL/POCKETBASE_ADMIN_PASSWORD are required');
   }
 
   const auth = await authWithPassword();
   const adminUser = await getUserByEmail(auth.token, 'trabajofinalunca@gmail.com');
-  const carlosUser = await getUserByEmail(auth.token, 'carlosacostap@tecno.unca.edu.ar');
-  const eduardoUser = await getUserByEmail(auth.token, 'educlerici@gmail.com');
+  const usuarioAUser = await getUserByEmail(auth.token, process.env.USUARIO_A_EMAIL || 'usuario.a.pmi@gmail.com');
+  const usuarioBUser = await getUserByEmail(auth.token, process.env.USUARIO_B_EMAIL || 'usuario.b.pmi@gmail.com');
   const browser = await chromium.launch({
     channel: 'msedge',
     headless: true,
@@ -105,16 +107,17 @@ test('capture updated report screenshots', async () => {
   await screenshot(page, 'navegacion_y_panel_de_control.png');
 
   await page.getByRole('button', { name: /^Usuarios/ }).click();
-  await page.waitForSelector('text=Historico de uso por usuario', { timeout: 10000 });
-  await page.locator('select').first().selectOption(carlosUser.id);
+  await page.waitForSelector('text=Histórico de uso por usuario', { timeout: 10000 });
+  await page.locator('select').first().selectOption(usuarioBUser.id);
   await page.waitForSelector('text=180 preguntas', { timeout: 10000 });
-  await page.waitForSelector('text=151/180', { timeout: 10000 });
+  await page.waitForSelector('text=158/180', { timeout: 10000 });
   await page.waitForTimeout(600);
   await screenshot(page, 'evidencia_historico_usuario_admin.png');
 
-  await page.getByRole('button', { name: /Investigacion UX/ }).click();
-  await page.waitForSelector('text=Investigacion UX por usuario', { timeout: 10000 });
-  await page.locator('select').first().selectOption(eduardoUser.id);
+  await page.getByRole('button', { name: /Investigaci[oó]n UX/ }).click();
+  await page.waitForSelector('text=Investigación UX por usuario', { timeout: 10000 });
+  await page.locator('select').first().selectOption(usuarioAUser.id);
+  await page.waitForSelector('text=UX-UA', { timeout: 10000 });
   await page.waitForTimeout(600);
   await screenshot(page, 'elementos_de_ayuda_y_motivacion.png');
 
@@ -126,28 +129,38 @@ test('capture updated report screenshots', async () => {
     colorScheme: 'light',
   });
   const userPage = await userContext.newPage();
-  await preparePage(userPage, { token: auth.token, record: eduardoUser }, {
-    onboardingUserId: eduardoUser.id,
-    waitText: 'Hola, Eduardo',
+  await preparePage(userPage, { token: auth.token, record: usuarioAUser }, {
+    onboardingUserId: usuarioAUser.id,
+    waitText: 'Usuario A',
   });
 
-  await userPage.getByText('Repaso final - Estrategia de simulacro').first().click();
-  await userPage.waitForSelector('text=Estoy listo para el simulacro largo', { timeout: 10000 });
+  await userPage.getByText('Lección: Propósito del Estándar').first().click();
+  await userPage.waitForSelector('text=Lección Magistral', { timeout: 10000 });
+  await userPage.evaluate(() => {
+    const sidebar = document.querySelector('aside');
+    for (const element of Array.from(document.querySelectorAll('*'))) {
+      if (sidebar?.contains(element)) continue;
+      const style = window.getComputedStyle(element);
+      if ((style.overflowY === 'auto' || style.overflowY === 'scroll') && element.scrollHeight > element.clientHeight) {
+        element.scrollTop = 0;
+      }
+    }
+  });
   await userPage.waitForTimeout(600);
   await screenshot(userPage, 'el_chat_inteligente.png');
 
-  await userPage.getByText('Tutor socratico - Riesgos e incertidumbre').first().click();
-  await userPage.waitForSelector('text=Si no puedes eliminar la incertidumbre', { timeout: 10000 });
+  await userPage.getByText('Entrenamiento: Entorno del Proyecto').first().click();
+  await userPage.waitForSelector('text=nueva regulacion', { timeout: 10000 });
   await userPage.waitForTimeout(500);
   await screenshot(userPage, 'eval_escenario1_chat.png');
 
-  await userPage.getByText('Debate - Agile vs predictivo').first().click();
-  await userPage.waitForSelector('text=Postura provocadora', { timeout: 10000 });
+  await userPage.getByText('Leccion: Enfoques de Desarrollo').first().click();
+  await userPage.waitForSelector('text=predictivo', { timeout: 10000 });
   await userPage.waitForTimeout(500);
   await screenshot(userPage, 'eval_escenario2_chat.png');
 
-  await userPage.getByText('Entrenador formulas - Valor ganado').first().click();
-  await userPage.waitForSelector('text=TCPI=', { timeout: 10000 });
+  await userPage.getByText('Entrenamiento: Enfoques de Desarrollo').first().click();
+  await userPage.waitForSelector('text=infraestructura regulada', { timeout: 10000 });
   await userPage.waitForTimeout(500);
   await screenshot(userPage, 'eval_escenario3_chat.png');
 

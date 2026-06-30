@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import pb from '@/lib/pocketbase';
-import { Activity, BarChart2, CalendarDays, CheckCircle, ClipboardList, Clock, FileText, MessageSquare, RefreshCw, Save, ShieldCheck, Target, Trophy, Users } from 'lucide-react';
+import { Activity, BarChart2, CalendarDays, CheckCircle, ClipboardList, Clock, FileText, MessageSquare, Save, Target, Trophy, Users } from 'lucide-react';
 
 interface PlatformUser {
     id: string;
@@ -52,6 +52,8 @@ interface UserProgressRecord {
                 date?: string;
                 accuracy?: number;
                 questions?: number;
+                totalQuestions?: number;
+                scorePercent?: number;
             }>;
         };
         survey?: {
@@ -159,7 +161,7 @@ interface HistoryItem {
     kind: 'chat' | 'simulation';
 }
 
-type AdminView = 'overview' | 'users' | 'research';
+export type AdminView = 'overview' | 'defense' | 'users' | 'research';
 
 const EMPTY_RESEARCH_FORM: ResearchFormState = {
     instrument: '',
@@ -275,7 +277,23 @@ function formatScore(value?: number | null) {
     return `${value}/5`;
 }
 
-export default function AdminDashboard() {
+function average(values: Array<number | undefined | null>) {
+    const validValues = values.filter((value): value is number => typeof value === 'number' && !Number.isNaN(value));
+    if (!validValues.length) return null;
+    return validValues.reduce((total, value) => total + value, 0) / validValues.length;
+}
+
+function formatAverage(value: number | null, suffix = '') {
+    if (value === null) return 'N/A';
+    const formatted = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 }).format(value);
+    return suffix ? `${formatted}${suffix}` : formatted;
+}
+
+interface AdminDashboardProps {
+    activeAdminView: AdminView;
+}
+
+export default function AdminDashboard({ activeAdminView }: AdminDashboardProps) {
     const [users, setUsers] = useState<PlatformUser[]>([]);
     const [chats, setChats] = useState<ChatRecord[]>([]);
     const [messages, setMessages] = useState<MessageRecord[]>([]);
@@ -284,7 +302,6 @@ export default function AdminDashboard() {
     const [researchSessions, setResearchSessions] = useState<UserResearchSessionRecord[]>([]);
     const [researchInstruments, setResearchInstruments] = useState<ResearchInstrumentRecord[]>([]);
     const [selectedUserId, setSelectedUserId] = useState<string>('');
-    const [activeAdminView, setActiveAdminView] = useState<AdminView>('overview');
     const [researchForm, setResearchForm] = useState<ResearchFormState>(EMPTY_RESEARCH_FORM);
     const [instrumentForm, setInstrumentForm] = useState<InstrumentFormState>(EMPTY_INSTRUMENT_FORM);
     const [isSavingResearch, setIsSavingResearch] = useState(false);
@@ -310,7 +327,7 @@ export default function AdminDashboard() {
                     sort: '-session_date',
                     requestKey: null,
                 }).catch((collectionError) => {
-                    console.warn('No se pudieron cargar sesiones de investigacion de usuarios:', collectionError);
+                    console.warn('No se pudieron cargar sesiones de investigación de usuarios:', collectionError);
                     return [];
                 }),
                 pb.collection('user_research_instruments').getFullList({
@@ -442,7 +459,7 @@ export default function AdminDashboard() {
             setResearchNotice('Sesion de feedback guardada.');
         } catch (saveError) {
             console.error('Error saving research session:', saveError);
-            setResearchNotice('No se pudo guardar la sesion. Verifica la coleccion user_research_sessions.');
+            setResearchNotice('No se pudo guardar la sesión. Verifica la colección user_research_sessions.');
         } finally {
             setIsSavingResearch(false);
         }
@@ -521,16 +538,10 @@ export default function AdminDashboard() {
 
     const metricCards = [
         { label: 'Usuarios', value: dashboard.regularUserCount, detail: 'rol usuario', icon: Users, tone: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-300' },
-        { label: 'Activos 7 dias', value: dashboard.activeUsers, detail: 'con actividad reciente', icon: Activity, tone: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-300' },
+        { label: 'Activos 7 días', value: dashboard.activeUsers, detail: 'con actividad reciente', icon: Activity, tone: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-300' },
         { label: 'Chats', value: dashboard.regularChats.length, detail: `${dashboard.regularMessages.length} mensajes`, icon: MessageSquare, tone: 'text-cyan-600 bg-cyan-50 dark:bg-cyan-900/20 dark:text-cyan-300' },
         { label: 'Simulaciones', value: dashboard.regularSimulations.length, detail: `${dashboard.completedSimulations} completadas`, icon: CheckCircle, tone: 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-300' },
         { label: 'Feedback UX', value: dashboard.regularResearchSessions.length, detail: `${researchInstruments.length} instrumentos`, icon: ClipboardList, tone: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-300' },
-    ];
-
-    const adminViews: Array<{ id: AdminView; label: string; detail: string; icon: typeof BarChart2 }> = [
-        { id: 'overview', label: 'Resumen', detail: 'Actividad global', icon: BarChart2 },
-        { id: 'users', label: 'Usuarios', detail: 'Historico y progreso', icon: Users },
-        { id: 'research', label: 'Investigacion UX', detail: 'Instrumentos y feedback', icon: ClipboardList },
     ];
 
     const instrumentsById = useMemo(
@@ -544,6 +555,154 @@ export default function AdminDashboard() {
             .map((summary) => summary.user),
         [dashboard.summaries],
     );
+
+    const defensePanel = useMemo(() => {
+        const progressByUser = new Map(progress.map((item) => [item.user, item]));
+        const researchSessionsByUser = researchSessions.reduce<Record<string, UserResearchSessionRecord[]>>((acc, session) => {
+            acc[session.user] = acc[session.user] || [];
+            acc[session.user].push(session);
+            return acc;
+        }, {});
+        const completedFullSimulations = dashboard.regularSimulations.filter((simulation) => (
+            simulation.status === 'completed' && simulation.total_questions === 180
+        ));
+        const completedSimulations = dashboard.regularSimulations.filter((simulation) => simulation.status === 'completed');
+        const bestSimulationScore = completedSimulations.reduce<number | null>((best, simulation) => {
+            if (typeof simulation.score !== 'number') return best;
+            return best === null ? simulation.score : Math.max(best, simulation.score);
+        }, null);
+        const allActivityDates = [
+            ...dashboard.summaries.map((summary) => summary.lastActivity),
+            ...dashboard.regularResearchSessions.map((session) => session.session_date || session.created || null),
+        ].filter((value): value is string => Boolean(value));
+        const periodStart = allActivityDates.length
+            ? allActivityDates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0]
+            : null;
+        const periodEnd = allActivityDates.length
+            ? allActivityDates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0]
+            : null;
+        const regularProgress = progress.filter((item) => dashboard.userMap.has(item.user));
+        const averageNps = average([
+            ...dashboard.regularResearchSessions.map((session) => session.nps),
+            ...regularProgress.map((item) => item.stats?.survey?.nps),
+        ]);
+        const usefulnessAverage = average(dashboard.regularResearchSessions.map((session) => session.usefulness_score));
+        const usabilityAverage = average(dashboard.regularResearchSessions.map((session) => session.usability_score));
+
+        const validationUsers = dashboard.summaries.map((summary, index) => {
+            const email = (summary.user.email || '').toLowerCase();
+            const userProgress = progressByUser.get(summary.user.id) || null;
+            const sessions = (researchSessionsByUser[summary.user.id] || []).sort((a, b) => (
+                new Date(b.session_date || b.created || 0).getTime() - new Date(a.session_date || a.created || 0).getTime()
+            ));
+            const userSimulations = dashboard.regularSimulations.filter((simulation) => simulation.user === summary.user.id);
+            const userFullSimulation = userSimulations.find((simulation) => (
+                simulation.status === 'completed' && simulation.total_questions === 180
+            )) || null;
+            const profile = email.includes('educlerici') || email.includes('usuario.b')
+                ? 'Usuario B - validador experto certificado'
+                : email.includes('carlos') || email.includes('usuario.a')
+                    ? 'Usuario A - aspirante en preparacion'
+                    : `Usuario ${String.fromCharCode(65 + index)} - caso de validacion`;
+
+            return {
+                ...summary,
+                profile,
+                progress: userProgress,
+                researchSessions: sessions,
+                fullSimulation: userFullSimulation,
+            };
+        });
+        const learningEvidence = validationUsers.map((summary) => {
+            const progressTrend = summary.progress?.stats?.syntheticUsage?.improvementTrend || [];
+            const simulationTrend = dashboard.regularSimulations
+                .filter((simulation) => simulation.user === summary.user.id && simulation.status === 'completed' && simulation.total_questions && typeof simulation.score === 'number')
+                .sort((a, b) => new Date(simulationActivityDate(a) || 0).getTime() - new Date(simulationActivityDate(b) || 0).getTime())
+                .map((simulation) => ({
+                    date: formatDateOnly(simulationActivityDate(simulation)),
+                    totalQuestions: Number(simulation.total_questions || 0),
+                    scorePercent: Number(((Number(simulation.score || 0) / Number(simulation.total_questions || 1)) * 100).toFixed(1)),
+                }));
+            const trend = (progressTrend.length ? progressTrend : simulationTrend)
+                .map((entry) => {
+                    const totalQuestions = 'totalQuestions' in entry ? entry.totalQuestions : entry.questions;
+                    const scorePercent = 'scorePercent' in entry ? entry.scorePercent : entry.accuracy;
+                    return {
+                        date: entry.date || 'Sin fecha',
+                        totalQuestions: Number(totalQuestions || 0),
+                        scorePercent: Number(scorePercent ?? 0),
+                    };
+                })
+                .filter((entry) => entry.scorePercent > 0);
+            const initial = trend[0]?.scorePercent ?? null;
+            const final = trend.at(-1)?.scorePercent ?? null;
+
+            return {
+                userId: summary.user.id,
+                label: summary.profile,
+                initial,
+                final,
+                improvement: initial !== null && final !== null ? Number((final - initial).toFixed(1)) : null,
+                trend,
+            };
+        });
+
+        return {
+            averageNps,
+            usefulnessAverage,
+            usabilityAverage,
+            bestSimulationScore,
+            completedFullSimulations,
+            completedSimulations,
+            periodStart,
+            periodEnd,
+            validationUsers,
+            learningEvidence,
+            evidenceCards: [
+                {
+                    label: 'Muestra observada',
+                    value: dashboard.regularUserCount,
+                    detail: 'usuarios con rol usuario',
+                    icon: Users,
+                },
+                {
+                    label: 'Interacciones',
+                    value: dashboard.regularMessages.length,
+                    detail: `${dashboard.regularChats.length} chats registrados`,
+                    icon: MessageSquare,
+                },
+                {
+                    label: 'Simulacros completos',
+                    value: completedSimulations.length,
+                    detail: `${completedFullSimulations.length} de 180 preguntas`,
+                    icon: Trophy,
+                },
+                {
+                    label: 'Evidencia UX',
+                    value: dashboard.regularResearchSessions.length,
+                    detail: `${researchInstruments.length} instrumentos`,
+                    icon: ClipboardList,
+                },
+            ],
+            traceability: [
+                {
+                    claim: 'La herramienta favorece la preparacion situacional para PMP.',
+                    evidence: `${dashboard.regularChats.length} chats y ${dashboard.regularMessages.length} mensajes en modos de estudio.`,
+                    defenseUse: 'Mostrar variedad de interacciones y continuidad de uso por usuario.',
+                },
+                {
+                    claim: 'El simulador permite contrastar desempeno en condiciones cercanas al examen.',
+                    evidence: `${completedFullSimulations.length} simulacros completos de 180 preguntas y ${completedSimulations.length} simulaciones completadas.`,
+                    defenseUse: 'Abrir el detalle del usuario que completo el simulacro y explicar alcance de la evidencia.',
+                },
+                {
+                    claim: 'La utilidad percibida se relevo con instrumentos de investigacion.',
+                    evidence: `NPS promedio ${formatAverage(averageNps)}; utilidad ${formatAverage(usefulnessAverage, '/5')}; facilidad ${formatAverage(usabilityAverage, '/5')}.`,
+                    defenseUse: 'Relacionar feedback cualitativo con decisiones de diseno y resultados del capitulo 7.',
+                },
+            ],
+        };
+    }, [dashboard, progress, researchSessions, researchInstruments]);
 
     const selectedHistory = useMemo(() => {
         const selectedUser = users.find((user) => user.id === selectedUserId && (user.role || 'usuario') === 'usuario') || null;
@@ -597,29 +756,31 @@ export default function AdminDashboard() {
         };
     }, [users, selectedUserId, chats, messages, progress, simulations, researchSessions]);
 
-    return (
-        <div className="flex-1 overflow-y-auto bg-gray-50/80 dark:bg-gray-950 p-4 md:p-8">
-            <div className="mx-auto w-full max-w-7xl space-y-6">
-                <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                    <div>
-                        <div className="mb-2 inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">
-                            <ShieldCheck className="h-4 w-4 text-blue-600 dark:text-blue-300" />
-                            Panel admin
-                        </div>
-                        <h1 className="text-2xl font-bold text-gray-950 dark:text-white md:text-3xl">Datos de la plataforma</h1>
-                        <p className="mt-2 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
-                            Vista global de usuarios, actividad, progreso, chats y simulaciones.
-                        </p>
-                    </div>
+    const adminViewTitle = {
+        overview: {
+            title: 'Resumen',
+            description: 'Vista global de usuarios, actividad, chats, simulaciones y relevamientos.',
+        },
+        defense: {
+            title: 'Defensa',
+            description: 'Evidencia trazable para mostrar al tribunal: muestra, simulacros, feedback UX y relacion con la hipotesis.',
+        },
+        users: {
+            title: 'Usuarios',
+            description: 'Histórico de uso y evolución individual de los usuarios.',
+        },
+        research: {
+            title: 'Investigación UX',
+            description: 'Instrumentos, entrevistas, encuestas y feedback registrado.',
+        },
+    }[activeAdminView];
 
-                    <button
-                        onClick={loadPlatformData}
-                        disabled={isLoading}
-                        className="inline-flex items-center justify-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200"
-                    >
-                        <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                        Actualizar
-                    </button>
+    return (
+        <div className="flex-1 overflow-y-scroll bg-gray-50/80 p-4 [scrollbar-gutter:stable] dark:bg-gray-950 md:p-8">
+            <div className="mx-auto w-full max-w-7xl space-y-6">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-950 dark:text-white md:text-3xl">{adminViewTitle.title}</h1>
+                    <p className="mt-2 max-w-2xl text-sm text-gray-500 dark:text-gray-400">{adminViewTitle.description}</p>
                 </div>
 
                 {error && (
@@ -627,33 +788,6 @@ export default function AdminDashboard() {
                         {error}
                     </div>
                 )}
-
-                <div className="grid gap-3 md:grid-cols-3">
-                    {adminViews.map((view) => {
-                        const Icon = view.icon;
-                        const isActive = activeAdminView === view.id;
-                        return (
-                            <button
-                                key={view.id}
-                                type="button"
-                                onClick={() => setActiveAdminView(view.id)}
-                                className={`flex items-center gap-3 rounded-lg border p-4 text-left transition-colors ${
-                                    isActive
-                                        ? 'border-blue-300 bg-blue-50 text-blue-800 shadow-sm dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-100'
-                                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800'
-                                }`}
-                            >
-                                <div className={`rounded-md p-2 ${isActive ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'}`}>
-                                    <Icon className="h-5 w-5" />
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="font-semibold">{view.label}</p>
-                                    <p className="text-xs opacity-75">{view.detail}</p>
-                                </div>
-                            </button>
-                        );
-                    })}
-                </div>
 
                 {activeAdminView === 'overview' && (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
@@ -734,16 +868,260 @@ export default function AdminDashboard() {
                         </div>
                         )}
 
-                        {activeAdminView !== 'overview' && (
+                        {activeAdminView === 'defense' && (
+                        <div className="space-y-6">
+                            <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                    <div className="max-w-3xl">
+                                        <div className="inline-flex items-center gap-2 rounded-md bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700 dark:bg-blue-950/50 dark:text-blue-200">
+                                            <FileText className="h-4 w-4" />
+                                            Vista para tribunal
+                                        </div>
+                                        <h2 className="mt-4 text-xl font-bold text-gray-950 dark:text-white">Evidencia de validacion del asistente PMP</h2>
+                                        <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                                            Esta pantalla organiza los datos operativos y de investigacion para defender el alcance del trabajo: muestra intencional, uso real del sistema, simulacros, feedback UX y relacion directa con la hipotesis.
+                                        </p>
+                                    </div>
+                                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm dark:border-gray-800 dark:bg-gray-950/60 lg:w-80">
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Periodo observado</p>
+                                        <p className="mt-2 font-semibold text-gray-950 dark:text-white">
+                                            {formatDateOnly(defensePanel.periodStart)} - {formatDateOnly(defensePanel.periodEnd)}
+                                        </p>
+                                        <p className="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                                            Lectura metodologica: evidencia exploratoria, no generalizable estadisticamente.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                    {defensePanel.evidenceCards.map((card) => {
+                                        const Icon = card.icon;
+                                        return (
+                                            <div key={card.label} className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950/60">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div>
+                                                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{card.label}</p>
+                                                        <p className="mt-2 text-2xl font-bold text-gray-950 dark:text-white">{card.value}</p>
+                                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{card.detail}</p>
+                                                    </div>
+                                                    <div className="rounded-md bg-white p-2 text-blue-600 shadow-sm dark:bg-gray-900 dark:text-blue-300">
+                                                        <Icon className="h-5 w-5" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </section>
+
+                            <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+                                <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                                    <h2 className="text-base font-bold text-gray-950 dark:text-white">Guion metodologico para defensa</h2>
+                                    <div className="mt-4 space-y-3">
+                                        {[
+                                            ['Muestra', 'Muestreo intencional por casos extremos: aspirante en preparacion y validador experto.'],
+                                            ['Alcance', 'La evidencia sostiene una validacion exploratoria del prototipo, no una prueba estadistica poblacional.'],
+                                            ['Contraste', 'Capitulo 6 documenta aplicacion; Capitulo 7 conecta resultados con la hipotesis.'],
+                                            ['Trazabilidad', 'Cada afirmacion debe mostrarse con registros visibles: chats, simulacros, sesiones UX e instrumentos.'],
+                                        ].map(([label, detail]) => (
+                                            <div key={label} className="flex gap-3 rounded-md bg-gray-50 p-3 dark:bg-gray-950/60">
+                                                <CheckCircle className="mt-0.5 h-4 w-4 flex-none text-green-600 dark:text-green-300" />
+                                                <div>
+                                                    <p className="text-sm font-semibold text-gray-950 dark:text-white">{label}</p>
+                                                    <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{detail}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+
+                                <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                                    <h2 className="text-base font-bold text-gray-950 dark:text-white">Indicadores de utilidad y desempeno</h2>
+                                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                                        {[
+                                            { label: 'NPS promedio', value: formatAverage(defensePanel.averageNps), detail: 'percepcion global registrada' },
+                                            { label: 'Utilidad percibida', value: formatAverage(defensePanel.usefulnessAverage, '/5'), detail: 'escala de sesiones UX' },
+                                            { label: 'Facilidad percibida', value: formatAverage(defensePanel.usabilityAverage, '/5'), detail: 'escala de sesiones UX' },
+                                            { label: 'Mejor score', value: defensePanel.bestSimulationScore ?? 'N/A', detail: 'simulaciones completadas' },
+                                        ].map((item) => (
+                                            <div key={item.label} className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950/60">
+                                                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{item.label}</p>
+                                                <p className="mt-2 text-2xl font-bold text-gray-950 dark:text-white">{item.value}</p>
+                                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{item.detail}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                            </div>
+
+                            <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                                    <div>
+                                        <h2 className="text-base font-bold text-gray-950 dark:text-white">Evolucion del aprendizaje</h2>
+                                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Tendencia por usuario a partir de `improvementTrend` o de simulaciones completadas.</p>
+                                    </div>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                        {defensePanel.learningEvidence.filter((item) => item.trend.length > 0).length} series disponibles
+                                    </span>
+                                </div>
+                                <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                                    {defensePanel.learningEvidence.length === 0 ? (
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">No hay datos de aprendizaje para mostrar.</p>
+                                    ) : defensePanel.learningEvidence.map((item) => (
+                                        <div key={item.userId} className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950/60">
+                                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                                <div>
+                                                    <p className="text-sm font-bold text-gray-950 dark:text-white">{item.label}</p>
+                                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                        Inicial {item.initial !== null ? `${item.initial}%` : 'N/A'} - Final {item.final !== null ? `${item.final}%` : 'N/A'}
+                                                    </p>
+                                                </div>
+                                                <span className={`rounded-md px-2 py-1 text-xs font-semibold ${
+                                                    item.improvement !== null && item.improvement >= 0
+                                                        ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-200'
+                                                        : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'
+                                                }`}>
+                                                    {item.improvement !== null ? `${item.improvement >= 0 ? '+' : ''}${item.improvement} pp` : 'Sin delta'}
+                                                </span>
+                                            </div>
+                                            <div className="mt-4 space-y-3">
+                                                {item.trend.length === 0 ? (
+                                                    <p className="text-sm text-gray-500 dark:text-gray-400">Sin tendencia registrada.</p>
+                                                ) : item.trend.map((entry) => (
+                                                    <div key={`${item.userId}-${entry.date}-${entry.totalQuestions}`} className="space-y-1">
+                                                        <div className="flex items-center justify-between gap-3 text-xs">
+                                                            <span className="font-medium text-gray-700 dark:text-gray-200">{entry.date}</span>
+                                                            <span className="text-gray-500 dark:text-gray-400">{entry.scorePercent}% - {entry.totalQuestions || 'N/A'} preguntas</span>
+                                                        </div>
+                                                        <div className="h-2 rounded-full bg-white dark:bg-gray-900">
+                                                            <div
+                                                                className="h-2 rounded-full bg-green-600 dark:bg-green-400"
+                                                                style={{ width: `${Math.min(100, Math.max(4, entry.scorePercent))}%` }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+
+                            <section className="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                                <div className="border-b border-gray-200 p-5 dark:border-gray-800">
+                                    <h2 className="text-base font-bold text-gray-950 dark:text-white">Trazabilidad hipotesis - evidencia</h2>
+                                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Lectura preparada para vincular el sistema con las observaciones del tribunal.</p>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-800">
+                                        <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500 dark:bg-gray-950 dark:text-gray-400">
+                                            <tr>
+                                                <th className="px-5 py-3 text-left font-semibold">Afirmacion defendible</th>
+                                                <th className="px-5 py-3 text-left font-semibold">Evidencia en sistema</th>
+                                                <th className="px-5 py-3 text-left font-semibold">Uso durante la defensa</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                                            {defensePanel.traceability.map((item) => (
+                                                <tr key={item.claim} className="align-top">
+                                                    <td className="px-5 py-4 font-semibold text-gray-950 dark:text-white">{item.claim}</td>
+                                                    <td className="px-5 py-4 text-gray-600 dark:text-gray-300">{item.evidence}</td>
+                                                    <td className="px-5 py-4 text-gray-500 dark:text-gray-400">{item.defenseUse}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </section>
+
+                            <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                                    <div>
+                                        <h2 className="text-base font-bold text-gray-950 dark:text-white">Usuarios de validacion</h2>
+                                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Detalle compacto para mostrar evidencia por caso observado.</p>
+                                    </div>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">{defensePanel.validationUsers.length} casos</span>
+                                </div>
+                                <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                                    {defensePanel.validationUsers.length === 0 ? (
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">No hay usuarios de validacion cargados.</p>
+                                    ) : defensePanel.validationUsers.map((summary) => (
+                                        <div key={summary.user.id} className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950/60">
+                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                                <div>
+                                                    <p className="text-sm font-bold text-gray-950 dark:text-white">{summary.profile}</p>
+                                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{summary.user.name || summary.user.email || 'Usuario sin nombre'}</p>
+                                                </div>
+                                                <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-gray-600 shadow-sm dark:bg-gray-900 dark:text-gray-300">
+                                                    Ultima actividad: {formatDateOnly(summary.lastActivity)}
+                                                </span>
+                                            </div>
+                                            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                                                {[
+                                                    ['Chats', String(summary.chats), `${summary.messages} mensajes`],
+                                                    ['Simulaciones', `${summary.completedSimulations}/${summary.simulations}`, `mejor ${summary.bestScore ?? 'N/A'}`],
+                                                    ['UX', String(summary.researchSessions.length), `NPS ${summary.researchSessions[0]?.nps ?? summary.progress?.stats?.survey?.nps ?? 'N/A'}`],
+                                                ].map(([label, value, detail]) => (
+                                                    <div key={label} className="rounded-md bg-white p-3 dark:bg-gray-900">
+                                                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{label}</p>
+                                                        <p className="mt-1 text-lg font-bold text-gray-950 dark:text-white">{value}</p>
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400">{detail}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="mt-3 rounded-md bg-white p-3 text-xs leading-5 text-gray-600 dark:bg-gray-900 dark:text-gray-300">
+                                                {summary.fullSimulation
+                                                    ? `Simulacro completo: ${simulationScore(summary.fullSimulation)} el ${formatDateOnly(simulationActivityDate(summary.fullSimulation))}.`
+                                                    : 'Sin simulacro completo de 180 preguntas registrado.'}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+
+                            <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                        <h2 className="text-base font-bold text-gray-950 dark:text-white">Simulacros de 180 preguntas</h2>
+                                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Punto de evidencia clave para responder la observacion del tribunal sobre el simulacro completo.</p>
+                                    </div>
+                                    <span className="rounded-md bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                                        {defensePanel.completedFullSimulations.length} completos
+                                    </span>
+                                </div>
+                                <div className="mt-4 space-y-2">
+                                    {defensePanel.completedFullSimulations.length === 0 ? (
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">No hay simulacros completados de 180 preguntas registrados.</p>
+                                    ) : defensePanel.completedFullSimulations.map((simulation) => {
+                                        const owner = dashboard.userMap.get(simulation.user);
+                                        return (
+                                            <div key={simulation.id} className="flex flex-col gap-2 rounded-md bg-gray-50 px-4 py-3 text-sm dark:bg-gray-950/60 sm:flex-row sm:items-center sm:justify-between">
+                                                <div>
+                                                    <p className="font-semibold text-gray-950 dark:text-white">{owner?.name || owner?.email || 'Usuario'}</p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">{formatDate(simulationActivityDate(simulation))}</p>
+                                                </div>
+                                                <div className="text-left sm:text-right">
+                                                    <p className="font-semibold text-gray-950 dark:text-white">{simulationScore(simulation)}</p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">{simulation.status || 'sin estado'}</p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </section>
+                        </div>
+                        )}
+
+                        {(activeAdminView === 'users' || activeAdminView === 'research') && (
                         <section className="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
                             <div className="flex flex-col gap-4 border-b border-gray-200 p-5 dark:border-gray-800 md:flex-row md:items-center md:justify-between">
                                 <div>
                                     <h2 className="text-base font-bold text-gray-950 dark:text-white">
-                                        {activeAdminView === 'research' ? 'Investigacion UX por usuario' : 'Historico de uso por usuario'}
+                                        {activeAdminView === 'research' ? 'Investigación UX por usuario' : 'Histórico de uso por usuario'}
                                     </h2>
                                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                                         {activeAdminView === 'research'
-                                            ? 'Disena instrumentos y carga relevamientos asociados al usuario seleccionado.'
+                                            ? 'Diseña instrumentos y carga relevamientos asociados al usuario seleccionado.'
                                             : 'Selecciona un usuario con rol usuario para revisar chats, progreso y simulaciones.'}
                                     </p>
                                 </div>
@@ -786,7 +1164,7 @@ export default function AdminDashboard() {
                                             { label: 'Chats', value: selectedHistory.chats.length, detail: `${selectedHistory.messages.length} mensajes`, icon: MessageSquare },
                                             { label: 'Simulaciones', value: selectedHistory.completedSimulations.length, detail: `${selectedHistory.simulations.length} intentos`, icon: Trophy },
                                             { label: 'Niveles', value: selectedHistory.progress?.completed_levels?.length || 0, detail: `${formatNumber(selectedHistory.progress?.stats?.total_xp)} XP`, icon: Target },
-                                            { label: 'Precision', value: selectedHistory.progress?.stats?.accuracy || 'N/A', detail: `${formatNumber(selectedHistory.progress?.stats?.correct_answers)}/${formatNumber(selectedHistory.progress?.stats?.total_questions)} respuestas`, icon: BarChart2 },
+                                            { label: 'Precisión', value: selectedHistory.progress?.stats?.accuracy || 'N/A', detail: `${formatNumber(selectedHistory.progress?.stats?.correct_answers)}/${formatNumber(selectedHistory.progress?.stats?.total_questions)} respuestas`, icon: BarChart2 },
                                         ].map((item) => {
                                             const Icon = item.icon;
                                             return (
@@ -811,7 +1189,7 @@ export default function AdminDashboard() {
                                             <div className="flex items-center justify-between gap-3">
                                                 <h3 className="text-sm font-bold text-gray-950 dark:text-white">Simulaciones</h3>
                                                 <span className="text-xs text-gray-500 dark:text-gray-400">
-                                                    Racha: {formatNumber(selectedHistory.progress?.stats?.streak)} dias
+                                                    Racha: {formatNumber(selectedHistory.progress?.stats?.streak)} días
                                                 </span>
                                             </div>
                                             <div className="mt-4 space-y-2">
@@ -865,10 +1243,10 @@ export default function AdminDashboard() {
 
                                     {activeAdminView === 'research' && (
                                     <>
-                                    <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+                                    <div className="grid gap-6 xl:grid-cols-2">
                                         <form onSubmit={handleSaveInstrument} className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950/60">
                                             <div className="flex items-center justify-between gap-3">
-                                                <h3 className="text-sm font-bold text-gray-950 dark:text-white">Disenar instrumento de relevamiento</h3>
+                                                <h3 className="text-sm font-bold text-gray-950 dark:text-white">Diseñar instrumento de relevamiento</h3>
                                                 <FileText className="h-5 w-5 text-blue-600 dark:text-blue-300" />
                                             </div>
 
@@ -880,7 +1258,7 @@ export default function AdminDashboard() {
                                                         onChange={(event) => handleInstrumentFormChange('title', event.target.value)}
                                                         required
                                                         className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-                                                        placeholder="Ej.: Entrevista de adopcion inicial"
+                                                        placeholder="Ej.: Entrevista de adopción inicial"
                                                     />
                                                 </label>
                                                 <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
@@ -891,10 +1269,10 @@ export default function AdminDashboard() {
                                                         className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                                                     >
                                                         <option>Entrevista semi-estructurada</option>
-                                                        <option>Guia de observacion</option>
+                                                        <option>Guía de observación</option>
                                                         <option>Prueba de usabilidad</option>
                                                         <option>Encuesta post-prueba</option>
-                                                        <option>Revision de prototipo</option>
+                                                        <option>Revisión de prototipo</option>
                                                     </select>
                                                 </label>
                                             </div>
@@ -945,13 +1323,13 @@ export default function AdminDashboard() {
                                                     />
                                                 </label>
                                                 <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                                                    Instrucciones de aplicacion
+                                                    Instrucciones de aplicación
                                                     <textarea
                                                         value={instrumentForm.instructions}
                                                         onChange={(event) => handleInstrumentFormChange('instructions', event.target.value)}
                                                         rows={4}
                                                         className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-                                                        placeholder="Como aplicar, registrar y cerrar la sesion."
+                                                        placeholder="Cómo aplicar, registrar y cerrar la sesión."
                                                     />
                                                 </label>
                                             </div>
@@ -989,7 +1367,7 @@ export default function AdminDashboard() {
                                             </div>
 
                                             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">{instrumentNotice || 'El instrumento quedara disponible para asociarlo a sesiones relevadas.'}</p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">{instrumentNotice || 'El instrumento quedará disponible para asociarlo a sesiones relevadas.'}</p>
                                                 <button
                                                     type="submit"
                                                     disabled={isSavingInstrument || !instrumentForm.title.trim()}
@@ -1031,10 +1409,10 @@ export default function AdminDashboard() {
                                         </div>
                                     </div>
 
-                                    <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+                                    <div className="grid gap-6 xl:grid-cols-2">
                                         <form onSubmit={handleSaveResearchSession} className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950/60">
                                             <div className="flex items-center justify-between gap-3">
-                                                <h3 className="text-sm font-bold text-gray-950 dark:text-white">Cargar feedback de sesion</h3>
+                                                <h3 className="text-sm font-bold text-gray-950 dark:text-white">Cargar feedback de sesión</h3>
                                                 <ClipboardList className="h-5 w-5 text-blue-600 dark:text-blue-300" />
                                             </div>
 
@@ -1073,14 +1451,14 @@ export default function AdminDashboard() {
                                                         <option>Entrevista semi-estructurada</option>
                                                         <option>Observacion de uso</option>
                                                         <option>Prueba de usabilidad</option>
-                                                        <option>Revision de prototipo</option>
+                                                        <option>Revisión de prototipo</option>
                                                         <option>Encuesta post-prueba</option>
                                                     </select>
                                                 </label>
                                             </div>
 
                                             <label className="mt-3 block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                                                Contexto de la sesion
+                                                Contexto de la sesión
                                                 <textarea
                                                     value={researchForm.context}
                                                     onChange={(event) => handleResearchFormChange('context', event.target.value)}
@@ -1258,7 +1636,7 @@ export default function AdminDashboard() {
                                             <th className="px-5 py-3 text-right font-semibold">Simulaciones</th>
                                             <th className="px-5 py-3 text-right font-semibold">Mejor score</th>
                                             <th className="px-5 py-3 text-left font-semibold">Ultima actividad</th>
-                                            <th className="px-5 py-3 text-right font-semibold">Historico</th>
+                                            <th className="px-5 py-3 text-right font-semibold">Histórico</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">

@@ -33,7 +33,7 @@ const COLLECTIONS = [
   {
     name: 'messages',
     userField: 'user',
-    dateFields: ['created', 'updated'],
+    dateFields: ['generated_at', 'created', 'updated'],
     offsetMinutes: 3,
   },
   {

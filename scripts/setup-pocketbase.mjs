@@ -111,6 +111,7 @@ async function main() {
                     fields: [
                         { name: 'content', type: 'text', required: true },
                         { name: 'role', type: 'text', required: true },
+                        { name: 'generated_at', type: 'date', required: false },
                         { name: 'user', type: 'relation', collectionId: '_pb_users_auth_', maxSelect: 1 },
                         { name: 'chat', type: 'relation', collectionId: chatsColRefetched.id, maxSelect: 1 }
                     ],
@@ -124,6 +125,7 @@ async function main() {
             } catch (e) {
                 console.log('ℹ️ Colección messages ya existe o error:', e.message);
             }
+            await ensureMessageGeneratedAtField();
         }
 
         // 4. User Progress Collection
@@ -259,6 +261,25 @@ async function ensurePlatformReadRules() {
     }
 
     console.log('Reglas de lectura admin configuradas para datos de plataforma.');
+}
+
+async function ensureMessageGeneratedAtField() {
+    const collection = await pb.collections.getOne('messages').catch(() => null);
+    if (!collection) return;
+
+    const fields = collection.fields.some((field) => field.name === 'generated_at')
+        ? collection.fields.map((field) => (
+            field.name === 'generated_at'
+                ? { ...field, type: 'date', required: false, hidden: false }
+                : field
+        ))
+        : [
+            ...collection.fields,
+            { name: 'generated_at', type: 'date', required: false, hidden: false },
+        ];
+
+    await pb.collections.update(collection.id, { fields });
+    console.log('Campo generated_at configurado en messages.');
 }
 
 async function ensureUserResearchSessions() {

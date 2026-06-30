@@ -3,7 +3,8 @@
 import { useState, useMemo } from 'react';
 import pb from '@/lib/pocketbase';
 import { WORLDS } from '@/lib/gameData';
-import { ChevronDown, ChevronRight, Clock, Folder, MessageSquare, PanelLeftClose, PanelLeftOpen, Home, PlusCircle, Edit2, Check, X, Trash2, ShieldCheck } from 'lucide-react';
+import { BarChart2, ChevronDown, ChevronRight, ClipboardList, Clock, FileText, Folder, MessageSquare, PanelLeftClose, PanelLeftOpen, Home, PlusCircle, Edit2, Check, X, Trash2, Users } from 'lucide-react';
+import type { AdminView } from './AdminDashboard';
 
 interface SidebarProps {
     user: any;
@@ -20,6 +21,8 @@ interface SidebarProps {
     onClose?: () => void;
     isDesktopOpen?: boolean;
     onToggleDesktop?: () => void;
+    activeAdminView?: AdminView;
+    onAdminViewChange?: (view: AdminView) => void;
 }
 
 export default function Sidebar({
@@ -36,7 +39,9 @@ export default function Sidebar({
     isOpen = false,
     onClose,
     isDesktopOpen = true,
-    onToggleDesktop
+    onToggleDesktop,
+    activeAdminView = 'overview',
+    onAdminViewChange
 }: SidebarProps) {
     const isAdmin = user?.role === 'admin';
     const [viewMode, setViewMode] = useState<'recent' | 'structure'>('recent');
@@ -45,6 +50,13 @@ export default function Sidebar({
     const [editingChatId, setEditingChatId] = useState<string | null>(null);
     const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState('');
+
+    const adminNavItems: Array<{ id: AdminView; label: string; icon: typeof BarChart2 }> = [
+        { id: 'overview', label: 'Resumen', icon: BarChart2 },
+        { id: 'defense', label: 'Defensa', icon: FileText },
+        { id: 'users', label: 'Usuarios', icon: Users },
+        { id: 'research', label: 'Investigación UX', icon: ClipboardList },
+    ];
 
     const togglePhase = (phaseId: string) => {
         setExpandedPhases(prev => ({ ...prev, [phaseId]: !prev[phaseId] }));
@@ -233,17 +245,47 @@ export default function Sidebar({
             {/* Content Area */}
             <div className={`flex-1 overflow-y-auto flex flex-col ${isDesktopOpen ? 'p-4' : 'p-2 items-center'} scrollbar-thin`}>
                 
-                {/* Home Button */}
-                <button 
-                    onClick={onGoHome}
-                    className={`flex items-center gap-3 p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors mb-2 ${
-                        isDesktopOpen ? 'w-full' : 'justify-center w-full aspect-square'
-                    }`}
-                    title={isAdmin ? 'Panel admin' : 'Inicio'}
-                >
-                    {isAdmin ? <ShieldCheck className="w-5 h-5" /> : <Home className="w-5 h-5" />}
-                    {isDesktopOpen && <span className="font-medium animate-in fade-in">{isAdmin ? 'Panel admin' : 'Inicio'}</span>}
-                </button>
+                {isAdmin ? (
+                    <div className="mb-2 space-y-1">
+                        {adminNavItems.map((item) => {
+                            const Icon = item.icon;
+                            const isActive = activeAdminView === item.id;
+                            return (
+                                <button
+                                    key={item.id}
+                                    type="button"
+                                    onClick={() => {
+                                        onAdminViewChange?.(item.id);
+                                        onGoHome();
+                                        onClose?.();
+                                    }}
+                                    className={`flex items-center gap-3 rounded-lg p-2 transition-colors ${
+                                        isDesktopOpen ? 'w-full' : 'justify-center w-full aspect-square'
+                                    } ${
+                                        isActive
+                                            ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
+                                            : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
+                                    }`}
+                                    title={item.label}
+                                >
+                                    <Icon className="w-5 h-5" />
+                                    {isDesktopOpen && <span className="font-medium animate-in fade-in">{item.label}</span>}
+                                </button>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <button
+                        onClick={onGoHome}
+                        className={`flex items-center gap-3 p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors mb-2 ${
+                            isDesktopOpen ? 'w-full' : 'justify-center w-full aspect-square'
+                        }`}
+                        title="Inicio"
+                    >
+                        <Home className="w-5 h-5" />
+                        {isDesktopOpen && <span className="font-medium animate-in fade-in">Inicio</span>}
+                    </button>
+                )}
 
                 {/* New Chat Button (Visible in collapsed mode for quick access) */}
                 {!isAdmin && (
@@ -257,12 +299,6 @@ export default function Sidebar({
                         <PlusCircle className="w-5 h-5" />
                         {isDesktopOpen && <span className="font-medium animate-in fade-in">Nuevo Chat General</span>}
                     </button>
-                )}
-
-                {isAdmin && isDesktopOpen && (
-                    <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-200">
-                        Usuario administrador: acceso limitado al dashboard.
-                    </div>
                 )}
 
                 {!isAdmin && isDesktopOpen ? (

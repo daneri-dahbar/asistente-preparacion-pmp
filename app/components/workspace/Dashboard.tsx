@@ -38,9 +38,94 @@ interface SimulationRecord {
     answers: Record<string, string>;
 }
 
+type DomainStats = Record<string, { total: number; correct: number }>;
+
 function getSimulationDate(simulation: SimulationRecord) {
     const value = simulation.completed_at || simulation.started_at || simulation.updated || simulation.created;
     return new Date(value);
+}
+
+function addDomainStats(acc: DomainStats, domain: string, total: number, correct: number) {
+    const key = domain || 'General';
+    if (!acc[key]) acc[key] = { total: 0, correct: 0 };
+    acc[key].total += total;
+    acc[key].correct += correct;
+}
+
+function distributeCorrectAnswers(totalCorrect: number, domainTotals: Record<string, number>) {
+    const entries = Object.entries(domainTotals);
+    const totalQuestions = entries.reduce((sum, [, total]) => sum + total, 0);
+    if (totalQuestions === 0) return {};
+
+    const raw = entries.map(([domain, total]) => {
+        const exact = (totalCorrect * total) / totalQuestions;
+        return {
+            domain,
+            total,
+            correct: Math.floor(exact),
+            remainder: exact - Math.floor(exact),
+        };
+    });
+
+    let remaining = Math.max(0, Math.min(totalCorrect, totalQuestions) - raw.reduce((sum, item) => sum + item.correct, 0));
+    raw
+        .sort((a, b) => b.remainder - a.remainder)
+        .forEach((item) => {
+            if (remaining > 0 && item.correct < item.total) {
+                item.correct += 1;
+                remaining -= 1;
+            }
+        });
+
+    return raw.reduce((acc, item) => {
+        acc[item.domain] = item.correct;
+        return acc;
+    }, {} as Record<string, number>);
+}
+
+function buildDomainStats(completedSimulations: SimulationRecord[]) {
+    return completedSimulations.reduce((acc, sim) => {
+        const questions = Array.isArray(sim.questions) ? sim.questions : [];
+
+        if (questions.length === 0) {
+            addDomainStats(acc, sim.type || 'General', sim.total_questions || 0, sim.score || 0);
+            return acc;
+        }
+
+        const perQuestionStats: DomainStats = {};
+        const domainTotals: Record<string, number> = {};
+        let matchedCorrect = 0;
+
+        questions.forEach((q) => {
+            const domain = q.domain || 'General';
+            domainTotals[domain] = (domainTotals[domain] || 0) + 1;
+            if (!perQuestionStats[domain]) perQuestionStats[domain] = { total: 0, correct: 0 };
+            perQuestionStats[domain].total += 1;
+
+            if (sim.answers && sim.answers[q.id] === q.correctAnswer) {
+                perQuestionStats[domain].correct += 1;
+                matchedCorrect += 1;
+            }
+        });
+
+        const shouldUseScoreFallback = Number(sim.score || 0) > 0 && matchedCorrect === 0;
+        if (shouldUseScoreFallback) {
+            const distributedCorrect = distributeCorrectAnswers(Number(sim.score || 0), domainTotals);
+            Object.entries(domainTotals).forEach(([domain, total]) => {
+                addDomainStats(acc, domain, total, distributedCorrect[domain] || 0);
+            });
+            return acc;
+        }
+
+        Object.entries(perQuestionStats).forEach(([domain, stats]) => {
+            addDomainStats(acc, domain, stats.total, stats.correct);
+        });
+        return acc;
+    }, {} as DomainStats);
+}
+
+function formatPercent(value: number) {
+    return `${Math.round(value)}%`;
 }
 
 interface DashboardProps {
@@ -494,17 +579,7 @@ export default function Dashboard({
                             const totalCorrect = completedSimulations.reduce((acc, curr) => acc + curr.score, 0);
                             const averageScore = totalSimulations > 0 && totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
                             
-                            const domainStats = completedSimulations.reduce((acc, sim) => {
-                                sim.questions?.forEach(q => {
-                                    const domain = q.domain || 'General';
-                                    if (!acc[domain]) acc[domain] = { total: 0, correct: 0 };
-                                    acc[domain].total++;
-                                    if (sim.answers && sim.answers[q.id] === q.correctAnswer) {
-                                        acc[domain].correct++;
-                                    }
-                                });
-                                return acc;
-                            }, {} as Record<string, { total: 0, correct: 0 }>);
+                            const domainStats = buildDomainStats(completedSimulations);
 
                             return (
                                 <section className="space-y-6">
@@ -540,7 +615,7 @@ export default function Dashboard({
                                             <h4 className="text-sm font-bold text-gray-500 uppercase mb-4">Dominio por Áreas</h4>
                                             <div className="space-y-4">
                                                 {Object.entries(domainStats).map(([domain, stats]) => {
-                                                    const percent = Math.round((stats.correct / stats.total) * 100);
+                                                    const percent = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
                                                     let colorClass = 'bg-red-500';
                                                     if (percent >= 80) colorClass = 'bg-green-500';
                                                     else if (percent >= 60) colorClass = 'bg-yellow-500';
@@ -549,7 +624,7 @@ export default function Dashboard({
                                                         <div key={domain}>
                                                             <div className="flex justify-between text-sm mb-1">
                                                                 <span className="font-medium text-gray-700 dark:text-gray-300">{domain}</span>
-                                                                <span className="font-bold text-gray-900 dark:text-white">{percent}% ({stats.correct}/{stats.total})</span>
+                                                                <span className="font-bold text-gray-900 dark:text-white">{formatPercent(percent)} ({stats.correct}/{stats.total})</span>
                                                             </div>
                                                             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
                                                                 <div className={`h-2.5 rounded-full ${colorClass}`} style={{ width: `${percent}%` }}></div>

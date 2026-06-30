@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
@@ -9,6 +9,7 @@ interface Message {
     id: string;
     role: string;
     content: string;
+    generated_at?: string;
     created?: string;
     updated?: string;
 }
@@ -179,6 +180,29 @@ export default function ChatArea({
         }).format(date);
     };
 
+    const getMessageTimestamp = (message: Message) => message.generated_at || message.created || message.updated;
+
+    const sortedMessages = useMemo(() => {
+        const roleOrder: Record<string, number> = { user: 0, assistant: 1 };
+
+        return messages
+            .map((message, index) => ({ message, index }))
+            .sort((a, b) => {
+                const timeA = new Date(getMessageTimestamp(a.message) || 0).getTime();
+                const timeB = new Date(getMessageTimestamp(b.message) || 0).getTime();
+                const safeTimeA = Number.isNaN(timeA) ? 0 : timeA;
+                const safeTimeB = Number.isNaN(timeB) ? 0 : timeB;
+
+                if (safeTimeA !== safeTimeB) return safeTimeA - safeTimeB;
+
+                const roleDiff = (roleOrder[a.message.role] ?? 2) - (roleOrder[b.message.role] ?? 2);
+                if (roleDiff !== 0) return roleDiff;
+
+                return a.index - b.index;
+            })
+            .map(({ message }) => message);
+    }, [messages]);
+
     // Voice Recognition Logic
     const [isListening, setIsListening] = useState(false);
     const recognitionRef = useRef<any>(null);
@@ -277,16 +301,17 @@ export default function ChatArea({
                         </div>
                     ) : (
                         <>
-                            {messages.length === 0 && (
+                            {sortedMessages.length === 0 && (
                                 <div className="text-center py-20 text-gray-400">
                                     <p>Comienza la conversación...</p>
                                 </div>
                             )}
 
-                            {messages.map((m, idx) => {
+                            {sortedMessages.map((m, idx) => {
                         // Parse options if present
                         const [contentBody, optionsPart] = m.content.split('---OPTIONS---');
-                        const messageDateTime = formatMessageDateTime(m.created || m.updated);
+                        const messageTimestamp = getMessageTimestamp(m);
+                        const messageDateTime = formatMessageDateTime(messageTimestamp);
                         let options: string[] = [];
                         if (optionsPart && m.role === 'assistant') {
                              try {
@@ -317,14 +342,6 @@ export default function ChatArea({
                                 <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
                                     {m.role === 'user' ? 'Tú' : isSimulation ? 'Stakeholder' : 'Asistente'}
                                 </span>
-                                {messageDateTime && (
-                                    <time
-                                        dateTime={m.created || m.updated}
-                                        className="text-[11px] font-medium text-gray-400 dark:text-gray-500"
-                                    >
-                                        {messageDateTime}
-                                    </time>
-                                )}
                             </div>
                             
                             {/* Message Bubble */}
@@ -340,8 +357,19 @@ export default function ChatArea({
                                 </div>
                             </div>
 
+                            <time
+                                dateTime={messageTimestamp || undefined}
+                                className={`mt-1 max-w-[90%] px-1 text-[11px] font-medium leading-none sm:max-w-[85%] ${
+                                    m.role === 'user'
+                                        ? 'text-right text-gray-500 dark:text-gray-400'
+                                        : 'text-left text-gray-500 dark:text-gray-400'
+                                }`}
+                            >
+                                {messageDateTime || 'Fecha y hora no disponibles'}
+                            </time>
+
                             {/* Suggested Actions / Options */}
-                            {options.length > 0 && idx === messages.length - 1 && (
+                            {options.length > 0 && idx === sortedMessages.length - 1 && (
                                 <div className="flex flex-wrap gap-2 mt-3 ml-2 max-w-[90%] sm:max-w-[85%] animate-in fade-in slide-in-from-top-2 duration-300">
                                     {options.map((opt, i) => (
                                         <button

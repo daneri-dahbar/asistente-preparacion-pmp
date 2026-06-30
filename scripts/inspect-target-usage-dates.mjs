@@ -17,7 +17,7 @@ for (const email of TARGET_EMAILS) {
   const user = await pb.collection('users').getFirstListItem(`email="${email}"`, { requestKey: null });
   console.log(`\n${email}`);
   await inspect('chats', `user="${user.id}"`, ['last_active']);
-  await inspect('messages', `user="${user.id}"`, ['created', 'updated']);
+  await inspect('messages', `user="${user.id}"`, ['generated_at', 'created', 'updated']);
   await inspect('simulations', `user="${user.id}"`, ['started_at', 'completed_at']);
   await inspect('user_research_sessions', `user="${user.id}"`, ['session_date']);
 }

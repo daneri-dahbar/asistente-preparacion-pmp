@@ -10,7 +10,7 @@ import { PanelLeftOpen } from 'lucide-react';
 // Components
 import Sidebar from '@/app/components/workspace/Sidebar';
 import Dashboard from '@/app/components/workspace/Dashboard';
-import AdminDashboard from '@/app/components/workspace/AdminDashboard';
+import AdminDashboard, { type AdminView } from '@/app/components/workspace/AdminDashboard';
 import ChatArea from '@/app/components/workspace/ChatArea';
 import ExamSimulator from '@/app/components/workspace/ExamSimulator';
 import LevelCompletedModal from '@/app/components/LevelCompletedModal';
@@ -48,6 +48,7 @@ export default function WelcomePage() {
     const [showLevelCompleteModal, setShowLevelCompleteModal] = useState(false);
     const [justCompletedLevel, setJustCompletedLevel] = useState('');
     const [showOnboarding, setShowOnboarding] = useState(false);
+    const [activeAdminView, setActiveAdminView] = useState<AdminView>('overview');
 
     // Stats State
     const [stats, setStats] = useState({
@@ -58,6 +59,23 @@ export default function WelcomePage() {
         level: 1,
         title: 'Novato'
     });
+
+    const getMessageTimestamp = (message: any) => message.generated_at || message.created || message.updated;
+
+    const sortMessagesChronologically = (items: any[]) => {
+        const roleOrder: Record<string, number> = { user: 0, assistant: 1 };
+
+        return items.sort((a: any, b: any) => {
+            const timeA = new Date(getMessageTimestamp(a) || 0).getTime();
+            const timeB = new Date(getMessageTimestamp(b) || 0).getTime();
+            const safeTimeA = Number.isNaN(timeA) ? 0 : timeA;
+            const safeTimeB = Number.isNaN(timeB) ? 0 : timeB;
+
+            if (safeTimeA !== safeTimeB) return safeTimeA - safeTimeB;
+
+            return (roleOrder[a.role] ?? 2) - (roleOrder[b.role] ?? 2);
+        });
+    };
 
     // Calculate local stats (synchronous)
     useEffect(() => {
@@ -226,16 +244,18 @@ export default function WelcomePage() {
             // Using safe filter format and client-side sorting to avoid 400 errors
             const records = await pb.collection('messages').getFullList({
                 filter: `chat='${safeChatId}'`,
+                fields: 'id,role,content,generated_at,created,updated',
             });
             
             // Client-side sort (oldest to newest for messages)
-            records.sort((a: any, b: any) => new Date(a.created).getTime() - new Date(b.created).getTime());
+            sortMessagesChronologically(records);
 
             console.log(`[loadMessages] Found ${records.length} messages`);
             return records.map(r => ({
                 id: r.id,
                 role: r.role,
                 content: r.content,
+                generated_at: r.generated_at,
                 created: r.created,
                 updated: r.updated
             }));
@@ -256,12 +276,13 @@ export default function WelcomePage() {
                     // Removing sort to avoid 400 bad request if index is missing
                     const records = await pb.collection('messages').getFullList({
                         filter: `user='${pb.authStore.model.id}'`, 
+                        fields: 'id,chat,role,content,generated_at,created,updated',
                     });
                     
                     // Filter by chat manually in client
                     const filtered = records.filter((r: any) => r.chat === safeChatId);
                     // Client-side sort
-                    filtered.sort((a: any, b: any) => new Date(a.created).getTime() - new Date(b.created).getTime());
+                    sortMessagesChronologically(filtered);
 
                     console.log(`[loadMessages] Fallback found ${filtered.length} messages`);
                     
@@ -269,6 +290,7 @@ export default function WelcomePage() {
                         id: r.id,
                         role: r.role,
                         content: r.content,
+                        generated_at: r.generated_at,
                         created: r.created,
                         updated: r.updated
                     }));
@@ -280,6 +302,29 @@ export default function WelcomePage() {
             return [];
         }
     };
+
+    useEffect(() => {
+        if (!currentChatId || !isChatViewOpen || isLoadingHistory) return;
+        if (messages.length === 0) return;
+
+        const hasMessagesWithoutDates = messages.some((message) => !message.generated_at && !message.created && !message.updated);
+        if (!hasMessagesWithoutDates) return;
+
+        let cancelled = false;
+
+        const reloadMissingDates = async () => {
+            const reloadedMessages = await loadMessages(currentChatId);
+            if (!cancelled && activeChatIdRef.current === currentChatId && reloadedMessages.length > 0) {
+                setMessages(reloadedMessages);
+            }
+        };
+
+        reloadMissingDates();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentChatId, isChatViewOpen, isLoadingHistory, messages]);
 
     const handleNewChat = () => {
         if (user?.role === 'admin') return;
@@ -406,7 +451,7 @@ export default function WelcomePage() {
             const assistantMessageId = (Date.now() + 1).toString();
             const assistantMessageCreated = new Date().toISOString();
             
-            setMessages([{ id: assistantMessageId, role: 'assistant', content: '', created: assistantMessageCreated }]);
+            setMessages([{ id: assistantMessageId, role: 'assistant', content: '', generated_at: assistantMessageCreated, created: assistantMessageCreated }]);
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -421,6 +466,7 @@ export default function WelcomePage() {
                         id: assistantMessageId, 
                         role: 'assistant', 
                         content: assistantMessageContent,
+                        generated_at: assistantMessageCreated,
                         created: assistantMessageCreated
                     };
                     return newMessages;
@@ -428,12 +474,24 @@ export default function WelcomePage() {
             }
 
             // Save assistant message to PocketBase
-            await pb.collection('messages').create({
+            const savedAssistantMessage = await pb.collection('messages').create({
                 content: assistantMessageContent,
                 role: 'assistant',
                 user: user.id,
-                chat: chatId
+                chat: chatId,
+                generated_at: assistantMessageCreated
             });
+            setMessages((current) => current.map((message) => (
+                message.id === assistantMessageId
+                    ? {
+                        ...message,
+                        id: savedAssistantMessage.id,
+                        generated_at: savedAssistantMessage.generated_at || message.generated_at,
+                        created: savedAssistantMessage.created || message.created,
+                        updated: savedAssistantMessage.updated || message.updated,
+                    }
+                    : message
+            )));
 
             // CHECK FOR LEVEL COMPLETION logic ...
             const upperContent = assistantMessageContent.toUpperCase();
@@ -719,7 +777,7 @@ export default function WelcomePage() {
 
         const tempId = Date.now().toString();
         const userMessageCreated = new Date().toISOString();
-        const userMessage = { id: tempId, role: 'user', content: messageContent, created: userMessageCreated };
+        const userMessage = { id: tempId, role: 'user', content: messageContent, generated_at: userMessageCreated, created: userMessageCreated };
         setMessages(prev => [...prev, userMessage]);
         setInput('');
         setIsLoading(true);
@@ -741,12 +799,24 @@ export default function WelcomePage() {
             }
 
             // Save user message to PocketBase
-            await pb.collection('messages').create({
+            const savedUserMessage = await pb.collection('messages').create({
                 content: userMessage.content,
                 role: 'user',
                 user: user.id,
-                chat: activeChatId
+                chat: activeChatId,
+                generated_at: userMessageCreated
             });
+            setMessages((current) => current.map((message) => (
+                message.id === tempId
+                    ? {
+                        ...message,
+                        id: savedUserMessage.id,
+                        generated_at: savedUserMessage.generated_at || message.generated_at,
+                        created: savedUserMessage.created || message.created,
+                        updated: savedUserMessage.updated || message.updated,
+                    }
+                    : message
+            )));
 
             const response = await fetch('/api/chat', {
                 method: 'POST',
@@ -766,7 +836,7 @@ export default function WelcomePage() {
             const assistantMessageId = (Date.now() + 1).toString();
             const assistantMessageCreated = new Date().toISOString();
             
-            setMessages(prev => [...prev, { id: assistantMessageId, role: 'assistant', content: '', created: assistantMessageCreated }]);
+            setMessages(prev => [...prev, { id: assistantMessageId, role: 'assistant', content: '', generated_at: assistantMessageCreated, created: assistantMessageCreated }]);
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -781,6 +851,7 @@ export default function WelcomePage() {
                         id: assistantMessageId, 
                         role: 'assistant', 
                         content: assistantMessageContent,
+                        generated_at: assistantMessageCreated,
                         created: assistantMessageCreated
                     };
                     return newMessages;
@@ -788,12 +859,24 @@ export default function WelcomePage() {
             }
 
             // Save assistant message to PocketBase
-            await pb.collection('messages').create({
+            const savedAssistantMessage = await pb.collection('messages').create({
                 content: assistantMessageContent,
                 role: 'assistant',
                 user: user.id,
-                chat: activeChatId
+                chat: activeChatId,
+                generated_at: assistantMessageCreated
             });
+            setMessages((current) => current.map((message) => (
+                message.id === assistantMessageId
+                    ? {
+                        ...message,
+                        id: savedAssistantMessage.id,
+                        generated_at: savedAssistantMessage.generated_at || message.generated_at,
+                        created: savedAssistantMessage.created || message.created,
+                        updated: savedAssistantMessage.updated || message.updated,
+                    }
+                    : message
+            )));
 
             // Update chat timestamp in PocketBase to ensure it appears as most recent
             const now = new Date().toISOString();
@@ -922,6 +1005,8 @@ export default function WelcomePage() {
                 onClose={() => setIsMobileSidebarOpen(false)}
                 isDesktopOpen={isDesktopSidebarOpen}
                 onToggleDesktop={() => setIsDesktopSidebarOpen(prev => !prev)}
+                activeAdminView={activeAdminView}
+                onAdminViewChange={setActiveAdminView}
             />
 
             {/* Onboarding Modal */}
@@ -971,7 +1056,7 @@ export default function WelcomePage() {
                         onBack={() => setIsChatViewOpen(false)}
                     />
                 ) : isAdmin ? (
-                    <AdminDashboard />
+                    <AdminDashboard activeAdminView={activeAdminView} />
                 ) : (
                     <Dashboard 
                         userName={user?.name?.split(' ')[0] || 'Estudiante'} 
