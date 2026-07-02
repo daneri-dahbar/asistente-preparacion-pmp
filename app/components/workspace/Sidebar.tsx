@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import pb from '@/lib/pocketbase';
 import { WORLDS } from '@/lib/gameData';
-import { BarChart2, ChevronDown, ChevronRight, ClipboardList, Clock, FileText, Folder, MessageSquare, PanelLeftClose, PanelLeftOpen, Home, PlusCircle, Edit2, Check, X, Trash2, Users } from 'lucide-react';
+import { BarChart2, CheckCircle, ChevronDown, ChevronRight, ClipboardCheck, ClipboardList, Clock, FileText, Folder, MessageSquare, PanelLeftClose, PanelLeftOpen, Home, PlusCircle, Edit2, Check, X, Trash2, Users } from 'lucide-react';
 import type { AdminView } from './AdminDashboard';
 
 interface SidebarProps {
@@ -54,7 +54,9 @@ export default function Sidebar({
     const adminNavItems: Array<{ id: AdminView; label: string; icon: typeof BarChart2 }> = [
         { id: 'overview', label: 'Resumen', icon: BarChart2 },
         { id: 'defense', label: 'Defensa', icon: FileText },
+        { id: 'evaluation', label: 'Evaluación', icon: CheckCircle },
         { id: 'users', label: 'Usuarios', icon: Users },
+        { id: 'simulations', label: 'Simulaciones', icon: ClipboardCheck },
         { id: 'research', label: 'Investigación UX', icon: ClipboardList },
     ];
 
