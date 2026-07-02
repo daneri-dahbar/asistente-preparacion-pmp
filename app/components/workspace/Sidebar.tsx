@@ -64,6 +64,7 @@ export default function Sidebar({
         { id: 'defense', label: 'Defensa', icon: FileText },
         { id: 'evaluation', label: 'Evaluación', icon: CheckCircle },
         { id: 'users', label: 'Usuarios', icon: Users },
+        { id: 'cleanup', label: 'Limpiar BD', icon: Trash2 },
         { id: 'guided', label: 'Modo guiado', icon: BookOpen },
         { id: 'simulations', label: 'Simulaciones', icon: ClipboardCheck },
         { id: 'research', label: 'Investigación UX', icon: ClipboardList },

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import pb from '@/lib/pocketbase';
-import { Activity, AlertCircle, ArrowLeft, CheckCircle, ChevronDown, ChevronRight, ClipboardCheck, ClipboardList, Clock, FileText, MessageSquare, RefreshCw, Save, Target, Trophy, Users } from 'lucide-react';
+import { Activity, AlertCircle, ArrowLeft, CheckCircle, ChevronDown, ChevronRight, ClipboardCheck, ClipboardList, Clock, FileText, MessageSquare, RefreshCw, Save, Target, Trash2, Trophy, Users } from 'lucide-react';
 import { WORLDS } from '@/lib/gameData';
 import TechnicalMetricsHistory from './TechnicalMetricsHistory';
 import UxUiMetricsHistory from './UxUiMetricsHistory';
@@ -177,6 +177,11 @@ interface GuidedUsageFormState {
     interactionsPerLevel: string;
 }
 
+interface CleanupResult {
+    total?: number;
+    deleted?: Record<string, { label: string; count: number }>;
+}
+
 interface UserSummary {
     user: PlatformUser;
     chats: number;
@@ -188,7 +193,7 @@ interface UserSummary {
     lastActivity: string | null;
 }
 
-export type AdminView = 'overview' | 'defense' | 'evaluation' | 'users' | 'guided' | 'simulations' | 'research';
+export type AdminView = 'overview' | 'defense' | 'evaluation' | 'users' | 'cleanup' | 'guided' | 'simulations' | 'research';
 
 interface EvaluationTechnicalMetric {
     id: string;
@@ -878,6 +883,10 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
     const [selectedUserId, setSelectedUserId] = useState<string>('');
     const [selectedTechnicalMetricsUserId, setSelectedTechnicalMetricsUserId] = useState<string>('');
     const [selectedUxUiMetricsUserId, setSelectedUxUiMetricsUserId] = useState<string>('');
+    const [selectedCleanupUserId, setSelectedCleanupUserId] = useState<string>('');
+    const [cleanupConfirmation, setCleanupConfirmation] = useState('');
+    const [cleanupNotice, setCleanupNotice] = useState<string | null>(null);
+    const [cleanupResult, setCleanupResult] = useState<CleanupResult | null>(null);
     const [isUserDetailOpen, setIsUserDetailOpen] = useState(false);
     const [isResearchDetailOpen, setIsResearchDetailOpen] = useState(false);
     const [isResearchResultFormOpen, setIsResearchResultFormOpen] = useState(false);
@@ -901,6 +910,7 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
     const [isSavingInstrument, setIsSavingInstrument] = useState(false);
     const [isGeneratingSimulation, setIsGeneratingSimulation] = useState(false);
     const [isGeneratingGuidedUsage, setIsGeneratingGuidedUsage] = useState(false);
+    const [isCleaningUserUsage, setIsCleaningUserUsage] = useState(false);
     const [researchNotice, setResearchNotice] = useState<string | null>(null);
     const [instrumentNotice, setInstrumentNotice] = useState<string | null>(null);
     const [simulationNotice, setSimulationNotice] = useState<string | null>(null);
@@ -1029,6 +1039,17 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
             setSelectedUxUiMetricsUserId(selectableUsers[0].id);
         }
     }, [users, selectedUxUiMetricsUserId]);
+
+    useEffect(() => {
+        if (!users.length) {
+            setSelectedCleanupUserId('');
+            return;
+        }
+
+        if (!selectedCleanupUserId || !users.some((user) => user.id === selectedCleanupUserId)) {
+            setSelectedCleanupUserId(users[0].id);
+        }
+    }, [users, selectedCleanupUserId]);
 
     useEffect(() => {
         if (activeAdminView !== 'users') {
@@ -1444,6 +1465,45 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
         }
     };
 
+    const handleCleanupUserUsage = async (event: React.FormEvent) => {
+        event.preventDefault();
+        if (!selectedCleanupUserId || cleanupConfirmation !== 'LIMPIAR' || isCleaningUserUsage) return;
+
+        setIsCleaningUserUsage(true);
+        setCleanupNotice(null);
+        setCleanupResult(null);
+
+        try {
+            const response = await fetch('/api/admin/users/cleanup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${pb.authStore.token}`,
+                },
+                body: JSON.stringify({
+                    userId: selectedCleanupUserId,
+                    confirmation: cleanupConfirmation,
+                }),
+            });
+            const payload = await response.json();
+
+            if (!response.ok) {
+                throw new Error(payload.error || 'No se pudieron limpiar los datos de uso.');
+            }
+
+            await loadPlatformData();
+            setCleanupResult(payload);
+            setCleanupConfirmation('');
+            setCleanupNotice(`Datos de uso eliminados: ${payload.total || 0} registros.`);
+        } catch (cleanupError) {
+            console.error('Error cleaning user usage:', cleanupError);
+            const message = cleanupError instanceof Error ? cleanupError.message : 'No se pudieron limpiar los datos de uso.';
+            setCleanupNotice(message);
+        } finally {
+            setIsCleaningUserUsage(false);
+        }
+    };
+
     const handleSaveInstrument = async (event: React.FormEvent) => {
         event.preventDefault();
         if (isSavingInstrument || !instrumentForm.title.trim()) return;
@@ -1856,6 +1916,10 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
             title: 'Usuarios',
             description: 'Histórico de uso y evolución individual de los usuarios.',
         },
+        cleanup: {
+            title: 'Limpiar BD',
+            description: 'Elimina datos de uso de un usuario sin borrar su cuenta ni credenciales.',
+        },
         guided: {
             title: 'Modo guiado',
             description: 'Genera uso guiado desde cero para un aspirante, creando progreso, chats, mensajes y metricas asociadas.',
@@ -1876,6 +1940,15 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
     const selectedEvaluationDimension = EVALUATION_DIMENSIONS.find((dimension) => dimension.id === selectedEvaluationDimensionId) || null;
     const selectedTechnicalMetricsUser = users.find((user) => user.id === selectedTechnicalMetricsUserId) || null;
     const selectedUxUiMetricsUser = users.find((user) => user.id === selectedUxUiMetricsUserId) || null;
+    const selectedCleanupUser = users.find((user) => user.id === selectedCleanupUserId) || null;
+    const selectedCleanupUserUsage = selectedCleanupUserId ? {
+        chats: chats.filter((chat) => chat.user === selectedCleanupUserId).length,
+        messages: messages.filter((message) => message.user === selectedCleanupUserId).length,
+        progress: progress.filter((item) => item.user === selectedCleanupUserId).length,
+        simulations: simulations.filter((simulation) => simulation.user === selectedCleanupUserId).length,
+        technicalMetrics: technicalMetricSnapshots.filter((snapshot) => snapshot.user === selectedCleanupUserId).length,
+        researchSessions: researchSessions.filter((session) => session.user === selectedCleanupUserId).length,
+    } : null;
     const selectedTechnicalMetricSnapshot = technicalMetricSnapshots.find((snapshot) => snapshot.user === selectedTechnicalMetricsUserId) || null;
     const selectedTechnicalMetricValues = technicalMetricValuesFromSnapshot(selectedTechnicalMetricSnapshot);
     const selectedEvaluationMetricValue = selectedEvaluationMetric
@@ -2938,6 +3011,122 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                         </div>
                         )
                         )
+                        )}
+
+                        {activeAdminView === 'cleanup' && (
+                        <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+                            <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                                <div className="flex items-center gap-3">
+                                    <div className="rounded-md bg-red-50 p-2 text-red-700 dark:bg-red-950/50 dark:text-red-200">
+                                        <Trash2 className="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-base font-bold text-gray-950 dark:text-white">Eliminar datos de uso</h2>
+                                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Conserva la cuenta del usuario y borra solamente su actividad registrada.</p>
+                                    </div>
+                                </div>
+
+                                <form onSubmit={handleCleanupUserUsage} className="mt-5 space-y-4">
+                                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+                                        Usuario de la plataforma
+                                        <select
+                                            value={selectedCleanupUserId}
+                                            onChange={(event) => {
+                                                setSelectedCleanupUserId(event.target.value);
+                                                setCleanupConfirmation('');
+                                                setCleanupNotice(null);
+                                                setCleanupResult(null);
+                                            }}
+                                            className="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition-colors focus:border-red-500 focus:ring-2 focus:ring-red-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                            required
+                                        >
+                                            {users.map((user) => (
+                                                <option key={user.id} value={user.id}>
+                                                    {user.name || user.email || 'Usuario'}{user.role ? ` (${user.role})` : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </label>
+
+                                    <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+                                        Esta accion elimina chats, mensajes, progreso, simulaciones, metricas tecnicas, metricas UX/UI y relevamientos UX asociados al usuario seleccionado. La cuenta de usuario no se elimina.
+                                    </div>
+
+                                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+                                        Confirmacion requerida
+                                        <input
+                                            type="text"
+                                            value={cleanupConfirmation}
+                                            onChange={(event) => {
+                                                setCleanupConfirmation(event.target.value);
+                                                setCleanupNotice(null);
+                                            }}
+                                            placeholder="Escribi LIMPIAR"
+                                            className="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition-colors focus:border-red-500 focus:ring-2 focus:ring-red-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                        />
+                                    </label>
+
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <p className="min-h-6 text-sm font-semibold text-gray-600 dark:text-gray-300">
+                                            {cleanupNotice || 'Para habilitar el borrado escribi LIMPIAR exactamente.'}
+                                        </p>
+                                        <button
+                                            type="submit"
+                                            disabled={isCleaningUserUsage || !selectedCleanupUserId || cleanupConfirmation !== 'LIMPIAR'}
+                                            className="inline-flex items-center justify-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-400"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                            {isCleaningUserUsage ? 'Limpiando...' : 'Eliminar datos de uso'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </section>
+
+                            <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                                <h2 className="text-base font-bold text-gray-950 dark:text-white">Datos que se conservaran</h2>
+                                <p className="mt-1 text-sm leading-6 text-gray-500 dark:text-gray-400">
+                                    La cuenta, el email, el nombre, el rol y las credenciales del usuario seleccionado permanecen intactos.
+                                </p>
+
+                                <div className="mt-5 rounded-lg bg-gray-50 p-4 dark:bg-gray-950/60">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Usuario seleccionado</p>
+                                    <p className="mt-1 text-sm font-bold text-gray-950 dark:text-white">{selectedCleanupUser?.name || selectedCleanupUser?.email || 'Sin usuario seleccionado'}</p>
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{selectedCleanupUser?.email || selectedCleanupUser?.id || ''}</p>
+                                </div>
+
+                                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                                    {[
+                                        ['Chats', selectedCleanupUserUsage?.chats || 0],
+                                        ['Mensajes', selectedCleanupUserUsage?.messages || 0],
+                                        ['Progreso', selectedCleanupUserUsage?.progress || 0],
+                                        ['Simulaciones', selectedCleanupUserUsage?.simulations || 0],
+                                        ['Metricas tecnicas', selectedCleanupUserUsage?.technicalMetrics || 0],
+                                        ['Relevamientos UX', selectedCleanupUserUsage?.researchSessions || 0],
+                                    ].map(([label, count]) => (
+                                        <div key={label} className="rounded-md border border-gray-200 p-3 dark:border-gray-800">
+                                            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{label}</p>
+                                            <p className="mt-1 text-2xl font-bold text-gray-950 dark:text-white">{count}</p>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {cleanupResult?.deleted && (
+                                    <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+                                        <p className="text-sm font-bold text-emerald-800 dark:text-emerald-200">Resumen de limpieza</p>
+                                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                                            {Object.entries(cleanupResult.deleted)
+                                                .filter(([, detail]) => detail.count > 0)
+                                                .map(([collection, detail]) => (
+                                                    <div key={collection} className="flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm dark:bg-gray-950/60">
+                                                        <span className="text-gray-600 dark:text-gray-300">{detail.label}</span>
+                                                        <strong className="text-gray-950 dark:text-white">{detail.count}</strong>
+                                                    </div>
+                                                ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </section>
+                        </div>
                         )}
 
                         {activeAdminView === 'guided' && (
