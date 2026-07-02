@@ -13,8 +13,11 @@ import Dashboard from '@/app/components/workspace/Dashboard';
 import AdminDashboard, { type AdminView } from '@/app/components/workspace/AdminDashboard';
 import ChatArea from '@/app/components/workspace/ChatArea';
 import ExamSimulator from '@/app/components/workspace/ExamSimulator';
+import TechnicalMetricsHistory from '@/app/components/workspace/TechnicalMetricsHistory';
+import UxUiMetricsHistory from '@/app/components/workspace/UxUiMetricsHistory';
 import LevelCompletedModal from '@/app/components/LevelCompletedModal';
 import OnboardingModal from '@/app/components/OnboardingModal';
+import { captureAspirantTechnicalMetrics } from '@/lib/technicalMetrics';
 
 export default function WelcomePage() {
     const router = useRouter();
@@ -49,6 +52,9 @@ export default function WelcomePage() {
     const [justCompletedLevel, setJustCompletedLevel] = useState('');
     const [showOnboarding, setShowOnboarding] = useState(false);
     const [activeAdminView, setActiveAdminView] = useState<AdminView>('overview');
+    const [isTechnicalMetricsViewOpen, setIsTechnicalMetricsViewOpen] = useState(false);
+    const [isUxUiMetricsViewOpen, setIsUxUiMetricsViewOpen] = useState(false);
+    const technicalMetricsCaptureRef = useRef<string | null>(null);
 
     // Stats State
     const [stats, setStats] = useState({
@@ -168,6 +174,31 @@ export default function WelcomePage() {
             cancelled = true;
         };
     }, [router]);
+
+    useEffect(() => {
+        if (!user || user.role === 'admin') return;
+        if (technicalMetricsCaptureRef.current === user.id) return;
+
+        const pendingKey = `technical_metrics_capture_pending_${user.id}`;
+        if (sessionStorage.getItem(pendingKey)) return;
+
+        sessionStorage.setItem(pendingKey, 'true');
+        const timeoutId = window.setTimeout(async () => {
+            technicalMetricsCaptureRef.current = user.id;
+            try {
+                await captureAspirantTechnicalMetrics(pb, user.id);
+            } catch (metricError) {
+                console.warn('No se pudieron guardar las metricas tecnicas del usuario:', metricError);
+            } finally {
+                sessionStorage.removeItem(pendingKey);
+            }
+        }, 1400);
+
+        return () => {
+            window.clearTimeout(timeoutId);
+            sessionStorage.removeItem(pendingKey);
+        };
+    }, [user?.id, user?.role]);
 
     // Load completed levels from PocketBase only. LocalStorage must not repopulate DB progress on login.
     useEffect(() => {
@@ -329,6 +360,8 @@ export default function WelcomePage() {
     const handleNewChat = () => {
         if (user?.role === 'admin') return;
 
+        setIsTechnicalMetricsViewOpen(false);
+        setIsUxUiMetricsViewOpen(false);
         setCurrentChatId(null);
         setMessages([]);
         setChatMode('standard'); 
@@ -392,6 +425,8 @@ export default function WelcomePage() {
             return;
         }
 
+        setIsTechnicalMetricsViewOpen(false);
+        setIsUxUiMetricsViewOpen(false);
         setIsMobileSidebarOpen(false);
         // Prevent race conditions by tracking the latest request
         activeChatIdRef.current = chatId;
@@ -438,7 +473,9 @@ export default function WelcomePage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     messages: [{ role: 'user', content: startMessage }],
-                    mode: mode
+                    mode: mode,
+                    userId: user.id,
+                    chatId,
                 }),
             });
 
@@ -648,6 +685,8 @@ export default function WelcomePage() {
             setExamConfig({ count, topic, simulationId });
             setIsExamMode(true);
             setIsChatViewOpen(true);
+            setIsTechnicalMetricsViewOpen(false);
+            setIsUxUiMetricsViewOpen(false);
             return;
         }
 
@@ -666,10 +705,14 @@ export default function WelcomePage() {
                  setExamConfig({ count, topic });
                  setIsExamMode(true);
                  setIsChatViewOpen(true);
+                 setIsTechnicalMetricsViewOpen(false);
+                 setIsUxUiMetricsViewOpen(false);
                  return;
             }
         }
 
+        setIsTechnicalMetricsViewOpen(false);
+        setIsUxUiMetricsViewOpen(false);
         setChatMode(mode);
         setCurrentChatId(null); // New chat
         setMessages([]);
@@ -686,6 +729,32 @@ export default function WelcomePage() {
         setMessages([]);
         setIsChatViewOpen(false);
         setDashboardLevel(null);
+        setIsTechnicalMetricsViewOpen(false);
+        setIsUxUiMetricsViewOpen(false);
+    };
+
+    const handleOpenTechnicalMetrics = () => {
+        if (user?.role === 'admin') return;
+
+        setCurrentChatId(null);
+        setMessages([]);
+        setIsChatViewOpen(false);
+        setDashboardLevel(null);
+        setIsTechnicalMetricsViewOpen(true);
+        setIsUxUiMetricsViewOpen(false);
+        setIsMobileSidebarOpen(false);
+    };
+
+    const handleOpenUxUiMetrics = () => {
+        if (user?.role === 'admin') return;
+
+        setCurrentChatId(null);
+        setMessages([]);
+        setIsChatViewOpen(false);
+        setDashboardLevel(null);
+        setIsTechnicalMetricsViewOpen(false);
+        setIsUxUiMetricsViewOpen(true);
+        setIsMobileSidebarOpen(false);
     };
 
     const handleLogout = () => {
@@ -823,7 +892,9 @@ export default function WelcomePage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })),
-                    mode: chatMode
+                    mode: chatMode,
+                    userId: user.id,
+                    chatId: activeChatId,
                 }),
             });
 
@@ -1007,6 +1078,10 @@ export default function WelcomePage() {
                 onToggleDesktop={() => setIsDesktopSidebarOpen(prev => !prev)}
                 activeAdminView={activeAdminView}
                 onAdminViewChange={setActiveAdminView}
+                onOpenTechnicalMetrics={handleOpenTechnicalMetrics}
+                isTechnicalMetricsOpen={isTechnicalMetricsViewOpen}
+                onOpenUxUiMetrics={handleOpenUxUiMetrics}
+                isUxUiMetricsOpen={isUxUiMetricsViewOpen}
             />
 
             {/* Onboarding Modal */}
@@ -1042,7 +1117,20 @@ export default function WelcomePage() {
                     - If isChatViewOpen is true -> Show Chat
                     - Else -> Show Dashboard
                 */}
-                {isChatViewOpen ? (
+                {isTechnicalMetricsViewOpen && !isAdmin ? (
+                    <TechnicalMetricsHistory
+                        userId={user.id}
+                        userName={user?.name || user?.email || 'Usuario'}
+                        onBack={handleGoHome}
+                    />
+                ) : isUxUiMetricsViewOpen && !isAdmin ? (
+                    <UxUiMetricsHistory
+                        userId={user.id}
+                        userName={user?.name || user?.email || 'Usuario'}
+                        onBack={handleGoHome}
+                        allowCreate
+                    />
+                ) : isChatViewOpen ? (
                     <ChatArea
                         messages={messages}
                         isLoading={isLoading}

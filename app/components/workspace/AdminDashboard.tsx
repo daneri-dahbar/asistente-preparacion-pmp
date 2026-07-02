@@ -4,6 +4,14 @@ import { useEffect, useMemo, useState } from 'react';
 import pb from '@/lib/pocketbase';
 import { Activity, AlertCircle, ArrowLeft, CheckCircle, ChevronDown, ChevronRight, ClipboardCheck, ClipboardList, Clock, FileText, MessageSquare, RefreshCw, Save, Target, Trophy, Users } from 'lucide-react';
 import { WORLDS } from '@/lib/gameData';
+import TechnicalMetricsHistory from './TechnicalMetricsHistory';
+import UxUiMetricsHistory from './UxUiMetricsHistory';
+import {
+    ASPIRANT_MAIN_SCREEN_LABEL,
+    TECHNICAL_METRIC_COLLECTION,
+    type TechnicalMetricSnapshotRecord,
+    technicalMetricValuesFromSnapshot,
+} from '@/lib/technicalMetrics';
 
 interface PlatformUser {
     id: string;
@@ -161,6 +169,14 @@ interface SimulationFormState {
     completedDate: string;
 }
 
+interface GuidedUsageFormState {
+    userId: string;
+    startDate: string;
+    endDate: string;
+    levelCount: string;
+    interactionsPerLevel: string;
+}
+
 interface UserSummary {
     user: PlatformUser;
     chats: number;
@@ -172,7 +188,7 @@ interface UserSummary {
     lastActivity: string | null;
 }
 
-export type AdminView = 'overview' | 'defense' | 'evaluation' | 'users' | 'simulations' | 'research';
+export type AdminView = 'overview' | 'defense' | 'evaluation' | 'users' | 'guided' | 'simulations' | 'research';
 
 interface EvaluationTechnicalMetric {
     id: string;
@@ -256,7 +272,7 @@ const EVALUATION_TECHNICAL_METRICS: EvaluationTechnicalMetric[] = [
         target: 'objetivo menor a 2.5 s',
         status: 'Cumple',
         reportSource: 'Capitulo 7, Tabla 7.1 - Metricas criticas de rendimiento',
-        summary: 'Mide el tiempo de carga del elemento visual principal de la pantalla.',
+        summary: `Mide el tiempo de carga del elemento visual principal de la pantalla objetivo: ${ASPIRANT_MAIN_SCREEN_LABEL}.`,
         evidence: [
             'El informe reporta una carga principal de 1.2 segundos.',
             'El resultado se encuentra dentro del rango recomendado para una experiencia rapida.',
@@ -520,6 +536,14 @@ const EMPTY_SIMULATION_FORM: SimulationFormState = {
     targetAccuracy: '75',
     topic: 'Simulacro PMP',
     completedDate: new Date().toISOString().slice(0, 10),
+};
+
+const EMPTY_GUIDED_USAGE_FORM: GuidedUsageFormState = {
+    userId: '',
+    startDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    endDate: new Date().toISOString().slice(0, 10),
+    levelCount: '10',
+    interactionsPerLevel: '4',
 };
 
 const MODE_LABELS: Record<string, string> = {
@@ -790,8 +814,6 @@ function randomDecimal(min: number, max: number, decimals: number) {
 function generateTechnicalMetricValues(previousValues: Record<string, string>, measuredValues: Record<string, string> = {}) {
     const defaultValues = new Map(EVALUATION_TECHNICAL_METRICS.map((metric) => [metric.id, metric.value]));
     const generators: Record<string, () => string> = {
-        lcp: () => `${randomDecimal(0.9, 2.3, 2).toFixed(2)} s`,
-        cls: () => randomDecimal(0.01, 0.09, 3).toFixed(3),
         bundle: () => `${randomInteger(95, 185)} KB`,
         'pocketbase-latency': () => `${randomInteger(5, 45)} ms`,
         streaming: () => `Activo (${randomInteger(3, 9)} fragmentos)`,
@@ -816,6 +838,30 @@ function generateTechnicalMetricValues(previousValues: Record<string, string>, m
     }));
 }
 
+async function measureCurrentLargestContentfulPaint() {
+    const entries = await readBufferedPerformanceEntries<PerformanceEntry>('largest-contentful-paint', 150);
+    const latestEntry = entries.at(-1);
+
+    return {
+        entries,
+        value: latestEntry?.startTime ?? null,
+    };
+}
+
+async function measureCurrentCumulativeLayoutShift() {
+    const supported = supportsPerformanceEntryType('layout-shift');
+    const entries = await readBufferedPerformanceEntries<PerformanceEntry & { value?: number; hadRecentInput?: boolean }>('layout-shift', 150);
+    const value = entries.reduce((total, entry) => (
+        entry.hadRecentInput ? total : total + Number(entry.value || 0)
+    ), 0);
+
+    return {
+        entries,
+        supported,
+        value,
+    };
+}
+
 interface AdminDashboardProps {
     activeAdminView: AdminView;
 }
@@ -828,7 +874,10 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
     const [simulations, setSimulations] = useState<SimulationRecord[]>([]);
     const [researchSessions, setResearchSessions] = useState<UserResearchSessionRecord[]>([]);
     const [researchInstruments, setResearchInstruments] = useState<ResearchInstrumentRecord[]>([]);
+    const [technicalMetricSnapshots, setTechnicalMetricSnapshots] = useState<TechnicalMetricSnapshotRecord[]>([]);
     const [selectedUserId, setSelectedUserId] = useState<string>('');
+    const [selectedTechnicalMetricsUserId, setSelectedTechnicalMetricsUserId] = useState<string>('');
+    const [selectedUxUiMetricsUserId, setSelectedUxUiMetricsUserId] = useState<string>('');
     const [isUserDetailOpen, setIsUserDetailOpen] = useState(false);
     const [isResearchDetailOpen, setIsResearchDetailOpen] = useState(false);
     const [isResearchResultFormOpen, setIsResearchResultFormOpen] = useState(false);
@@ -840,19 +889,22 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
     const [selectedEvaluationDimensionId, setSelectedEvaluationDimensionId] = useState<string>('');
     const [selectedEvaluationChartUserId, setSelectedEvaluationChartUserId] = useState<string>('');
     const [liveMetricMeasurement, setLiveMetricMeasurement] = useState<LiveMetricMeasurement | null>(null);
-    const [liveMetricPrompt, setLiveMetricPrompt] = useState('Explica en una frase que es el tiempo hasta el primer token.');
+    const [liveMetricPrompt, setLiveMetricPrompt] = useState('Explica en dos frases breves por que el streaming mejora la experiencia de estudio.');
     const [technicalMetricValues, setTechnicalMetricValues] = useState<Record<string, string>>({});
     const [isUpdatingTechnicalMetrics, setIsUpdatingTechnicalMetrics] = useState(false);
     const [technicalMetricsUpdatedAt, setTechnicalMetricsUpdatedAt] = useState<string | null>(null);
     const [researchForm, setResearchForm] = useState<ResearchFormState>(EMPTY_RESEARCH_FORM);
     const [instrumentForm, setInstrumentForm] = useState<InstrumentFormState>(EMPTY_INSTRUMENT_FORM);
     const [simulationForm, setSimulationForm] = useState<SimulationFormState>(EMPTY_SIMULATION_FORM);
+    const [guidedUsageForm, setGuidedUsageForm] = useState<GuidedUsageFormState>(EMPTY_GUIDED_USAGE_FORM);
     const [isSavingResearch, setIsSavingResearch] = useState(false);
     const [isSavingInstrument, setIsSavingInstrument] = useState(false);
     const [isGeneratingSimulation, setIsGeneratingSimulation] = useState(false);
+    const [isGeneratingGuidedUsage, setIsGeneratingGuidedUsage] = useState(false);
     const [researchNotice, setResearchNotice] = useState<string | null>(null);
     const [instrumentNotice, setInstrumentNotice] = useState<string | null>(null);
     const [simulationNotice, setSimulationNotice] = useState<string | null>(null);
+    const [guidedUsageNotice, setGuidedUsageNotice] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -861,7 +913,7 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
         setError(null);
 
         try {
-            const [userRecords, chatRecords, messageRecords, progressRecords, simulationRecords, researchRecords, instrumentRecords] = await Promise.all([
+            const [userRecords, chatRecords, messageRecords, progressRecords, simulationRecords, researchRecords, instrumentRecords, technicalMetricRecords] = await Promise.all([
                 pb.collection('users').getFullList({ fields: 'id,email,name,role,created,updated', sort: '-created', requestKey: null }),
                 pb.collection('chats').getFullList({ fields: 'id,user,title,mode,last_active,created,updated', requestKey: null }),
                 pb.collection('messages').getFullList({ fields: 'id,user,chat,role,created', requestKey: null }),
@@ -883,6 +935,14 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                     console.warn('No se pudieron cargar instrumentos de investigacion:', collectionError);
                     return [];
                 }),
+                pb.collection(TECHNICAL_METRIC_COLLECTION).getFullList({
+                    fields: 'id,user,measured_at,screen,ttft_ms,lcp_ms,cls,bundle_kb,pocketbase_latency_ms,streaming_chunks,streaming_label,metrics,user_agent,created,updated',
+                    sort: '-measured_at',
+                    requestKey: null,
+                }).catch((collectionError) => {
+                    console.warn('No se pudieron cargar metricas tecnicas:', collectionError);
+                    return [];
+                }),
             ]);
 
             setUsers(userRecords as unknown as PlatformUser[]);
@@ -898,6 +958,9 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                 new Date(b.session_date || b.created || 0).getTime() - new Date(a.session_date || a.created || 0).getTime()
             )));
             setResearchInstruments(instrumentRecords as unknown as ResearchInstrumentRecord[]);
+            setTechnicalMetricSnapshots((technicalMetricRecords as unknown as TechnicalMetricSnapshotRecord[]).sort((a, b) => (
+                new Date(b.measured_at || b.created || 0).getTime() - new Date(a.measured_at || a.created || 0).getTime()
+            )));
         } catch (err) {
             if (err && typeof err === 'object' && 'isAbort' in err && err.isAbort) {
                 return;
@@ -927,6 +990,47 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
     }, [users, selectedUserId]);
 
     useEffect(() => {
+        const selectableUsers = users.filter((user) => (user.role || 'usuario') === 'usuario');
+        if (!selectableUsers.length) {
+            setGuidedUsageForm((current) => ({ ...current, userId: '' }));
+            return;
+        }
+
+        setGuidedUsageForm((current) => (
+            current.userId && selectableUsers.some((user) => user.id === current.userId)
+                ? current
+                : { ...current, userId: selectableUsers[0].id }
+        ));
+    }, [users]);
+
+    useEffect(() => {
+        const selectableUsers = users.filter((user) => (user.role || 'usuario') === 'usuario');
+        if (!selectableUsers.length) {
+            setSelectedTechnicalMetricsUserId('');
+            return;
+        }
+
+        if (!selectedTechnicalMetricsUserId || !selectableUsers.some((user) => user.id === selectedTechnicalMetricsUserId)) {
+            const firstUserWithMetrics = selectableUsers.find((user) => (
+                technicalMetricSnapshots.some((snapshot) => snapshot.user === user.id)
+            ));
+            setSelectedTechnicalMetricsUserId((firstUserWithMetrics || selectableUsers[0]).id);
+        }
+    }, [users, technicalMetricSnapshots, selectedTechnicalMetricsUserId]);
+
+    useEffect(() => {
+        const selectableUsers = users.filter((user) => (user.role || 'usuario') === 'usuario');
+        if (!selectableUsers.length) {
+            setSelectedUxUiMetricsUserId('');
+            return;
+        }
+
+        if (!selectedUxUiMetricsUserId || !selectableUsers.some((user) => user.id === selectedUxUiMetricsUserId)) {
+            setSelectedUxUiMetricsUserId(selectableUsers[0].id);
+        }
+    }, [users, selectedUxUiMetricsUserId]);
+
+    useEffect(() => {
         if (activeAdminView !== 'users') {
             setIsUserDetailOpen(false);
         }
@@ -950,9 +1054,7 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
     useEffect(() => {
         setLiveMetricMeasurement(null);
         const selectedMetric = EVALUATION_TECHNICAL_METRICS.find((metric) => metric.id === selectedEvaluationMetricId);
-        if (selectedMetric?.id === 'ttft') {
-            setLiveMetricPrompt('Explica en una frase que es el tiempo hasta el primer token.');
-        } else if (selectedMetric?.id === 'streaming') {
+        if (selectedMetric?.id === 'streaming') {
             setLiveMetricPrompt('Explica en dos frases breves por que el streaming mejora la experiencia de estudio.');
         }
     }, [selectedEvaluationMetricId]);
@@ -972,44 +1074,37 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
         setSimulationForm((current) => ({ ...current, [field]: value }));
     };
 
+    const handleGuidedUsageFormChange = (field: keyof GuidedUsageFormState, value: string) => {
+        setGuidedUsageNotice(null);
+        setGuidedUsageForm((current) => ({ ...current, [field]: value }));
+    };
+
     const handleUpdateTechnicalMetrics = async () => {
         if (isUpdatingTechnicalMetrics) return;
 
         setIsUpdatingTechnicalMetrics(true);
-        const simulatedRefreshMs = randomInteger(2200, 3200);
-
         try {
-            const [ttftResult] = await Promise.all([
-                measureChatStreaming('Responde en una frase breve: medicion tecnica de latencia.'),
-                new Promise((resolve) => window.setTimeout(resolve, simulatedRefreshMs)),
-            ]);
-
-            setTechnicalMetricValues((current) => generateTechnicalMetricValues(current, {
-                ttft: formatMilliseconds(ttftResult.firstChunkMs),
-                streaming: ttftResult.chunkCount > 1 ? `Activo (${ttftResult.chunkCount} fragmentos)` : 'Respuesta unica',
-            }));
+            await loadPlatformData();
             setTechnicalMetricsUpdatedAt(new Date().toLocaleTimeString('es-AR', {
                 hour: '2-digit',
                 minute: '2-digit',
                 second: '2-digit',
             }));
         } catch (updateError) {
-            console.error('No se pudo medir el time to first token real:', updateError);
-            setTechnicalMetricValues((current) => generateTechnicalMetricValues(current, {
-                ttft: 'No disponible',
-            }));
+            console.error('No se pudieron recargar las metricas tecnicas:', updateError);
         } finally {
             setIsUpdatingTechnicalMetrics(false);
         }
     };
 
-    const measureChatStreaming = async (prompt: string) => {
+    const measureChatStreaming = async (prompt: string, options: { omitSystemPrompt?: boolean } = {}) => {
         const start = performance.now();
         const response = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                mode: 'standard',
+                mode: options.omitSystemPrompt ? undefined : 'standard',
+                omitSystemPrompt: options.omitSystemPrompt,
                 messages: [
                     {
                         role: 'user',
@@ -1069,7 +1164,7 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
             const measuredAt = new Date().toLocaleString('es-AR');
 
             if (metric.id === 'ttft') {
-                const result = await measureChatStreaming(liveMetricPrompt.trim() || 'Explica en una frase que es el tiempo hasta el primer token.');
+                const result = await measureChatStreaming('Hola', { omitSystemPrompt: true });
                 const measuredValue = formatMilliseconds(result.firstChunkMs);
 
                 setTechnicalMetricValues((current) => ({
@@ -1084,7 +1179,7 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                     measuredAt,
                     responseText: result.responseText,
                     steps: [
-                        'Se envio el prompt ingresado al endpoint real de chat.',
+                        'Se envio solamente el mensaje "Hola", sin system prompt ni contexto adicional.',
                         `Primer fragmento recibido en ${measuredValue}.`,
                         `Fragmentos totales recibidos: ${result.chunkCount}.`,
                     ],
@@ -1110,46 +1205,65 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
             }
 
             if (metric.id === 'lcp') {
-                const lcpEntries = await readBufferedPerformanceEntries<PerformanceEntry>('largest-contentful-paint', 150);
-                const latestLcp = lcpEntries.at(-1);
+                const lcpResult = await measureCurrentLargestContentfulPaint();
+                const isAspirantMainScreen = pb.authStore.model?.role === 'usuario' && window.location.pathname === '/welcome';
 
-                if (!latestLcp) {
+                if (!isAspirantMainScreen) {
                     setLiveMetricMeasurement({
                         status: 'error',
                         value: 'No disponible',
-                        detail: supportsPerformanceEntryType('largest-contentful-paint')
-                            ? 'El navegador no entrego una entrada real de Largest Contentful Paint para esta navegacion.'
-                            : 'Este navegador no expone el tipo de entrada largest-contentful-paint en PerformanceObserver.',
+                        detail: `Este indicador corresponde a ${ASPIRANT_MAIN_SCREEN_LABEL}. La vista actual no es una sesion de usuario aspirante, por lo tanto no se informa un LCP simulado.`,
                         measuredAt,
                         steps: [
-                            'Se intento leer LCP real con PerformanceObserver y buffered=true.',
-                            'No se uso DOMContentLoaded ni otro sustituto.',
-                            'Para medirlo, recarga la pantalla y vuelve a ejecutar la medicion antes de navegar a otra vista.',
+                            `Pantalla objetivo: ${ASPIRANT_MAIN_SCREEN_LABEL}.`,
+                            `Rol actual: ${pb.authStore.model?.role || 'sin rol'}.`,
+                            'Para obtener el valor real, ejecutar esta medicion desde una sesion de usuario aspirante en /welcome.',
                         ],
                     });
                     return;
                 }
 
-                const value = latestLcp.startTime;
+                if (lcpResult.value === null) {
+                    setLiveMetricMeasurement({
+                        status: 'error',
+                        value: 'No disponible',
+                        detail: supportsPerformanceEntryType('largest-contentful-paint')
+                            ? `El navegador no entrego una entrada real de Largest Contentful Paint para ${ASPIRANT_MAIN_SCREEN_LABEL}.`
+                            : 'Este navegador no expone el tipo de entrada largest-contentful-paint en PerformanceObserver.',
+                        measuredAt,
+                        steps: [
+                            'Se intento leer LCP real con PerformanceObserver y buffered=true.',
+                            'No se uso DOMContentLoaded ni otro sustituto.',
+                            'Para medirlo, recarga la pantalla principal del aspirante y vuelve a ejecutar la medicion.',
+                        ],
+                    });
+                    return;
+                }
 
+                const measuredValue = formatMilliseconds(lcpResult.value);
+                setTechnicalMetricValues((current) => ({
+                    ...current,
+                    lcp: measuredValue,
+                }));
                 setLiveMetricMeasurement({
                     status: 'success',
-                    value: formatMilliseconds(value),
-                    detail: 'Valor real tomado de PerformanceObserver: largest-contentful-paint de la navegacion actual.',
+                    value: measuredValue,
+                    detail: `Valor real tomado de PerformanceObserver para ${ASPIRANT_MAIN_SCREEN_LABEL}.`,
                     measuredAt,
                     steps: [
+                        `Pantalla objetivo: ${ASPIRANT_MAIN_SCREEN_LABEL}.`,
                         'Se leyo PerformanceObserver con type=largest-contentful-paint y buffered=true.',
-                        `Entradas LCP reales encontradas: ${lcpEntries.length}.`,
-                        `Valor medido: ${formatMilliseconds(value)}.`,
+                        `Entradas LCP reales encontradas: ${lcpResult.entries.length}.`,
+                        `Valor medido: ${measuredValue}.`,
                     ],
                 });
                 return;
             }
 
             if (metric.id === 'cls') {
-                const layoutShiftEntries = await readBufferedPerformanceEntries<PerformanceEntry & { value?: number; hadRecentInput?: boolean }>('layout-shift', 150);
+                const clsResult = await measureCurrentCumulativeLayoutShift();
 
-                if (!supportsPerformanceEntryType('layout-shift')) {
+                if (!clsResult.supported) {
                     setLiveMetricMeasurement({
                         status: 'error',
                         value: 'No disponible',
@@ -1164,21 +1278,23 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                     return;
                 }
 
-                const cls = layoutShiftEntries.reduce((total, entry) => (
-                    entry.hadRecentInput ? total : total + Number(entry.value || 0)
-                ), 0);
+                const measuredValue = clsResult.value.toFixed(3);
+                setTechnicalMetricValues((current) => ({
+                    ...current,
+                    cls: measuredValue,
+                }));
 
                 setLiveMetricMeasurement({
                     status: 'success',
-                    value: cls.toFixed(3),
-                    detail: layoutShiftEntries.length
+                    value: measuredValue,
+                    detail: clsResult.entries.length
                         ? 'Valor real calculado con entradas layout-shift de PerformanceObserver.'
                         : 'Valor real calculado: el navegador no registro desplazamientos de layout en esta navegacion.',
                     measuredAt,
                     steps: [
                         'Se leyo PerformanceObserver con type=layout-shift y buffered=true.',
-                        `Entradas analizadas: ${layoutShiftEntries.length}.`,
-                        `CLS acumulado sin interacciones recientes: ${cls.toFixed(3)}.`,
+                        `Entradas analizadas: ${clsResult.entries.length}.`,
+                        `CLS acumulado sin interacciones recientes: ${measuredValue}.`,
                     ],
                 });
                 return;
@@ -1290,6 +1406,41 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
             setSimulationNotice(message);
         } finally {
             setIsGeneratingSimulation(false);
+        }
+    };
+
+    const handleGenerateGuidedUsage = async (event: React.FormEvent) => {
+        event.preventDefault();
+        if (!guidedUsageForm.userId || isGeneratingGuidedUsage) return;
+
+        setIsGeneratingGuidedUsage(true);
+        setGuidedUsageNotice(null);
+
+        try {
+            const response = await fetch('/api/admin/guided-usage/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${pb.authStore.token}`,
+                },
+                body: JSON.stringify(guidedUsageForm),
+            });
+            const payload = await response.json();
+
+            if (!response.ok) {
+                throw new Error(payload.error || 'No se pudo generar el modo guiado.');
+            }
+
+            await loadPlatformData();
+            setGuidedUsageNotice(
+                `Modo guiado generado: ${payload.generated?.levels || 0} niveles, ${payload.generated?.activities || 0} actividades, ${payload.generated?.chats || 0} chats y ${payload.generated?.messages || 0} mensajes.`
+            );
+        } catch (saveError) {
+            console.error('Error generating guided usage:', saveError);
+            const message = saveError instanceof Error ? saveError.message : 'No se pudo generar el modo guiado.';
+            setGuidedUsageNotice(message);
+        } finally {
+            setIsGeneratingGuidedUsage(false);
         }
     };
 
@@ -1705,6 +1856,10 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
             title: 'Usuarios',
             description: 'Histórico de uso y evolución individual de los usuarios.',
         },
+        guided: {
+            title: 'Modo guiado',
+            description: 'Genera uso guiado desde cero para un aspirante, creando progreso, chats, mensajes y metricas asociadas.',
+        },
         simulations: {
             title: 'Generador de simulaciones',
             description: 'Crea intentos de examen asociados a usuarios con cantidad de preguntas y aciertos aproximados.',
@@ -1719,8 +1874,12 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
     const selectedSimulationReport = selectedUserSimulations.find((simulation) => simulation.id === selectedSimulationReportId) || null;
     const selectedEvaluationMetric = EVALUATION_TECHNICAL_METRICS.find((metric) => metric.id === selectedEvaluationMetricId) || null;
     const selectedEvaluationDimension = EVALUATION_DIMENSIONS.find((dimension) => dimension.id === selectedEvaluationDimensionId) || null;
+    const selectedTechnicalMetricsUser = users.find((user) => user.id === selectedTechnicalMetricsUserId) || null;
+    const selectedUxUiMetricsUser = users.find((user) => user.id === selectedUxUiMetricsUserId) || null;
+    const selectedTechnicalMetricSnapshot = technicalMetricSnapshots.find((snapshot) => snapshot.user === selectedTechnicalMetricsUserId) || null;
+    const selectedTechnicalMetricValues = technicalMetricValuesFromSnapshot(selectedTechnicalMetricSnapshot);
     const selectedEvaluationMetricValue = selectedEvaluationMetric
-        ? technicalMetricValues[selectedEvaluationMetric.id] || selectedEvaluationMetric.value
+        ? selectedTechnicalMetricValues[selectedEvaluationMetric.id] || technicalMetricValues[selectedEvaluationMetric.id] || selectedEvaluationMetric.value
         : '';
     const selectedEvaluationSimulationSeries = evaluationSimulationSeries.find((series) => series.user.id === selectedEvaluationChartUserId)
         || evaluationSimulationSeries[0]
@@ -2173,7 +2332,13 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                     </button>
                                 </div>
 
-                                {(selectedEvaluationMetric.id === 'ttft' || selectedEvaluationMetric.id === 'streaming') && (
+                                {selectedEvaluationMetric.id === 'ttft' && (
+                                    <div className="mt-4 rounded-md border border-blue-200 bg-white px-3 py-2 text-sm text-gray-700 dark:border-blue-900/60 dark:bg-gray-950 dark:text-gray-200">
+                                        Prompt de medicion: <span className="font-semibold">Hola</span>. No se envia system prompt ni contexto adicional.
+                                    </div>
+                                )}
+
+                                {selectedEvaluationMetric.id === 'streaming' && (
                                     <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
                                         Texto del prompt
                                         <textarea
@@ -2248,10 +2413,24 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                     <div>
                                         <h3 className="text-base font-bold text-gray-950 dark:text-white">Metricas tecnicas del informe</h3>
                                         <p className="mt-1 text-sm leading-6 text-gray-500 dark:text-gray-400">
-                                            Indicadores de rendimiento, estabilidad y respuesta asociados a la evaluacion tecnica.
+                                            Indicadores reales guardados cuando el usuario aspirante ingresa a su pantalla principal.
                                         </p>
                                     </div>
                                     <div className="flex flex-col items-start gap-2 sm:items-end">
+                                        <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                            Usuario aspirante
+                                            <select
+                                                value={selectedTechnicalMetricsUserId}
+                                                onChange={(event) => setSelectedTechnicalMetricsUserId(event.target.value)}
+                                                className="mt-1 block min-w-56 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                            >
+                                                {users.filter((user) => (user.role || 'usuario') === 'usuario').map((user) => (
+                                                    <option key={user.id} value={user.id}>
+                                                        {user.name || user.email || 'Usuario'}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </label>
                                         <button
                                             type="button"
                                             onClick={handleUpdateTechnicalMetrics}
@@ -2259,20 +2438,22 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                             className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
                                         >
                                             <RefreshCw className={`h-4 w-4 ${isUpdatingTechnicalMetrics ? 'animate-spin' : ''}`} />
-                                            {isUpdatingTechnicalMetrics ? 'Actualizando...' : 'Actualizar'}
+                                            {isUpdatingTechnicalMetrics ? 'Actualizando...' : 'Recargar datos'}
                                         </button>
                                         <div className="flex flex-wrap items-center gap-2">
                                             <span className="rounded-md bg-green-50 px-2 py-1 text-xs font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-200">
                                                 Cumple
                                             </span>
-                                            {technicalMetricsUpdatedAt && (
+                                            {(selectedTechnicalMetricSnapshot?.measured_at || technicalMetricsUpdatedAt) && (
                                                 <span className="text-xs text-gray-500 dark:text-gray-400">
-                                                    Actualizado {technicalMetricsUpdatedAt}
+                                                    Ultima medicion {selectedTechnicalMetricSnapshot?.measured_at
+                                                        ? new Date(selectedTechnicalMetricSnapshot.measured_at).toLocaleString('es-AR')
+                                                        : technicalMetricsUpdatedAt}
                                                 </span>
                                             )}
                                             {isUpdatingTechnicalMetrics && (
                                                 <span className="text-xs font-medium text-blue-600 dark:text-blue-300">
-                                                    Consultando metricas...
+                                                    Consultando base de datos...
                                                 </span>
                                             )}
                                         </div>
@@ -2293,17 +2474,91 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                             <div className="grid gap-4 md:grid-cols-[minmax(180px,0.8fr)_minmax(140px,0.45fr)_minmax(0,1.4fr)_auto] md:items-center">
                                                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{metric.label}</p>
                                                 <div className="min-w-0">
-                                                    <p className="text-2xl font-bold text-gray-950 dark:text-white">{technicalMetricValues[metric.id] || metric.value}</p>
+                                                    <p className="text-2xl font-bold text-gray-950 dark:text-white">{selectedTechnicalMetricValues[metric.id] || technicalMetricValues[metric.id] || metric.value}</p>
                                                     <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{metric.target}</p>
                                                 </div>
                                                 <div className="rounded-md bg-white p-3 dark:bg-gray-900">
                                                     <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-300">Que mide</p>
                                                     <p className="mt-1 text-xs leading-5 text-gray-600 dark:text-gray-300">{metric.summary}</p>
+                                                    {metric.id === 'lcp' && (
+                                                        <p className="mt-2 text-xs font-semibold leading-5 text-gray-700 dark:text-gray-200">
+                                                            Pantalla medida: principal del usuario aspirante.
+                                                        </p>
+                                                    )}
                                                 </div>
                                                 <ChevronRight className="hidden h-4 w-4 text-gray-400 transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-300 md:block" />
                                             </div>
                                         </button>
                                     ))}
+                                </div>
+
+                                {selectedTechnicalMetricsUserId && (
+                                    <div className="mt-6">
+                                        <TechnicalMetricsHistory
+                                            userId={selectedTechnicalMetricsUserId}
+                                            userName={selectedTechnicalMetricsUser?.name || selectedTechnicalMetricsUser?.email || 'Usuario'}
+                                            embedded
+                                        />
+                                    </div>
+                                )}
+                            </section>
+                            ) : selectedEvaluationDimension.id === 'business' ? (
+                            <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                                <h3 className="text-base font-bold text-gray-950 dark:text-white">Evaluacion de negocio del informe</h3>
+                                <p className="mt-1 text-sm leading-6 text-gray-500 dark:text-gray-400">
+                                    La dimension de negocio se mantiene como evaluacion cualitativa del informe, sin almacenar historicos operativos de tokens ni costos por usuario.
+                                </p>
+
+                                <div className="mt-6 grid gap-3 md:grid-cols-3">
+                                    {[
+                                        ['Costo operativo', 'Se analiza desde la viabilidad general del prototipo, no desde mediciones guardadas por interaccion.'],
+                                        ['Escalabilidad', 'Se considera la arquitectura liviana y la posibilidad de crecimiento gradual.'],
+                                        ['Sostenibilidad', 'Se evalua el potencial de evolucion del producto sin registrar consumo economico individual.'],
+                                    ].map(([title, detail]) => (
+                                        <div key={title} className="rounded-md bg-gray-50 p-4 dark:bg-gray-950/60">
+                                            <p className="text-sm font-semibold text-gray-950 dark:text-white">{title}</p>
+                                            <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{detail}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                            ) : selectedEvaluationDimension.id === 'ux-ui' ? (
+                            <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                    <div>
+                                        <h3 className="text-base font-bold text-gray-950 dark:text-white">Metricas UX/UI del informe</h3>
+                                        <p className="mt-1 text-sm leading-6 text-gray-500 dark:text-gray-400">
+                                            Mediciones perceptuales guardadas por usuario aspirante, basadas en la encuesta UX del Anexo C.
+                                        </p>
+                                    </div>
+                                    <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                        Usuario aspirante
+                                        <select
+                                            value={selectedUxUiMetricsUserId}
+                                            onChange={(event) => setSelectedUxUiMetricsUserId(event.target.value)}
+                                            className="mt-1 block min-w-56 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                        >
+                                            {users.filter((user) => (user.role || 'usuario') === 'usuario').map((user) => (
+                                                <option key={user.id} value={user.id}>
+                                                    {user.name || user.email || 'Usuario'}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </label>
+                                </div>
+
+                                <div className="mt-6">
+                                    {selectedUxUiMetricsUserId ? (
+                                        <UxUiMetricsHistory
+                                            userId={selectedUxUiMetricsUserId}
+                                            userName={selectedUxUiMetricsUser?.name || selectedUxUiMetricsUser?.email || 'Usuario'}
+                                            embedded
+                                        />
+                                    ) : (
+                                        <div className="rounded-lg border border-gray-200 bg-gray-50 p-5 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-950/60 dark:text-gray-300">
+                                            No hay usuarios aspirantes disponibles para consultar metricas UX/UI.
+                                        </div>
+                                    )}
                                 </div>
                             </section>
                             ) : (
@@ -2683,6 +2938,122 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                         </div>
                         )
                         )
+                        )}
+
+                        {activeAdminView === 'guided' && (
+                        <div className="grid gap-6 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+                            <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                                <h2 className="text-base font-bold text-gray-950 dark:text-white">Generar recorrido de modo guiado</h2>
+                                <p className="mt-1 text-sm leading-6 text-gray-500 dark:text-gray-400">
+                                    Reemplaza el uso guiado existente del aspirante seleccionado y recorre cada nivel desde el inicio, creando las cuatro actividades con conversaciones extensas.
+                                </p>
+
+                                <form onSubmit={handleGenerateGuidedUsage} className="mt-5 space-y-4">
+                                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+                                        Usuario aspirante
+                                        <select
+                                            value={guidedUsageForm.userId}
+                                            onChange={(event) => handleGuidedUsageFormChange('userId', event.target.value)}
+                                            className="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                            required
+                                        >
+                                            {users.filter((user) => (user.role || 'usuario') === 'usuario').map((user) => (
+                                                <option key={user.id} value={user.id}>
+                                                    {user.name || user.email || 'Usuario'}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </label>
+
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+                                            Fecha inicio
+                                            <input
+                                                type="date"
+                                                value={guidedUsageForm.startDate}
+                                                onChange={(event) => handleGuidedUsageFormChange('startDate', event.target.value)}
+                                                className="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                                required
+                                            />
+                                        </label>
+                                        <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+                                            Fecha fin
+                                            <input
+                                                type="date"
+                                                value={guidedUsageForm.endDate}
+                                                onChange={(event) => handleGuidedUsageFormChange('endDate', event.target.value)}
+                                                className="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                                required
+                                            />
+                                        </label>
+                                    </div>
+
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+                                            Niveles
+                                            <select
+                                                value={guidedUsageForm.levelCount}
+                                                onChange={(event) => handleGuidedUsageFormChange('levelCount', event.target.value)}
+                                                className="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                            >
+                                                <option value="5">Primeros 5 niveles</option>
+                                                <option value="10">Primeros 10 niveles</option>
+                                                <option value="20">Primeros 20 niveles</option>
+                                                <option value="all">Todos los niveles guiados</option>
+                                            </select>
+                                        </label>
+                                        <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+                                            Turnos del usuario por actividad
+                                            <select
+                                                value={guidedUsageForm.interactionsPerLevel}
+                                                onChange={(event) => handleGuidedUsageFormChange('interactionsPerLevel', event.target.value)}
+                                                className="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                            >
+                                                <option value="3">3 turnos por actividad</option>
+                                                <option value="4">4 turnos por actividad</option>
+                                                <option value="6">6 turnos por actividad</option>
+                                                <option value="8">8 turnos por actividad</option>
+                                            </select>
+                                        </label>
+                                    </div>
+
+                                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                                        Esta accion elimina chats, mensajes, progreso guiado y metricas tecnicas actuales del aspirante seleccionado antes de generar el nuevo recorrido. Cada nivel crea 4 chats: Leccion Magistral, Entrenamiento Practico, Oraculo y Prueba de Fuego.
+                                    </div>
+
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <p className="min-h-6 text-sm font-semibold text-gray-600 dark:text-gray-300">
+                                            {guidedUsageNotice || 'La generacion usa el backend de chat real, crea conversaciones largas y puede demorar varios minutos.'}
+                                        </p>
+                                        <button
+                                            type="submit"
+                                            disabled={isGeneratingGuidedUsage || !guidedUsageForm.userId}
+                                            className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-wait disabled:bg-gray-400"
+                                        >
+                                            <Save className="h-4 w-4" />
+                                            {isGeneratingGuidedUsage ? 'Generando...' : 'Generar recorrido'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </section>
+
+                            <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                                <h2 className="text-base font-bold text-gray-950 dark:text-white">Que se genera</h2>
+                                <div className="mt-4 space-y-3">
+                                    {[
+                                        ['Progreso', 'Marca los niveles completados en user_progress desde el primero hasta el limite elegido.'],
+                                        ['Actividades', 'Por cada nivel recorre Leccion Magistral, Entrenamiento Practico, Oraculo y Prueba de Fuego.'],
+                                        ['Chats y mensajes', 'Crea un chat por actividad. El asistente inicia la conversacion y luego se generan varios turnos usuario/asistente con el endpoint real de IA.'],
+                                        ['Metricas tecnicas', 'Registra snapshots tecnicos asociados al uso de las actividades del aspirante.'],
+                                    ].map(([title, detail]) => (
+                                        <div key={title} className="rounded-md bg-gray-50 p-4 dark:bg-gray-950/60">
+                                            <p className="text-sm font-semibold text-gray-950 dark:text-white">{title}</p>
+                                            <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{detail}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        </div>
                         )}
 
                         {activeAdminView === 'simulations' && (

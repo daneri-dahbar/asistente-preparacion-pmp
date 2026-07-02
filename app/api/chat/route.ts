@@ -1,12 +1,13 @@
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
+import { HumanMessage, SystemMessage, AIMessage, type BaseMessage } from "@langchain/core/messages";
 import { StringOutputParser } from "@langchain/core/output_parsers";
+import { CHAT_MODEL_NAME } from "@/lib/chatModel";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const { messages, mode } = await req.json();
+  const { messages, mode, omitSystemPrompt = false } = await req.json();
 
   const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) {
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
   }
 
   const model = new ChatGoogleGenerativeAI({
-    model: "gemini-3-flash-preview",
+    model: CHAT_MODEL_NAME,
     temperature: 0.7,
     streaming: true,
     apiKey: apiKey,
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
 
   // Convert messages to LangChain format
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const langChainMessages = messages.map((m: any) => {
+  const langChainMessages: BaseMessage[] = messages.map((m: any) => {
     if (m.role === 'user') return new HumanMessage(m.content);
     if (m.role === 'assistant') return new AIMessage(m.content);
     return new SystemMessage(m.content);
@@ -163,7 +164,7 @@ export async function POST(req: Request) {
     3. Si se equivoca, no le des la respuesta de inmediato. Dale una pista o la fórmula necesaria y pídele que reintente.
     
     4. Al final, explica siempre la interpretación del resultado (ej: "CPI < 1 significa que estás sobre presupuesto").`;
-  } else if (mode.startsWith('level_practice')) {
+  } else if (mode?.startsWith('level_practice')) {
     const topic = mode.split(':')[1] || 'General';
     systemPromptContent = `MODO ENTRENAMIENTO DE NIVEL ACTIVADO: TEMA ${topic}.
     Eres un Entrenador de Combate PMP enfocado EXCLUSIVAMENTE en: ${topic}.
@@ -177,7 +178,7 @@ export async function POST(req: Request) {
     RESTRICCIONES DE ALCANCE (IMPORTANTE):
     - NO permitas cambiar de tema. Si el usuario pregunta sobre algo que no sea ${topic}, dile: "Soldado, concéntrese. Estamos entrenando ${topic}. Deje eso para otro nivel."
     - NO inicies lecciones teóricas ni exámenes. Si el usuario pide eso, dile que vuelva al Mapa de Niveles para seleccionar la actividad correcta.`;
-  } else if (mode.startsWith('level_lesson')) {
+  } else if (mode?.startsWith('level_lesson')) {
     const topic = mode.split(':')[1] || 'General';
     systemPromptContent = `MODO LECCIÓN MAGISTRAL ACTIVADO: TEMA ${topic}.
     Eres el Gran Bibliotecario del PMP, guardián del conocimiento sobre: ${topic}.
@@ -196,7 +197,7 @@ export async function POST(req: Request) {
     RESTRICCIONES DE ALCANCE (IMPORTANTE):
     - Tu biblioteca actual solo contiene libros sobre ${topic}. Si te preguntan de otro tema, responde: "Ese conocimiento reside en otro pasillo de la biblioteca (otro nivel). Aquí solo estudiamos ${topic}."
     - No inicies prácticas ni exámenes. Remite al usuario al menú del nivel.`;
-  } else if (mode.startsWith('level_oracle')) {
+  } else if (mode?.startsWith('level_oracle')) {
     const topic = mode.split(':')[1] || 'General';
     systemPromptContent = `MODO ORÁCULO ACTIVADO: TEMA ${topic}.
     Eres el Oráculo del Conocimiento, sabio y paciente, pero tu visión hoy se limita a: ${topic}.
@@ -212,7 +213,7 @@ export async function POST(req: Request) {
     RESTRICCIONES DE ALCANCE (IMPORTANTE):
     - Si el usuario pregunta sobre otro tema, di: "Las brumas del destino me ocultan ese tema por ahora. Solo puedo ver ${topic}. Vuelve al mapa para consultar otro oráculo."
     - No actúes como simulador ni examinador.`;
-  } else if (mode.startsWith('level_exam')) {
+  } else if (mode?.startsWith('level_exam')) {
     const topic = mode.split(':')[1] || 'General';
     
     if (topic.includes('Simulación') || topic.includes('Simulacro')) {
@@ -291,15 +292,19 @@ export async function POST(req: Request) {
     }
   }
 
-  const systemMessage = new SystemMessage(systemPromptContent);
-  
-  const stream = await model.pipe(parser).stream([systemMessage, ...langChainMessages]);
+  const streamMessages = omitSystemPrompt
+    ? langChainMessages
+    : [new SystemMessage(systemPromptContent), ...langChainMessages];
+
+  const stream = await model.pipe(parser).stream(streamMessages);
 
   const readableStream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
+      let fullResponseText = '';
       try {
         for await (const chunk of stream) {
+          fullResponseText += chunk;
           controller.enqueue(encoder.encode(chunk));
         }
       } catch (e) {

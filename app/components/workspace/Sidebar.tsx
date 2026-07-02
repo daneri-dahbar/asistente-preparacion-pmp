@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import pb from '@/lib/pocketbase';
 import { WORLDS } from '@/lib/gameData';
-import { BarChart2, CheckCircle, ChevronDown, ChevronRight, ClipboardCheck, ClipboardList, Clock, FileText, Folder, MessageSquare, PanelLeftClose, PanelLeftOpen, Home, PlusCircle, Edit2, Check, X, Trash2, Users } from 'lucide-react';
+import { Activity, BarChart2, BookOpen, CheckCircle, ChevronDown, ChevronRight, ClipboardCheck, ClipboardList, Clock, FileText, Folder, MessageSquare, PanelLeftClose, PanelLeftOpen, Home, PlusCircle, Edit2, Check, X, Trash2, Users, Smile } from 'lucide-react';
 import type { AdminView } from './AdminDashboard';
 
 interface SidebarProps {
@@ -23,6 +23,10 @@ interface SidebarProps {
     onToggleDesktop?: () => void;
     activeAdminView?: AdminView;
     onAdminViewChange?: (view: AdminView) => void;
+    onOpenTechnicalMetrics?: () => void;
+    isTechnicalMetricsOpen?: boolean;
+    onOpenUxUiMetrics?: () => void;
+    isUxUiMetricsOpen?: boolean;
 }
 
 export default function Sidebar({
@@ -41,7 +45,11 @@ export default function Sidebar({
     isDesktopOpen = true,
     onToggleDesktop,
     activeAdminView = 'overview',
-    onAdminViewChange
+    onAdminViewChange,
+    onOpenTechnicalMetrics,
+    isTechnicalMetricsOpen = false,
+    onOpenUxUiMetrics,
+    isUxUiMetricsOpen = false
 }: SidebarProps) {
     const isAdmin = user?.role === 'admin';
     const [viewMode, setViewMode] = useState<'recent' | 'structure'>('recent');
@@ -56,6 +64,7 @@ export default function Sidebar({
         { id: 'defense', label: 'Defensa', icon: FileText },
         { id: 'evaluation', label: 'Evaluación', icon: CheckCircle },
         { id: 'users', label: 'Usuarios', icon: Users },
+        { id: 'guided', label: 'Modo guiado', icon: BookOpen },
         { id: 'simulations', label: 'Simulaciones', icon: ClipboardCheck },
         { id: 'research', label: 'Investigación UX', icon: ClipboardList },
     ];
@@ -221,7 +230,39 @@ export default function Sidebar({
                 
                 {isDesktopOpen && (
                     <div className="flex-1 min-w-0 animate-in fade-in duration-300">
-                        <h3 className="font-semibold text-gray-900 dark:text-white truncate">{user?.name || 'Usuario'}</h3>
+                        <div className="flex min-w-0 items-center gap-2">
+                            <h3 className="min-w-0 truncate font-semibold text-gray-900 dark:text-white">{user?.name || 'Usuario'}</h3>
+                            {!isAdmin && onOpenTechnicalMetrics && (
+                                <button
+                                    type="button"
+                                    onClick={onOpenTechnicalMetrics}
+                                    className={`flex h-7 w-7 flex-none items-center justify-center rounded-md transition-colors ${
+                                        isTechnicalMetricsOpen
+                                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-200'
+                                            : 'text-gray-500 hover:bg-gray-100 hover:text-blue-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-blue-200'
+                                    }`}
+                                    title="Mis metricas tecnicas"
+                                    aria-label="Mis metricas tecnicas"
+                                >
+                                    <Activity className="h-4 w-4" />
+                                </button>
+                            )}
+                            {!isAdmin && onOpenUxUiMetrics && (
+                                <button
+                                    type="button"
+                                    onClick={onOpenUxUiMetrics}
+                                    className={`flex h-7 w-7 flex-none items-center justify-center rounded-md transition-colors ${
+                                        isUxUiMetricsOpen
+                                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-200'
+                                            : 'text-gray-500 hover:bg-gray-100 hover:text-blue-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-blue-200'
+                                    }`}
+                                    title="Mis mediciones UX/UI"
+                                    aria-label="Mis mediciones UX/UI"
+                                >
+                                    <Smile className="h-4 w-4" />
+                                </button>
+                            )}
+                        </div>
                         <button 
                             onClick={onLogout}
                             className="text-xs text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 truncate transition-colors flex items-center gap-1"

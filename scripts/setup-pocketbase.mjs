@@ -43,6 +43,8 @@ async function main() {
 
         await ensureUserRoles();
         await ensurePlatformReadRules();
+        await ensureTechnicalMetricSnapshots();
+        await ensureUxUiMetricSnapshots();
         await ensureUserResearchInstruments();
         await ensureUserResearchSessions();
 
@@ -245,7 +247,7 @@ async function ensureUserRoles() {
 }
 
 async function ensurePlatformReadRules() {
-    const ownedCollections = ['chats', 'messages', 'user_progress', 'simulations'];
+    const ownedCollections = ['chats', 'messages', 'user_progress', 'simulations', 'technical_metric_snapshots', 'ux_ui_metric_snapshots'];
 
     for (const collectionName of ownedCollections) {
         const collection = await pb.collections.getOne(collectionName).catch(() => null);
@@ -261,6 +263,115 @@ async function ensurePlatformReadRules() {
     }
 
     console.log('Reglas de lectura admin configuradas para datos de plataforma.');
+}
+
+async function ensureTechnicalMetricSnapshots() {
+    const usersCollection = await pb.collections.getOne('users');
+    const existing = await pb.collections.getOne('technical_metric_snapshots').catch(() => null);
+    const fields = [
+        { name: 'user', type: 'relation', collectionId: usersCollection.id, maxSelect: 1, required: true },
+        { name: 'measured_at', type: 'date', required: true },
+        { name: 'screen', type: 'text', required: false },
+        { name: 'ttft_ms', type: 'number', required: false },
+        { name: 'lcp_ms', type: 'number', required: false },
+        { name: 'cls', type: 'number', required: false },
+        { name: 'bundle_kb', type: 'number', required: false },
+        { name: 'pocketbase_latency_ms', type: 'number', required: false },
+        { name: 'streaming_chunks', type: 'number', required: false },
+        { name: 'streaming_label', type: 'text', required: false },
+        { name: 'metrics', type: 'json', required: false },
+        { name: 'user_agent', type: 'text', required: false },
+    ];
+    const rules = {
+        listRule: OWNER_READ_RULE,
+        viewRule: OWNER_READ_RULE,
+        createRule: OWNER_RULE,
+        updateRule: ADMIN_ROLE_RULE,
+        deleteRule: ADMIN_ROLE_RULE,
+    };
+
+    if (!existing) {
+        await pb.collections.create({
+            name: 'technical_metric_snapshots',
+            type: 'base',
+            fields,
+            ...rules,
+        });
+        console.log('Coleccion technical_metric_snapshots creada.');
+        return;
+    }
+
+    const mergedFields = [...existing.fields];
+    for (const field of fields) {
+        const index = mergedFields.findIndex((current) => current.name === field.name);
+        if (index === -1) {
+            mergedFields.push(field);
+        } else {
+            mergedFields[index] = { ...mergedFields[index], ...field };
+        }
+    }
+
+    await pb.collections.update(existing.id, {
+        fields: mergedFields,
+        ...rules,
+    });
+
+    console.log('Coleccion technical_metric_snapshots configurada.');
+}
+
+async function ensureUxUiMetricSnapshots() {
+    const usersCollection = await pb.collections.getOne('users');
+    const existing = await pb.collections.getOne('ux_ui_metric_snapshots').catch(() => null);
+    const fields = [
+        { name: 'user', type: 'relation', collectionId: usersCollection.id, maxSelect: 1, required: true },
+        { name: 'measured_at', type: 'date', required: true },
+        { name: 'context', type: 'text', required: false },
+        { name: 'ease_of_use', type: 'number', required: true },
+        { name: 'answer_quality', type: 'number', required: true },
+        { name: 'response_speed', type: 'number', required: true },
+        { name: 'exam_similarity', type: 'number', required: true },
+        { name: 'average_likert', type: 'number', required: false },
+        { name: 'nps', type: 'number', required: true },
+        { name: 'nps_category', type: 'text', required: false },
+        { name: 'friction_points', type: 'text', required: false },
+        { name: 'comments', type: 'text', required: false },
+        { name: 'metrics', type: 'json', required: false },
+    ];
+    const rules = {
+        listRule: OWNER_READ_RULE,
+        viewRule: OWNER_READ_RULE,
+        createRule: OWNER_RULE,
+        updateRule: OWNER_RULE,
+        deleteRule: OWNER_RULE,
+    };
+
+    if (!existing) {
+        await pb.collections.create({
+            name: 'ux_ui_metric_snapshots',
+            type: 'base',
+            fields,
+            ...rules,
+        });
+        console.log('Coleccion ux_ui_metric_snapshots creada.');
+        return;
+    }
+
+    const mergedFields = [...existing.fields];
+    for (const field of fields) {
+        const index = mergedFields.findIndex((current) => current.name === field.name);
+        if (index === -1) {
+            mergedFields.push(field);
+        } else {
+            mergedFields[index] = { ...mergedFields[index], ...field };
+        }
+    }
+
+    await pb.collections.update(existing.id, {
+        fields: mergedFields,
+        ...rules,
+    });
+
+    console.log('Coleccion ux_ui_metric_snapshots configurada.');
 }
 
 async function ensureMessageGeneratedAtField() {
