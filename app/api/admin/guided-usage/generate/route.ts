@@ -2,7 +2,7 @@ import PocketBase from 'pocketbase';
 import { NextResponse } from 'next/server';
 import { PHASE1_WORLDS, PHASE2_WORLDS, PHASE3_WORLDS, PHASE4_WORLDS, PHASE_ECO_WORLDS } from '@/lib/gameData';
 
-export const maxDuration = 900;
+export const maxDuration = 300;
 
 interface PlatformUser {
     id: string;
