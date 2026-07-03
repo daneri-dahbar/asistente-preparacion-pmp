@@ -582,6 +582,7 @@ const LEVEL_ACTIVITY_LABELS: Record<string, string> = {
     level_exam: 'Examen',
     level_oracle: 'Oraculo',
 };
+const REQUIRED_LEVEL_ACTIVITY_COUNT = Object.keys(LEVEL_ACTIVITY_LABELS).length;
 
 function completedGuidedLevels(completedLevels?: string[]) {
     return (completedLevels || [])
@@ -655,6 +656,62 @@ function practicedUnlockedLevels(userChats: ChatRecord[], messagesByChat: Record
             activityTypes: Array.from(level.activityTypes),
         }))
         .sort((a, b) => new Date(b.lastActivity || 0).getTime() - new Date(a.lastActivity || 0).getTime());
+}
+
+type GuidedLevelActivityDetail = {
+    id: string;
+    name: string;
+    worldName: string;
+    worldId?: number;
+    levelNumber: number;
+    chats: number;
+    messages: number;
+    lastActivity: string | null;
+    activityTypes: string[];
+    completed: boolean;
+};
+
+function guidedLevelsWithActivity(
+    completedLevels: ReturnType<typeof completedGuidedLevels>,
+    activityLevels: ReturnType<typeof practicedUnlockedLevels>,
+): GuidedLevelActivityDetail[] {
+    const byId = new Map<string, GuidedLevelActivityDetail>();
+
+    completedLevels.forEach((level) => {
+        byId.set(level.id, {
+            ...level,
+            chats: 0,
+            messages: 0,
+            lastActivity: null,
+            activityTypes: [],
+            completed: true,
+        });
+    });
+
+    activityLevels.forEach((level) => {
+        const current = byId.get(level.id);
+        const catalogLevel = GUIDED_LEVELS_BY_ID.get(level.id);
+
+        byId.set(level.id, {
+            id: level.id,
+            name: current?.name || catalogLevel?.name || level.name,
+            worldName: current?.worldName || catalogLevel?.worldName || level.worldName,
+            worldId: current?.worldId ?? catalogLevel?.worldId,
+            levelNumber: current?.levelNumber || catalogLevel?.levelNumber || level.levelNumber,
+            chats: level.chats,
+            messages: level.messages,
+            lastActivity: level.lastActivity,
+            activityTypes: level.activityTypes,
+            completed: Boolean(current?.completed) || level.activityTypes.length >= REQUIRED_LEVEL_ACTIVITY_COUNT,
+        });
+    });
+
+    return Array.from(byId.values()).sort((a, b) => {
+        const activityDiff = new Date(b.lastActivity || 0).getTime() - new Date(a.lastActivity || 0).getTime();
+        if (activityDiff !== 0) return activityDiff;
+        if ((a.worldId || 0) !== (b.worldId || 0)) return (a.worldId || 0) - (b.worldId || 0);
+        return a.levelNumber - b.levelNumber;
+    });
 }
 
 function formatDate(value?: string | null) {
@@ -891,12 +948,12 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
     const [isResearchDetailOpen, setIsResearchDetailOpen] = useState(false);
     const [isResearchResultFormOpen, setIsResearchResultFormOpen] = useState(false);
     const [isGuidedLevelsOpen, setIsGuidedLevelsOpen] = useState(false);
-    const [isUnlockedLevelsOpen, setIsUnlockedLevelsOpen] = useState(false);
     const [isSimulationsOpen, setIsSimulationsOpen] = useState(false);
     const [selectedSimulationReportId, setSelectedSimulationReportId] = useState<string>('');
     const [selectedEvaluationMetricId, setSelectedEvaluationMetricId] = useState<string>('');
     const [selectedEvaluationDimensionId, setSelectedEvaluationDimensionId] = useState<string>('');
     const [selectedEvaluationChartUserId, setSelectedEvaluationChartUserId] = useState<string>('');
+    const [activeEvaluationChartPointId, setActiveEvaluationChartPointId] = useState<string>('');
     const [liveMetricMeasurement, setLiveMetricMeasurement] = useState<LiveMetricMeasurement | null>(null);
     const [liveMetricPrompt, setLiveMetricPrompt] = useState('Explica en dos frases breves por que el streaming mejora la experiencia de estudio.');
     const [technicalMetricValues, setTechnicalMetricValues] = useState<Record<string, string>>({});
@@ -1066,7 +1123,6 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
 
     useEffect(() => {
         setIsGuidedLevelsOpen(false);
-        setIsUnlockedLevelsOpen(false);
         setIsSimulationsOpen(false);
         setSelectedSimulationReportId('');
         setIsResearchResultFormOpen(false);
@@ -1884,7 +1940,8 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
             acc[message.chat] = (acc[message.chat] || 0) + 1;
             return acc;
         }, {});
-        const practicedUnlockedLevelDetails = practicedUnlockedLevels(userChats, messagesByChat);
+        const practicedLevelDetails = practicedUnlockedLevels(userChats, messagesByChat);
+        const guidedLevelDetails = guidedLevelsWithActivity(completedGuidedLevelDetails, practicedLevelDetails);
 
         return {
             user: selectedUser,
@@ -1894,8 +1951,7 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
             researchSessions: userResearchSessions,
             simulations: userSimulations,
             completedSimulations,
-            completedGuidedLevelDetails,
-            practicedUnlockedLevelDetails,
+            completedGuidedLevelDetails: guidedLevelDetails,
         };
     }, [users, selectedUserId, chats, messages, progress, simulations, researchSessions]);
 
@@ -1980,6 +2036,15 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
             `${evaluationChartCoordinates[evaluationChartCoordinates.length - 1].x},${evaluationChartPadding.top + evaluationChartPlotHeight}`,
         ].join(' ')
         : '';
+    const activeEvaluationChartPoint = evaluationChartCoordinates.find((point) => point.id === activeEvaluationChartPointId) || null;
+    const evaluationTooltipWidth = 190;
+    const evaluationTooltipHeight = 58;
+    const evaluationTooltipX = activeEvaluationChartPoint
+        ? clampNumber(activeEvaluationChartPoint.x - evaluationTooltipWidth / 2, 8, evaluationChartWidth - evaluationTooltipWidth - 8)
+        : 0;
+    const evaluationTooltipY = activeEvaluationChartPoint
+        ? Math.max(8, activeEvaluationChartPoint.y - evaluationTooltipHeight - 22)
+        : 0;
 
     return (
         <div className="flex-1 overflow-y-scroll bg-gray-50/80 p-4 [scrollbar-gutter:stable] dark:bg-gray-950 md:p-8">
@@ -2643,27 +2708,25 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                             Evolucion porcentual de los intentos completados, calculada sobre respuestas correctas y total de preguntas.
                                         </p>
                                     </div>
-                                    <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
+                                    <div className="w-full max-w-sm">
                                         {evaluationSimulationSeries.length === 0 ? (
                                             <span className="rounded-md bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">Sin usuarios</span>
-                                        ) : evaluationSimulationSeries.map((series) => {
-                                            const isSelected = selectedEvaluationSimulationSeries?.user.id === series.user.id;
-
-                                            return (
-                                                <button
-                                                    key={series.user.id}
-                                                    type="button"
-                                                    onClick={() => setSelectedEvaluationChartUserId(series.user.id)}
-                                                    className={`whitespace-nowrap rounded-md border px-3 py-2 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300 ${
-                                                        isSelected
-                                                            ? 'border-blue-600 bg-blue-600 text-white dark:border-blue-500 dark:bg-blue-500'
-                                                            : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-gray-800 dark:bg-gray-950/60 dark:text-gray-200 dark:hover:border-blue-800 dark:hover:bg-blue-950/40 dark:hover:text-blue-200'
-                                                    }`}
+                                        ) : (
+                                            <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                                Usuario
+                                                <select
+                                                    value={selectedEvaluationSimulationSeries?.user.id || ''}
+                                                    onChange={(event) => setSelectedEvaluationChartUserId(event.target.value)}
+                                                    className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
                                                 >
-                                                    {series.user.name || series.user.email || 'Usuario'}
-                                                </button>
-                                            );
-                                        })}
+                                                    {evaluationSimulationSeries.map((series) => (
+                                                        <option key={series.user.id} value={series.user.id}>
+                                                            {series.user.name || series.user.email || 'Usuario'}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </label>
+                                        )}
                                     </div>
                                 </div>
 
@@ -2730,13 +2793,36 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                                         />
                                                     )}
                                                     {evaluationChartCoordinates.map((point, index) => (
-                                                        <g key={point.id}>
+                                                        <g
+                                                            key={point.id}
+                                                            tabIndex={0}
+                                                            role="button"
+                                                            aria-label={`${point.date}: ${point.score} correctas de ${point.total} preguntas`}
+                                                            onMouseEnter={() => setActiveEvaluationChartPointId(point.id)}
+                                                            onMouseLeave={() => setActiveEvaluationChartPointId('')}
+                                                            onFocus={() => setActiveEvaluationChartPointId(point.id)}
+                                                            onBlur={() => setActiveEvaluationChartPointId('')}
+                                                            onClick={() => setActiveEvaluationChartPointId((current) => current === point.id ? '' : point.id)}
+                                                            onKeyDown={(event) => {
+                                                                if (event.key === 'Enter' || event.key === ' ') {
+                                                                    event.preventDefault();
+                                                                    setActiveEvaluationChartPointId((current) => current === point.id ? '' : point.id);
+                                                                }
+                                                            }}
+                                                            className="cursor-pointer outline-none"
+                                                        >
                                                             <circle
                                                                 cx={point.x}
                                                                 cy={point.y}
-                                                                r="6"
-                                                                className="fill-white stroke-blue-600 dark:fill-gray-950 dark:stroke-blue-300"
-                                                                strokeWidth="3"
+                                                                r="16"
+                                                                className="fill-transparent"
+                                                            />
+                                                            <circle
+                                                                cx={point.x}
+                                                                cy={point.y}
+                                                                r={activeEvaluationChartPointId === point.id ? '8' : '6'}
+                                                                className="fill-white stroke-blue-600 transition-all dark:fill-gray-950 dark:stroke-blue-300"
+                                                                strokeWidth={activeEvaluationChartPointId === point.id ? '4' : '3'}
                                                             />
                                                             <text
                                                                 x={point.x}
@@ -2756,6 +2842,33 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                                             </text>
                                                         </g>
                                                     ))}
+                                                    {activeEvaluationChartPoint && (
+                                                        <g pointerEvents="none">
+                                                            <rect
+                                                                x={evaluationTooltipX}
+                                                                y={evaluationTooltipY}
+                                                                width={evaluationTooltipWidth}
+                                                                height={evaluationTooltipHeight}
+                                                                rx="8"
+                                                                className="fill-gray-950 stroke-blue-500 dark:fill-gray-900"
+                                                                strokeWidth="1.5"
+                                                            />
+                                                            <text
+                                                                x={evaluationTooltipX + 14}
+                                                                y={evaluationTooltipY + 22}
+                                                                className="fill-blue-200 text-[11px] font-semibold"
+                                                            >
+                                                                {activeEvaluationChartPoint.date}
+                                                            </text>
+                                                            <text
+                                                                x={evaluationTooltipX + 14}
+                                                                y={evaluationTooltipY + 43}
+                                                                className="fill-white text-[13px] font-semibold"
+                                                            >
+                                                                {activeEvaluationChartPoint.score} correctas de {activeEvaluationChartPoint.total}
+                                                            </text>
+                                                        </g>
+                                                    )}
                                                 </svg>
                                             </div>
                                         )}
@@ -2800,13 +2913,6 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                             Sintesis operativa basada en <span className="font-semibold">output/informe_final_para_aplicacion.pdf</span>. La lectura combina validacion con usuarios, auditoria tecnica, usabilidad, seguridad, sostenibilidad y trazabilidad con la hipotesis del trabajo.
                                         </p>
                                     </div>
-                                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm dark:border-gray-800 dark:bg-gray-950/60 lg:w-96">
-                                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Alcance metodologico</p>
-                                        <p className="mt-2 font-semibold text-gray-950 dark:text-white">Estudio exploratorio con casos extremos</p>
-                                        <p className="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                                            La evidencia no se interpreta como prueba estadistica generalizable, sino como validacion descriptiva con un aspirante en preparacion intensiva y un validador experto PMP.
-                                        </p>
-                                    </div>
                                 </div>
 
                                 <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -2830,184 +2936,6 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                 </div>
                             </section>
 
-                            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.8fr)]">
-                                <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                                    <div className="flex items-center justify-between gap-3">
-                                        <div>
-                                            <h2 className="text-base font-bold text-gray-950 dark:text-white">Metricas tecnicas del informe</h2>
-                                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Indicadores reportados en la evaluacion tecnica del Capitulo 7.</p>
-                                        </div>
-                                        <span className="rounded-md bg-green-50 px-2 py-1 text-xs font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-200">Cumple</span>
-                                    </div>
-                                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                                        {EVALUATION_TECHNICAL_METRICS.map((metric) => (
-                                            <button
-                                                key={metric.id}
-                                                type="button"
-                                                onClick={() => setSelectedEvaluationMetricId(metric.id)}
-                                                className="group rounded-lg border border-gray-200 bg-gray-50 p-4 text-left transition-colors hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300 dark:border-gray-800 dark:bg-gray-950/60 dark:hover:border-blue-800 dark:hover:bg-blue-950/30"
-                                            >
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <div>
-                                                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{metric.label}</p>
-                                                        <p className="mt-2 text-2xl font-bold text-gray-950 dark:text-white">{metric.value}</p>
-                                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{metric.target}</p>
-                                                    </div>
-                                                    <ChevronRight className="mt-1 h-4 w-4 text-gray-400 transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-300" />
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </section>
-
-                                <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                                    <h2 className="text-base font-bold text-gray-950 dark:text-white">Evidencia cargada en la aplicacion</h2>
-                                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Lectura actual de los registros administrativos.</p>
-                                    <div className="mt-4 space-y-3">
-                                        {[
-                                            ['Usuarios observados', String(dashboard.regularUserCount), 'rol usuario'],
-                                            ['Sesiones UX', String(dashboard.regularResearchSessions.length), `${researchInstruments.length} instrumentos`],
-                                            ['NPS promedio', formatAverage(defensePanel.averageNps), 'encuestas y relevamientos'],
-                                            ['Utilidad percibida', formatAverage(defensePanel.usefulnessAverage, '/5'), 'escala UX'],
-                                            ['Facilidad percibida', formatAverage(defensePanel.usabilityAverage, '/5'), 'escala UX'],
-                                            ['Simulaciones completadas', String(defensePanel.completedSimulations.length), `${defensePanel.completedFullSimulations.length} completas de 180 preguntas`],
-                                        ].map(([label, value, detail]) => (
-                                            <div key={label} className="flex items-center justify-between gap-3 rounded-md bg-gray-50 px-4 py-3 dark:bg-gray-950/60">
-                                                <div>
-                                                    <p className="text-sm font-semibold text-gray-950 dark:text-white">{label}</p>
-                                                    <p className="text-xs text-gray-500 dark:text-gray-400">{detail}</p>
-                                                </div>
-                                                <span className="text-lg font-bold text-gray-950 dark:text-white">{value}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </section>
-                            </div>
-
-                            <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                                    <div>
-                                        <h2 className="text-base font-bold text-gray-950 dark:text-white">Evolucion observada en casos de estudio</h2>
-                                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Resultados descriptivos informados para Usuario A y Usuario B.</p>
-                                    </div>
-                                    <span className="text-xs text-gray-500 dark:text-gray-400">Capitulos 6, 7 y 9</span>
-                                </div>
-                                <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                                    {[
-                                        {
-                                            user: 'Usuario A',
-                                            profile: 'Aspirante en preparacion intensiva',
-                                            initial: 56.7,
-                                            final: 82.2,
-                                            improvement: '+25.5 p.p.',
-                                            interpretation: 'Evolucion favorable asociada a practica sostenida, uso guiado y familiarizacion con el criterio PMI.',
-                                        },
-                                        {
-                                            user: 'Usuario B',
-                                            profile: 'Validador experto certificado PMP',
-                                            initial: 77.8,
-                                            final: 87.8,
-                                            improvement: '+10.0 p.p.',
-                                            interpretation: 'Desempeno creciente util para validar dificultad, fidelidad del simulador y consistencia de la experiencia.',
-                                        },
-                                    ].map((item) => (
-                                        <div key={item.user} className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950/60">
-                                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                                <div>
-                                                    <p className="text-sm font-bold text-gray-950 dark:text-white">{item.user}</p>
-                                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{item.profile}</p>
-                                                </div>
-                                                <span className="rounded-md bg-green-50 px-2 py-1 text-xs font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-200">{item.improvement}</span>
-                                            </div>
-                                            <div className="mt-4 grid grid-cols-2 gap-3">
-                                                <div className="rounded-md bg-white p-3 dark:bg-gray-900">
-                                                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Inicial</p>
-                                                    <p className="mt-1 text-xl font-bold text-gray-950 dark:text-white">{item.initial}%</p>
-                                                </div>
-                                                <div className="rounded-md bg-white p-3 dark:bg-gray-900">
-                                                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Final</p>
-                                                    <p className="mt-1 text-xl font-bold text-gray-950 dark:text-white">{item.final}%</p>
-                                                </div>
-                                            </div>
-                                            <p className="mt-3 text-xs leading-5 text-gray-600 dark:text-gray-300">{item.interpretation}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-
-                            <section className="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                                <div className="border-b border-gray-200 p-5 dark:border-gray-800">
-                                    <h2 className="text-base font-bold text-gray-950 dark:text-white">Trazabilidad hipotesis - evidencia - resultado</h2>
-                                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Lectura transversal tomada de la Tabla 7.6 del informe.</p>
-                                </div>
-                                <div className="overflow-x-auto">
-                                    <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-800">
-                                        <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500 dark:bg-gray-950 dark:text-gray-400">
-                                            <tr>
-                                                <th className="px-5 py-3 text-left font-semibold">Componente</th>
-                                                <th className="px-5 py-3 text-left font-semibold">Evidencia considerada</th>
-                                                <th className="px-5 py-3 text-left font-semibold">Resultado interpretado</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                                            {[
-                                                ['Comprension de escenarios PMP', 'Conversaciones, razonamiento etico, calculos contextualizados y casos de uso.', 'El asistente guia situaciones ambiguas, explica alternativas y refuerza criterios alineados con PMI.'],
-                                                ['Internalizacion del criterio PMI', 'Feedback de Usuario A, revision del experto, simulaciones y evolucion longitudinal.', 'La evidencia sugiere contraste entre razonamientos intuitivos y criterios formales del examen.'],
-                                                ['Complemento de preparacion', 'Encuestas, sesiones de feedback, progreso acumulado, modos guiados y simulador.', 'Los usuarios percibieron valor pedagogico y operativo como apoyo interactivo bajo demanda.'],
-                                            ].map(([component, evidence, result]) => (
-                                                <tr key={component} className="align-top">
-                                                    <td className="px-5 py-4 font-semibold text-gray-950 dark:text-white">{component}</td>
-                                                    <td className="px-5 py-4 text-gray-600 dark:text-gray-300">{evidence}</td>
-                                                    <td className="px-5 py-4 text-gray-500 dark:text-gray-400">{result}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </section>
-
-                            <div className="grid gap-6 lg:grid-cols-2">
-                                <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                                    <h2 className="text-base font-bold text-gray-950 dark:text-white">Seguridad y robustez</h2>
-                                    <div className="mt-4 space-y-3">
-                                        {[
-                                            ['Prompt injection', 'Mitigado', 'restricciones de rol y redireccion al dominio PMP'],
-                                            ['Salida insegura', 'Sanitizado', 'limpieza de respuestas antes de renderizar'],
-                                            ['Informacion sensible', 'Seguro', 'claves y prompts internos protegidos server-side'],
-                                            ['Denegacion de servicio', 'Parcial', 'dependencia de limites operativos del proveedor'],
-                                            ['Sobreconfianza', 'Mitigado', 'diseño orientado a explicacion, no sustitucion del estudio formal'],
-                                        ].map(([risk, status, detail]) => (
-                                            <div key={risk} className="flex gap-3 rounded-md bg-gray-50 p-3 dark:bg-gray-950/60">
-                                                <CheckCircle className="mt-0.5 h-4 w-4 flex-none text-green-600 dark:text-green-300" />
-                                                <div>
-                                                    <p className="text-sm font-semibold text-gray-950 dark:text-white">{risk} - {status}</p>
-                                                    <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{detail}</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </section>
-
-                                <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                                    <h2 className="text-base font-bold text-gray-950 dark:text-white">Limitaciones y proxima evolucion</h2>
-                                    <div className="mt-4 space-y-3">
-                                        {[
-                                            ['Muestra acotada', 'La validacion usa dos casos extremos y requiere muestras mas amplias para generalizar.'],
-                                            ['Dependencia de proveedor IA', 'El cambio de modelo puede requerir ajuste de prompts y validacion de comportamiento.'],
-                                            ['Actualizacion documental', 'Una futura version deberia consultar documentos oficiales recientes del PMI.'],
-                                            ['Citas especificas', 'El informe advierte riesgo de referencias inexactas cuando se piden paginas o citas bibliograficas muy puntuales.'],
-                                        ].map(([label, detail]) => (
-                                            <div key={label} className="flex gap-3 rounded-md bg-gray-50 p-3 dark:bg-gray-950/60">
-                                                <AlertCircle className="mt-0.5 h-4 w-4 flex-none text-amber-600 dark:text-amber-300" />
-                                                <div>
-                                                    <p className="text-sm font-semibold text-gray-950 dark:text-white">{label}</p>
-                                                    <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{detail}</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </section>
-                            </div>
                         </div>
                         )
                         )
@@ -3552,7 +3480,7 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                                     <Target className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-300" />
                                                     <h3 className="text-sm font-bold text-gray-950 dark:text-white">Modo guiado</h3>
                                                 </div>
-                                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Niveles completados en la ruta guiada.</p>
+                                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Niveles completados o con actividad registrada en la ruta guiada.</p>
                                             </div>
                                             <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-gray-300">
                                                 <span>{selectedHistory.completedGuidedLevelDetails.length}/{GUIDED_LEVELS.length} niveles</span>
@@ -3566,76 +3494,36 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                         {isGuidedLevelsOpen && (
                                             <div className="border-t border-gray-200 p-4 dark:border-gray-800">
                                                 {selectedHistory.completedGuidedLevelDetails.length === 0 ? (
-                                                    <p className="text-sm text-gray-500 dark:text-gray-400">Sin niveles completados en modo guiado.</p>
+                                                    <p className="text-sm text-gray-500 dark:text-gray-400">Sin niveles registrados en modo guiado.</p>
                                                 ) : (
                                                     <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                                                         {selectedHistory.completedGuidedLevelDetails.map((level) => (
                                                             <div key={level.id} className="rounded-md bg-white p-3 dark:bg-gray-900">
                                                                 <div className="flex items-start gap-2">
-                                                                    <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                                                    {level.completed ? (
+                                                                        <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                                                    ) : (
+                                                                        <Activity className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 dark:text-blue-300" />
+                                                                    )}
                                                                     <div className="min-w-0">
                                                                         <p className="text-sm font-semibold text-gray-950 dark:text-white">{level.name}</p>
                                                                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                                                             {level.worldName} - Nivel {level.levelNumber}
                                                                         </p>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-950/60">
-                                        <button
-                                            type="button"
-                                            aria-expanded={isUnlockedLevelsOpen}
-                                            onClick={() => setIsUnlockedLevelsOpen((current) => !current)}
-                                            className="flex w-full flex-col gap-3 p-4 text-left sm:flex-row sm:items-center sm:justify-between"
-                                        >
-                                            <div className="min-w-0">
-                                                <div className="flex items-center gap-2">
-                                                    <ClipboardList className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-300" />
-                                                    <h3 className="text-sm font-bold text-gray-950 dark:text-white">Modo desbloqueado</h3>
-                                                </div>
-                                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Niveles con actividad registrada desde las practicas de nivel.</p>
-                                            </div>
-                                            <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-gray-300">
-                                                <span>{selectedHistory.practicedUnlockedLevelDetails.length}/{GUIDED_LEVELS.length} niveles practicados</span>
-                                                {isUnlockedLevelsOpen ? (
-                                                    <ChevronDown className="h-4 w-4" />
-                                                ) : (
-                                                    <ChevronRight className="h-4 w-4" />
-                                                )}
-                                            </div>
-                                        </button>
-                                        {isUnlockedLevelsOpen && (
-                                            <div className="border-t border-gray-200 p-4 dark:border-gray-800">
-                                                {selectedHistory.practicedUnlockedLevelDetails.length === 0 ? (
-                                                    <p className="text-sm text-gray-500 dark:text-gray-400">Sin niveles practicados en modo desbloqueado.</p>
-                                                ) : (
-                                                    <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-                                                        {selectedHistory.practicedUnlockedLevelDetails.map((level) => (
-                                                            <div key={level.id} className="rounded-md bg-white p-3 dark:bg-gray-900">
-                                                                <div className="flex items-start gap-2">
-                                                                    <Activity className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                                                                    <div className="min-w-0">
-                                                                        <p className="text-sm font-semibold text-gray-950 dark:text-white">{level.name}</p>
-                                                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                                                            {level.worldName}{level.levelNumber ? ` - Nivel ${level.levelNumber}` : ''}
-                                                                        </p>
-                                                                        <div className="mt-2 flex flex-wrap gap-1">
-                                                                            {level.activityTypes.map((activityType) => (
-                                                                                <span key={activityType} className="rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-200">
-                                                                                    {activityType}
-                                                                                </span>
-                                                                            ))}
-                                                                        </div>
-                                                                        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                                                            {level.chats} chats - {level.messages} mensajes - {formatDate(level.lastActivity)}
-                                                                        </p>
+                                                                        {level.activityTypes.length > 0 && (
+                                                                            <>
+                                                                                <div className="mt-2 flex flex-wrap gap-1">
+                                                                                    {level.activityTypes.map((activityType) => (
+                                                                                        <span key={activityType} className="rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-200">
+                                                                                            {activityType}
+                                                                                        </span>
+                                                                                    ))}
+                                                                                </div>
+                                                                                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                                                                    {level.chats} chats - {level.messages} mensajes - {formatDate(level.lastActivity)}
+                                                                                </p>
+                                                                            </>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -4174,12 +4062,11 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                         {activeAdminView === 'users' && !isUserDetailOpen && (
                         <section className="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
                             <div className="border-b border-gray-200 p-5 dark:border-gray-800">
-                                <h2 className="text-base font-bold text-gray-950 dark:text-white">Usuarios y progreso</h2>
-                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Resumen por usuario de actividad, avance y resultados.</p>
+                                <h2 className="text-base font-bold text-gray-950 dark:text-white">Usuarios</h2>
                             </div>
                             <div className="overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-800">
-                                    <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500 dark:bg-gray-950 dark:text-gray-400">
+                                    <thead className="hidden">
                                         <tr>
                                             <th className="px-5 py-3 text-left font-semibold">Usuario</th>
                                             <th className="px-5 py-3 text-left font-semibold">Rol</th>
@@ -4194,23 +4081,31 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                     </thead>
                                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                                         {dashboard.summaries.map((summary) => (
-                                            <tr key={summary.user.id} className={`${selectedUserId === summary.user.id ? 'bg-blue-50/70 dark:bg-blue-950/30' : 'hover:bg-gray-50 dark:hover:bg-gray-950/60'}`}>
+                                            <tr
+                                                key={summary.user.id}
+                                                onClick={() => {
+                                                    if ((summary.user.role || 'usuario') !== 'usuario') return;
+                                                    setSelectedUserId(summary.user.id);
+                                                    setIsUserDetailOpen(true);
+                                                }}
+                                                className={`cursor-pointer ${selectedUserId === summary.user.id ? 'bg-blue-50/70 dark:bg-blue-950/30' : 'hover:bg-gray-50 dark:hover:bg-gray-950/60'}`}
+                                            >
                                                 <td className="px-5 py-4">
                                                     <div className="font-semibold text-gray-950 dark:text-white">{summary.user.name || 'Sin nombre'}</div>
-                                                    <div className="text-xs text-gray-500 dark:text-gray-400">{summary.user.email || 'Sin email'}</div>
+                                                    <div className="hidden">{summary.user.email || 'Sin email'}</div>
                                                 </td>
-                                                <td className="px-5 py-4">
+                                                <td className="hidden">
                                                     <span className={`rounded-md px-2 py-1 text-xs font-semibold ${summary.user.role === 'admin' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200' : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}>
                                                         {summary.user.role || 'usuario'}
                                                     </span>
                                                 </td>
-                                                <td className="px-5 py-4 text-right text-gray-700 dark:text-gray-200">{summary.chats}</td>
-                                                <td className="px-5 py-4 text-right text-gray-700 dark:text-gray-200">{summary.messages}</td>
-                                                <td className="px-5 py-4 text-right text-gray-700 dark:text-gray-200">{summary.completedLevels}</td>
-                                                <td className="px-5 py-4 text-right text-gray-700 dark:text-gray-200">{summary.completedSimulations}/{summary.simulations}</td>
-                                                <td className="px-5 py-4 text-right text-gray-700 dark:text-gray-200">{summary.bestScore ?? 'N/A'}</td>
-                                                <td className="px-5 py-4 text-gray-500 dark:text-gray-400">{formatDate(summary.lastActivity)}</td>
-                                                <td className="px-5 py-4 text-right">
+                                                <td className="hidden">{summary.chats}</td>
+                                                <td className="hidden">{summary.messages}</td>
+                                                <td className="hidden">{summary.completedLevels}</td>
+                                                <td className="hidden">{summary.completedSimulations}/{summary.simulations}</td>
+                                                <td className="hidden">{summary.bestScore ?? 'N/A'}</td>
+                                                <td className="hidden">{formatDate(summary.lastActivity)}</td>
+                                                <td className="hidden">
                                                     {(summary.user.role || 'usuario') === 'usuario' ? (
                                                         <button
                                                             type="button"

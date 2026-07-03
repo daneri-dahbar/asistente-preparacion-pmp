@@ -10,6 +10,37 @@ export interface SimulationQuestion {
     domain: string;
 }
 
+function extractJsonArray(response: string) {
+    const trimmed = response.trim();
+    const withoutFence = trimmed
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```$/, '')
+        .trim();
+    const jsonMatch = withoutFence.match(/\[[\s\S]*\]/);
+
+    return jsonMatch ? jsonMatch[0] : withoutFence;
+}
+
+function repairCommonJsonIssues(jsonStr: string) {
+    return jsonStr
+        // Gemini sometimes closes the last option object with ] instead of }.
+        .replace(/(\{\s*"id"\s*:\s*"(?:A|B|C|D)"\s*,\s*"text"\s*:\s*"(?:\\.|[^"\\])*"\s*)\]/g, '$1}')
+        .replace(/,\s*([}\]])/g, '$1');
+}
+
+function parseQuestionsJson(jsonStr: string) {
+    try {
+        return JSON.parse(jsonStr);
+    } catch (firstError) {
+        const repaired = repairCommonJsonIssues(jsonStr);
+        if (repaired !== jsonStr) {
+            return JSON.parse(repaired);
+        }
+
+        throw firstError;
+    }
+}
+
 export async function generateSimulationQuestions({
     amount = 5,
     topic,
@@ -24,7 +55,7 @@ export async function generateSimulationQuestions({
 
     const model = new ChatGoogleGenerativeAI({
         model: "gemini-3-flash-preview",
-        temperature: 0.7,
+        temperature: 0.35,
         apiKey,
     });
 
@@ -66,29 +97,28 @@ export async function generateSimulationQuestions({
         topic: topic || "Gestion de Proyectos General (Mix PMP)",
     });
 
-    const responseMsg = await model.invoke(formattedPrompt);
-    const response = String(responseMsg.content);
-    const jsonMatch = response.match(/\[[\s\S]*\]/);
-    let jsonStr = jsonMatch ? jsonMatch[0] : response.trim();
+    let lastJsonStr = '';
+    let lastParseError: unknown = null;
 
-    if (!jsonMatch) {
-        if (jsonStr.startsWith('```json')) {
-            jsonStr = jsonStr.replace(/^```json/, '').replace(/```$/, '');
-        } else if (jsonStr.startsWith('```')) {
-            jsonStr = jsonStr.replace(/^```/, '').replace(/```$/, '');
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+        const responseMsg = await model.invoke(formattedPrompt);
+        const response = String(responseMsg.content);
+        const jsonStr = extractJsonArray(response);
+        lastJsonStr = jsonStr;
+
+        try {
+            const parsed = parseQuestionsJson(jsonStr);
+            if (!Array.isArray(parsed)) {
+                throw new Error("AI response was not a JSON array");
+            }
+
+            return parsed as SimulationQuestion[];
+        } catch (parseError) {
+            lastParseError = parseError;
+            console.warn(`No se pudo parsear el JSON de preguntas PMP. Reintento ${attempt}/2.`);
         }
-        jsonStr = jsonStr.trim();
     }
 
-    try {
-        const parsed = JSON.parse(jsonStr);
-        if (!Array.isArray(parsed)) {
-            throw new Error("AI response was not a JSON array");
-        }
-
-        return parsed as SimulationQuestion[];
-    } catch (parseError) {
-        console.error("Error parsing JSON from AI:", jsonStr);
-        throw parseError;
-    }
+    console.error("Error parsing JSON from AI:", lastJsonStr);
+    throw lastParseError;
 }

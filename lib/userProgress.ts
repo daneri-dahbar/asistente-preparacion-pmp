@@ -51,7 +51,15 @@ export const saveCompletedLevel = async (userId: string, levelId: string) => {
             return currentLevels;
         }
 
-        return [];
+        const created = await pb.collection('user_progress').create({
+            user: userId,
+            completed_levels: [levelId],
+            stats: {
+                total_xp: 100,
+            },
+        });
+
+        return created.completed_levels || [levelId];
     } catch (error) {
         console.error("Error saving completed level:", error);
         throw error;

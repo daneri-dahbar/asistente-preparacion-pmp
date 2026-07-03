@@ -19,6 +19,38 @@ import LevelCompletedModal from '@/app/components/LevelCompletedModal';
 import OnboardingModal from '@/app/components/OnboardingModal';
 import { captureAspirantTechnicalMetrics } from '@/lib/technicalMetrics';
 
+const LEVEL_ACTIVITY_MODE_LABELS: Record<string, string> = {
+    level_lesson: 'Leccion',
+    level_practice: 'Entrenamiento',
+    level_oracle: 'Oraculo',
+    level_exam: 'Examen',
+};
+
+function normalizeLevelName(value: string) {
+    return value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
+}
+
+function levelIdFromName(levelName: string) {
+    const normalizedLevelName = normalizeLevelName(levelName);
+
+    for (const world of WORLDS) {
+        const index = world.levels.findIndex((level) => normalizeLevelName(level) === normalizedLevelName);
+        if (index !== -1) return `${world.id}-${index}`;
+    }
+
+    return null;
+}
+
+function levelNameFromMode(mode?: string) {
+    const [modeKey, ...levelNameParts] = (mode || '').split(':');
+    if (!LEVEL_ACTIVITY_MODE_LABELS[modeKey] || levelNameParts.length === 0) return null;
+    return levelNameParts.join(':').trim() || null;
+}
+
 export default function WelcomePage() {
     const router = useRouter();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -51,7 +83,7 @@ export default function WelcomePage() {
     const [showLevelCompleteModal, setShowLevelCompleteModal] = useState(false);
     const [justCompletedLevel, setJustCompletedLevel] = useState('');
     const [showOnboarding, setShowOnboarding] = useState(false);
-    const [activeAdminView, setActiveAdminView] = useState<AdminView>('overview');
+    const [activeAdminView, setActiveAdminView] = useState<AdminView>('users');
     const [isTechnicalMetricsViewOpen, setIsTechnicalMetricsViewOpen] = useState(false);
     const [isUxUiMetricsViewOpen, setIsUxUiMetricsViewOpen] = useState(false);
     const technicalMetricsCaptureRef = useRef<string | null>(null);
@@ -206,7 +238,37 @@ export default function WelcomePage() {
             if (user) {
                 try {
                     const progress = await getUserProgress(user.id);
-                    const remoteLevels = progress?.completed_levels || [];
+                    let remoteLevels = progress?.completed_levels || [];
+
+                    const guidedChats = await pb.collection('chats').getFullList({
+                        filter: `user="${user.id}"`,
+                        fields: 'id,mode',
+                        requestKey: null,
+                    }).catch(() => []);
+                    const activityByLevel = guidedChats.reduce<Record<string, Set<string>>>((acc, chat: any) => {
+                        const levelName = levelNameFromMode(chat.mode);
+                        const modeKey = String(chat.mode || '').split(':')[0];
+                        if (!levelName || !LEVEL_ACTIVITY_MODE_LABELS[modeKey]) return acc;
+
+                        const levelId = levelIdFromName(levelName);
+                        if (!levelId) return acc;
+
+                        acc[levelId] = acc[levelId] || new Set<string>();
+                        acc[levelId].add(modeKey);
+                        return acc;
+                    }, {});
+                    const remoteLevelSet = new Set(remoteLevels);
+                    const recoveredLevels = Object.entries(activityByLevel)
+                        .filter(([, activities]) => activities.size >= 4)
+                        .map(([levelId]) => levelId)
+                        .filter((levelId) => !remoteLevelSet.has(levelId));
+
+                    if (recoveredLevels.length > 0) {
+                        remoteLevels = [...remoteLevels, ...recoveredLevels];
+                        for (const levelId of recoveredLevels) {
+                            await saveCompletedLevel(user.id, levelId);
+                        }
+                    }
 
                     setCompletedLevels(remoteLevels);
                     localStorage.removeItem(`completed_levels_${user.id}`);
@@ -764,18 +826,7 @@ export default function WelcomePage() {
 
     // Helper to mark level as completed
     const markLevelCompleted = async (levelName: string) => {
-        // Find the ID from the shared WORLDS data structure
-        let foundId = null;
-        // Normalizing the level name to avoid mismatches (trimming)
-        const normalizedLevelName = levelName.trim();
-
-        for (const w of WORLDS) {
-            const idx = w.levels.findIndex(l => l.trim() === normalizedLevelName);
-            if (idx !== -1) {
-                foundId = `${w.id}-${idx}`;
-                break;
-            }
-        }
+        const foundId = levelIdFromName(levelName);
 
         if (foundId) {
             if (!completedLevels.includes(foundId)) {

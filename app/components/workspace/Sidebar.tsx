@@ -1,9 +1,9 @@
-'use client';
+﻿'use client';
 
 import { useState, useMemo } from 'react';
 import pb from '@/lib/pocketbase';
 import { WORLDS } from '@/lib/gameData';
-import { Activity, BarChart2, BookOpen, CheckCircle, ChevronDown, ChevronRight, ClipboardCheck, ClipboardList, Clock, FileText, Folder, MessageSquare, PanelLeftClose, PanelLeftOpen, Home, PlusCircle, Edit2, Check, X, Trash2, Users, Smile } from 'lucide-react';
+import { Activity, BookOpen, CheckCircle, ChevronDown, ChevronRight, ClipboardCheck, Clock, Folder, MessageSquare, PanelLeftClose, PanelLeftOpen, Home, PlusCircle, Edit2, Check, X, Trash2, Users, Smile } from 'lucide-react';
 import type { AdminView } from './AdminDashboard';
 
 interface SidebarProps {
@@ -44,7 +44,7 @@ export default function Sidebar({
     onClose,
     isDesktopOpen = true,
     onToggleDesktop,
-    activeAdminView = 'overview',
+    activeAdminView = 'users',
     onAdminViewChange,
     onOpenTechnicalMetrics,
     isTechnicalMetricsOpen = false,
@@ -59,15 +59,12 @@ export default function Sidebar({
     const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState('');
 
-    const adminNavItems: Array<{ id: AdminView; label: string; icon: typeof BarChart2 }> = [
-        { id: 'overview', label: 'Resumen', icon: BarChart2 },
-        { id: 'defense', label: 'Defensa', icon: FileText },
-        { id: 'evaluation', label: 'Evaluación', icon: CheckCircle },
+    const adminNavItems: Array<{ id: AdminView; label: string; icon: typeof Users }> = [
         { id: 'users', label: 'Usuarios', icon: Users },
-        { id: 'cleanup', label: 'Limpiar BD', icon: Trash2 },
-        { id: 'guided', label: 'Modo guiado', icon: BookOpen },
+        { id: 'evaluation', label: 'Evaluación', icon: CheckCircle },
         { id: 'simulations', label: 'Simulaciones', icon: ClipboardCheck },
-        { id: 'research', label: 'Investigación UX', icon: ClipboardList },
+        { id: 'guided', label: 'Modo guiado', icon: BookOpen },
+        { id: 'cleanup', label: 'Limpiar BD', icon: Trash2 },
     ];
 
     const togglePhase = (phaseId: string) => {
@@ -129,7 +126,7 @@ export default function Sidebar({
     
         if (diffDays === 0) return `Hoy, ${timeStr}`;
         if (diffDays === 1) return `Ayer, ${timeStr}`;
-        if (diffDays < 7) return `Hace ${diffDays} días, ${timeStr}`;
+        if (diffDays < 7) return `Hace ${diffDays} dÃ­as, ${timeStr}`;
         return `${date.toLocaleDateString()}, ${timeStr}`;
     };
 
@@ -268,7 +265,7 @@ export default function Sidebar({
                             onClick={onLogout}
                             className="text-xs text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 truncate transition-colors flex items-center gap-1"
                         >
-                            Cerrar Sesión
+                            Cerrar SesiÃ³n
                         </button>
                     </div>
                 )}
@@ -428,7 +425,7 @@ export default function Sidebar({
                                         </div>
                                     ) : deletingChatId === chat.id ? (
                                         <div className="flex-1 flex items-center justify-between min-w-0 text-red-600 animate-in fade-in" onClick={e => e.stopPropagation()}>
-                                            <span className="text-xs font-bold">¿Eliminar?</span>
+                                            <span className="text-xs font-bold">Â¿Eliminar?</span>
                                             <div className="flex items-center gap-1">
                                                 <div 
                                                     onClick={confirmDelete}
@@ -449,7 +446,7 @@ export default function Sidebar({
                                     ) : (
                                         <div className="flex-1 min-w-0 flex items-center justify-between group/item">
                                             <div className="min-w-0 overflow-hidden flex-1">
-                                                <div className="truncate font-medium">{chat.title || 'Chat sin título'}</div>
+                                                <div className="truncate font-medium">{chat.title || 'Chat sin tÃ­tulo'}</div>
                                                 <div className="text-[10px] text-gray-400 truncate flex items-center gap-1">
                                                     <Clock className="w-2.5 h-2.5" />
                                                     {formatRelativeTime(chat.last_active || chat.updated || chat.created)}
@@ -516,7 +513,7 @@ export default function Sidebar({
                                                             
                                                             {deletingChatId === chat.id ? (
                                                                 <div className="flex-1 flex items-center justify-between min-w-0 text-red-600 animate-in fade-in" onClick={e => e.stopPropagation()}>
-                                                                    <span className="text-xs font-bold">¿Eliminar?</span>
+                                                                    <span className="text-xs font-bold">Â¿Eliminar?</span>
                                                                     <div className="flex items-center gap-1">
                                                                         <div 
                                                                             onClick={confirmDelete}
@@ -582,7 +579,7 @@ export default function Sidebar({
                                             
                                             {deletingChatId === chat.id ? (
                                                 <div className="flex-1 flex items-center justify-between min-w-0 text-red-600 animate-in fade-in" onClick={e => e.stopPropagation()}>
-                                                    <span className="text-xs font-bold">¿Eliminar?</span>
+                                                    <span className="text-xs font-bold">Â¿Eliminar?</span>
                                                     <div className="flex items-center gap-1">
                                                         <div 
                                                             onClick={confirmDelete}
@@ -601,7 +598,7 @@ export default function Sidebar({
                                             ) : (
                                                 <div className="flex-1 min-w-0 flex items-center justify-between group/item">
                                                     <div className="min-w-0 overflow-hidden flex-1">
-                                                        <div className="truncate font-medium">{chat.title || 'Simulación'}</div>
+                                                        <div className="truncate font-medium">{chat.title || 'SimulaciÃ³n'}</div>
                                                         <div className="text-[10px] text-gray-400 truncate flex items-center gap-1">
                                                             <Clock className="w-2.5 h-2.5" />
                                                             {formatRelativeTime(chat.last_active || chat.updated || chat.created)}
@@ -644,7 +641,7 @@ export default function Sidebar({
                                             
                                             {deletingChatId === chat.id ? (
                                                 <div className="flex-1 flex items-center justify-between min-w-0 text-red-600 animate-in fade-in" onClick={e => e.stopPropagation()}>
-                                                    <span className="text-xs font-bold">¿Eliminar?</span>
+                                                    <span className="text-xs font-bold">Â¿Eliminar?</span>
                                                     <div className="flex items-center gap-1">
                                                         <div 
                                                             onClick={confirmDelete}
@@ -735,7 +732,7 @@ export default function Sidebar({
                                                 </div>
                                             ) : deletingChatId === chat.id ? (
                                                 <div className="flex-1 flex items-center justify-between min-w-0 text-red-600 animate-in fade-in" onClick={e => e.stopPropagation()}>
-                                                    <span className="text-xs font-bold">¿Eliminar?</span>
+                                                    <span className="text-xs font-bold">Â¿Eliminar?</span>
                                                     <div className="flex items-center gap-1">
                                                         <div 
                                                             onClick={confirmDelete}
