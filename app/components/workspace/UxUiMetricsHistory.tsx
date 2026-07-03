@@ -8,6 +8,7 @@ import {
     UX_UI_METRIC_COLLECTION,
     UX_UI_METRIC_DEFINITIONS,
     buildUxUiMetricPayload,
+    formatDateTimeLocalInput,
     formatUxUiScore,
     type UxUiMetricFormValues,
     type UxUiMetricSnapshotRecord,
@@ -19,6 +20,8 @@ interface UxUiMetricsHistoryProps {
     onBack?: () => void;
     embedded?: boolean;
     allowCreate?: boolean;
+    adminCreate?: boolean;
+    compactHeader?: boolean;
 }
 
 function formatDate(value?: string) {
@@ -42,9 +45,12 @@ function latestAverage(records: UxUiMetricSnapshotRecord[], field: keyof UxUiMet
     return Number((values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(2));
 }
 
-export default function UxUiMetricsHistory({ userId, userName, onBack, embedded = false, allowCreate = false }: UxUiMetricsHistoryProps) {
+export default function UxUiMetricsHistory({ userId, userName, onBack, embedded = false, allowCreate = false, adminCreate = false, compactHeader = false }: UxUiMetricsHistoryProps) {
     const [records, setRecords] = useState<UxUiMetricSnapshotRecord[]>([]);
-    const [form, setForm] = useState<UxUiMetricFormValues>(EMPTY_UX_UI_METRIC_FORM);
+    const [form, setForm] = useState<UxUiMetricFormValues>(() => ({
+        ...EMPTY_UX_UI_METRIC_FORM,
+        measured_at: formatDateTimeLocalInput(),
+    }));
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [notice, setNotice] = useState<string | null>(null);
@@ -101,11 +107,26 @@ export default function UxUiMetricsHistory({ userId, userName, onBack, embedded 
         setError(null);
 
         try {
-            const payload = buildUxUiMetricPayload(userId, form);
-            const record = await pb.collection(UX_UI_METRIC_COLLECTION).create(payload, { requestKey: null });
+            const record = adminCreate
+                ? await fetch('/api/admin/ux-ui-metrics/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${pb.authStore.token}`,
+                    },
+                    body: JSON.stringify({ userId, values: form }),
+                }).then(async (response) => {
+                    const payload = await response.json();
+                    if (!response.ok) {
+                        throw new Error(payload.error || 'No se pudo guardar la medicion UX/UI.');
+                    }
+                    return payload.record;
+                })
+                : await pb.collection(UX_UI_METRIC_COLLECTION).create(buildUxUiMetricPayload(userId, form), { requestKey: null });
             setRecords((current) => [record as unknown as UxUiMetricSnapshotRecord, ...current]);
             setForm((current) => ({
                 ...EMPTY_UX_UI_METRIC_FORM,
+                measured_at: formatDateTimeLocalInput(),
                 context: current.context || EMPTY_UX_UI_METRIC_FORM.context,
             }));
             setNotice('Medicion UX/UI guardada correctamente.');
@@ -124,62 +145,76 @@ export default function UxUiMetricsHistory({ userId, userName, onBack, embedded 
     return (
         <div className={containerClass}>
             <div className={embedded ? 'space-y-5' : 'mx-auto w-full max-w-6xl space-y-6'}>
-                <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                            {onBack && (
-                                <button
-                                    type="button"
-                                    onClick={onBack}
-                                    className="mb-4 inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-gray-700 dark:text-gray-200 dark:hover:border-blue-700 dark:hover:bg-blue-950/50 dark:hover:text-blue-200"
-                                >
-                                    <ArrowLeft className="h-4 w-4" />
-                                    Volver
-                                </button>
-                            )}
-                            <div className="inline-flex items-center gap-2 rounded-md bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700 dark:bg-blue-950/50 dark:text-blue-200">
-                                <Smile className="h-4 w-4" />
-                                UX/UI
+                {!compactHeader && (
+                    <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                {onBack && (
+                                    <button
+                                        type="button"
+                                        onClick={onBack}
+                                        className="mb-4 inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-gray-700 dark:text-gray-200 dark:hover:border-blue-700 dark:hover:bg-blue-950/50 dark:hover:text-blue-200"
+                                    >
+                                        <ArrowLeft className="h-4 w-4" />
+                                        Volver
+                                    </button>
+                                )}
+                                <div className="inline-flex items-center gap-2 rounded-md bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700 dark:bg-blue-950/50 dark:text-blue-200">
+                                    <Smile className="h-4 w-4" />
+                                    UX/UI
+                                </div>
+                                <h2 className="mt-3 text-xl font-bold text-gray-950 dark:text-white">
+                                    {userName ? `Mediciones UX/UI de ${userName}` : 'Mis mediciones UX/UI'}
+                                </h2>
+                                <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                                    Encuesta basada en el Anexo C del informe final: facilidad de uso, calidad percibida, velocidad, similitud con examen y NPS.
+                                </p>
                             </div>
-                            <h2 className="mt-3 text-xl font-bold text-gray-950 dark:text-white">
-                                {userName ? `Mediciones UX/UI de ${userName}` : 'Mis mediciones UX/UI'}
-                            </h2>
-                            <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
-                                Encuesta basada en el Anexo C del informe final: facilidad de uso, calidad percibida, velocidad, similitud con examen y NPS.
-                            </p>
+                            <button
+                                type="button"
+                                onClick={loadRecords}
+                                disabled={isLoading}
+                                className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-wait disabled:bg-gray-400"
+                            >
+                                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                                {isLoading ? 'Cargando...' : 'Actualizar'}
+                            </button>
                         </div>
-                        <button
-                            type="button"
-                            onClick={loadRecords}
-                            disabled={isLoading}
-                            className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-wait disabled:bg-gray-400"
-                        >
-                            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                            {isLoading ? 'Cargando...' : 'Actualizar'}
-                        </button>
-                    </div>
 
-                    {latestRecord && (
-                        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                            <CalendarClock className="h-4 w-4" />
-                            Ultima medicion: {formatDate(latestRecord.measured_at || latestRecord.created)}
-                        </div>
-                    )}
-                </section>
+                        {latestRecord && (
+                            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                <CalendarClock className="h-4 w-4" />
+                                Ultima medicion: {formatDate(latestRecord.measured_at || latestRecord.created)}
+                            </div>
+                        )}
+                    </section>
+                )}
 
                 {allowCreate && (
                     <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
                         <h3 className="text-base font-bold text-gray-950 dark:text-white">Anadir medicion UX/UI</h3>
                         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-                            <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
-                                Contexto de uso
-                                <input
-                                    value={form.context}
-                                    onChange={(event) => handleFormChange('context', event.target.value)}
-                                    className="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
-                                    placeholder="Ej: luego de usar dashboard, chat y simulador"
-                                />
-                            </label>
+                            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_260px]">
+                                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+                                    Contexto de uso
+                                    <input
+                                        value={form.context}
+                                        onChange={(event) => handleFormChange('context', event.target.value)}
+                                        className="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                        placeholder="Ej: luego de usar dashboard, chat y simulador"
+                                    />
+                                </label>
+                                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+                                    Fecha y hora de medicion
+                                    <input
+                                        type="datetime-local"
+                                        value={form.measured_at}
+                                        onChange={(event) => handleFormChange('measured_at', event.target.value)}
+                                        className="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                        required
+                                    />
+                                </label>
+                            </div>
 
                             <div className="grid gap-3 md:grid-cols-2">
                                 {UX_UI_METRIC_DEFINITIONS.map((metric) => (
@@ -296,13 +331,13 @@ export default function UxUiMetricsHistory({ userId, userName, onBack, embedded 
                                 <thead>
                                     <tr className="text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                                         <th className="px-3 py-2">Fecha y hora</th>
-                                        <th className="px-3 py-2">Contexto</th>
                                         <th className="px-3 py-2">Facilidad</th>
                                         <th className="px-3 py-2">Calidad IA</th>
                                         <th className="px-3 py-2">Velocidad</th>
                                         <th className="px-3 py-2">Examen</th>
                                         <th className="px-3 py-2">NPS</th>
                                         <th className="px-3 py-2">Fricciones</th>
+                                        <th className="px-3 py-2">Comentarios</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -311,14 +346,16 @@ export default function UxUiMetricsHistory({ userId, userName, onBack, embedded 
                                             <td className="whitespace-nowrap px-3 py-3 text-xs text-gray-500 dark:text-gray-400">
                                                 {formatDate(record.measured_at || record.created)}
                                             </td>
-                                            <td className="min-w-52 px-3 py-3">{record.context || 'Sin contexto'}</td>
                                             <td className="whitespace-nowrap px-3 py-3 font-semibold">{formatUxUiScore(record.ease_of_use)}</td>
                                             <td className="whitespace-nowrap px-3 py-3 font-semibold">{formatUxUiScore(record.answer_quality)}</td>
                                             <td className="whitespace-nowrap px-3 py-3 font-semibold">{formatUxUiScore(record.response_speed)}</td>
                                             <td className="whitespace-nowrap px-3 py-3 font-semibold">{formatUxUiScore(record.exam_similarity)}</td>
                                             <td className="whitespace-nowrap px-3 py-3 font-semibold">{formatUxUiScore(record.nps, '/10')}</td>
                                             <td className="min-w-60 px-3 py-3 text-xs text-gray-500 dark:text-gray-400">
-                                                {record.friction_points || record.comments || '-'}
+                                                {record.friction_points || '-'}
+                                            </td>
+                                            <td className="min-w-60 px-3 py-3 text-xs text-gray-500 dark:text-gray-400">
+                                                {record.comments || '-'}
                                             </td>
                                         </tr>
                                     ))}

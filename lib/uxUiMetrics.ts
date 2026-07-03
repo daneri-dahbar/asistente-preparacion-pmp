@@ -55,6 +55,7 @@ export interface UxUiMetricSnapshotRecord {
 }
 
 export interface UxUiMetricFormValues {
+    measured_at: string;
     context: string;
     ease_of_use: string;
     answer_quality: string;
@@ -65,7 +66,16 @@ export interface UxUiMetricFormValues {
     comments: string;
 }
 
+function padDatePart(value: number) {
+    return String(value).padStart(2, '0');
+}
+
+export function formatDateTimeLocalInput(date = new Date()) {
+    return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}T${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}`;
+}
+
 export const EMPTY_UX_UI_METRIC_FORM: UxUiMetricFormValues = {
+    measured_at: formatDateTimeLocalInput(),
     context: 'Uso de pantalla principal, chat y simulaciones',
     ease_of_use: '5',
     answer_quality: '5',
@@ -103,7 +113,21 @@ export function classifyNps(value: number | null) {
     return 'Detractor';
 }
 
+export function normalizeMeasuredAtValue(value: string) {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const normalized = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(trimmed)
+        ? `${trimmed}:00-03:00`
+        : trimmed;
+    const date = new Date(normalized);
+
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toISOString();
+}
+
 export function buildUxUiMetricPayload(userId: string, values: UxUiMetricFormValues) {
+    const measuredAt = normalizeMeasuredAtValue(values.measured_at);
     const easeOfUse = normalizeLikertValue(values.ease_of_use);
     const answerQuality = normalizeLikertValue(values.answer_quality);
     const responseSpeed = normalizeLikertValue(values.response_speed);
@@ -116,9 +140,13 @@ export function buildUxUiMetricPayload(userId: string, values: UxUiMetricFormVal
         throw new Error('Completa todos los valores de la encuesta UX/UI.');
     }
 
+    if (!measuredAt) {
+        throw new Error('Debes indicar una fecha y hora valida para la medicion UX/UI.');
+    }
+
     return {
         user: userId,
-        measured_at: new Date().toISOString(),
+        measured_at: measuredAt,
         context: values.context.trim() || 'Medicion UX/UI sin contexto especifico',
         ease_of_use: easeOfUse,
         answer_quality: answerQuality,

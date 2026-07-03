@@ -63,6 +63,7 @@ export default function Sidebar({
         { id: 'users', label: 'Usuarios', icon: Users },
         { id: 'evaluation', label: 'Evaluación', icon: CheckCircle },
         { id: 'simulations', label: 'Simulaciones', icon: ClipboardCheck },
+        { id: 'uxMetrics', label: 'Mediciones UX/UI', icon: Smile },
         { id: 'guided', label: 'Modo guiado', icon: BookOpen },
         { id: 'cleanup', label: 'Limpiar BD', icon: Trash2 },
     ];

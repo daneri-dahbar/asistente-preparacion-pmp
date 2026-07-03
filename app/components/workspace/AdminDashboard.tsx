@@ -175,6 +175,7 @@ interface GuidedUsageFormState {
     endDate: string;
     levelCount: string;
     interactionsPerLevel: string;
+    generationMode: 'replace' | 'append';
 }
 
 interface CleanupResult {
@@ -193,7 +194,7 @@ interface UserSummary {
     lastActivity: string | null;
 }
 
-export type AdminView = 'overview' | 'defense' | 'evaluation' | 'users' | 'cleanup' | 'guided' | 'simulations' | 'research';
+export type AdminView = 'overview' | 'defense' | 'evaluation' | 'users' | 'cleanup' | 'guided' | 'simulations' | 'uxMetrics' | 'research';
 
 interface EvaluationTechnicalMetric {
     id: string;
@@ -556,6 +557,7 @@ const EMPTY_GUIDED_USAGE_FORM: GuidedUsageFormState = {
     endDate: new Date().toISOString().slice(0, 10),
     levelCount: '10',
     interactionsPerLevel: '4',
+    generationMode: 'replace',
 };
 
 const MODE_LABELS: Record<string, string> = {
@@ -570,6 +572,28 @@ const MODE_LABELS: Record<string, string> = {
     math: 'Formulas',
 };
 
+function guidedPhaseNumber(worldId?: number) {
+    if (!worldId) return 0;
+    if (worldId <= 2) return 1;
+    if (worldId <= 6) return 2;
+    if (worldId <= 14) return 3;
+    if (worldId === 15) return 4;
+    if (worldId <= 18) return 5;
+    return 0;
+}
+
+function guidedPhaseName(worldId?: number) {
+    const phaseNames: Record<number, string> = {
+        1: 'Estandar para la Direccion de Proyectos',
+        2: 'Guia PMBOK y adaptacion',
+        3: 'Dominios de desempeno',
+        4: 'Principios de direccion',
+        5: 'ECO PMP',
+    };
+
+    return phaseNames[guidedPhaseNumber(worldId)] || 'Fase no identificada';
+}
+
 const GUIDED_LEVELS = WORLDS
     .filter((world) => world.id !== 19)
     .flatMap((world) => world.levels.map((level, index) => ({
@@ -578,6 +602,8 @@ const GUIDED_LEVELS = WORLDS
         worldName: world.name,
         worldId: world.id,
         levelNumber: index + 1,
+        phaseName: guidedPhaseName(world.id),
+        phaseNumber: guidedPhaseNumber(world.id),
     })));
 
 const GUIDED_LEVELS_BY_ID = new Map(GUIDED_LEVELS.map((level) => [level.id, level]));
@@ -620,7 +646,10 @@ function practicedUnlockedLevels(userChats: ChatRecord[], messagesByChat: Record
         id: string;
         name: string;
         worldName: string;
+        worldId?: number;
         levelNumber: number;
+        phaseName: string;
+        phaseNumber: number;
         chats: number;
         messages: number;
         lastActivity: string | null;
@@ -635,7 +664,10 @@ function practicedUnlockedLevels(userChats: ChatRecord[], messagesByChat: Record
             id: knownLevel?.id || `level-${normalizedName}`,
             name: knownLevel?.name || levelName,
             worldName: knownLevel?.worldName || 'Nivel personalizado',
+            worldId: knownLevel?.worldId,
             levelNumber: knownLevel?.levelNumber || 0,
+            phaseName: knownLevel?.phaseName || 'Fase no identificada',
+            phaseNumber: knownLevel?.phaseNumber || 0,
             chats: 0,
             messages: 0,
             lastActivity: null,
@@ -671,6 +703,8 @@ type GuidedLevelActivityDetail = {
     worldName: string;
     worldId?: number;
     levelNumber: number;
+    phaseName: string;
+    phaseNumber: number;
     chats: number;
     messages: number;
     lastActivity: string | null;
@@ -705,6 +739,8 @@ function guidedLevelsWithActivity(
             worldName: current?.worldName || catalogLevel?.worldName || level.worldName,
             worldId: current?.worldId ?? catalogLevel?.worldId,
             levelNumber: current?.levelNumber || catalogLevel?.levelNumber || level.levelNumber,
+            phaseName: current?.phaseName || catalogLevel?.phaseName || level.phaseName,
+            phaseNumber: current?.phaseNumber || catalogLevel?.phaseNumber || level.phaseNumber,
             chats: level.chats,
             messages: level.messages,
             lastActivity: level.lastActivity,
@@ -714,8 +750,7 @@ function guidedLevelsWithActivity(
     });
 
     return Array.from(byId.values()).sort((a, b) => {
-        const activityDiff = new Date(b.lastActivity || 0).getTime() - new Date(a.lastActivity || 0).getTime();
-        if (activityDiff !== 0) return activityDiff;
+        if ((a.phaseNumber || 0) !== (b.phaseNumber || 0)) return (a.phaseNumber || 0) - (b.phaseNumber || 0);
         if ((a.worldId || 0) !== (b.worldId || 0)) return (a.worldId || 0) - (b.worldId || 0);
         return a.levelNumber - b.levelNumber;
     });
@@ -1974,11 +2009,15 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
         },
         guided: {
             title: 'Modo guiado',
-            description: 'Genera uso guiado desde cero para un aspirante, creando progreso, chats, mensajes y metricas asociadas.',
+            description: 'Genera o continua uso guiado para un aspirante, creando progreso, chats, mensajes y metricas asociadas.',
         },
         simulations: {
             title: 'Generador de simulaciones',
             description: 'Crea intentos de examen asociados a usuarios con cantidad de preguntas y aciertos aproximados.',
+        },
+        uxMetrics: {
+            title: 'Mediciones UX/UI',
+            description: 'Genera mediciones UX/UI para un usuario aspirante y consulta su historial.',
         },
         research: {
             title: 'InvestigaciÃ³n UX',
@@ -2540,14 +2579,14 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                 <div className="mt-5">
                                     <div className={selectedEvaluationDimension.id === 'technology' || selectedEvaluationDimension.id === 'pedagogy' ? 'flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between' : 'max-w-5xl'}>
                                         <div>
-                                            {selectedEvaluationDimension.id !== 'technology' && selectedEvaluationDimension.id !== 'pedagogy' && (
+                                            {selectedEvaluationDimension.id !== 'technology' && selectedEvaluationDimension.id !== 'pedagogy' && selectedEvaluationDimension.id !== 'ux-ui' && (
                                                 <div className="inline-flex items-center gap-2 rounded-md bg-green-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-green-700 dark:bg-green-950/50 dark:text-green-200">
                                                     <CheckCircle className="h-4 w-4" />
                                                     {selectedEvaluationDimension.value}
                                                 </div>
                                             )}
-                                            <h2 className={`${selectedEvaluationDimension.id === 'technology' || selectedEvaluationDimension.id === 'pedagogy' ? '' : 'mt-4 '}text-xl font-bold text-gray-950 dark:text-white`}>{selectedEvaluationDimension.label}</h2>
-                                            {selectedEvaluationDimension.id !== 'technology' && selectedEvaluationDimension.id !== 'pedagogy' && (
+                                            <h2 className={`${selectedEvaluationDimension.id === 'technology' || selectedEvaluationDimension.id === 'pedagogy' || selectedEvaluationDimension.id === 'ux-ui' ? '' : 'mt-4 '}text-xl font-bold text-gray-950 dark:text-white`}>{selectedEvaluationDimension.label}</h2>
+                                            {selectedEvaluationDimension.id !== 'technology' && selectedEvaluationDimension.id !== 'pedagogy' && selectedEvaluationDimension.id !== 'ux-ui' && (
                                                 <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">{selectedEvaluationDimension.summary}</p>
                                             )}
                                             {selectedEvaluationDimension.id === 'pedagogy' && (
@@ -2672,13 +2711,7 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                             </section>
                             ) : selectedEvaluationDimension.id === 'ux-ui' ? (
                             <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                    <div>
-                                        <h3 className="text-base font-bold text-gray-950 dark:text-white">Metricas UX/UI del informe</h3>
-                                        <p className="mt-1 text-sm leading-6 text-gray-500 dark:text-gray-400">
-                                            Mediciones perceptuales guardadas por usuario aspirante, basadas en la encuesta UX del Anexo C.
-                                        </p>
-                                    </div>
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-end">
                                     <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                                         Usuario aspirante
                                         <select
@@ -2701,6 +2734,7 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                             userId={selectedUxUiMetricsUserId}
                                             userName={selectedUxUiMetricsUser?.name || selectedUxUiMetricsUser?.email || 'Usuario'}
                                             embedded
+                                            compactHeader
                                         />
                                     ) : (
                                         <div className="rounded-lg border border-gray-200 bg-gray-50 p-5 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-950/60 dark:text-gray-300">
@@ -3058,7 +3092,7 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                             <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
                                 <h2 className="text-base font-bold text-gray-950 dark:text-white">Generar recorrido de modo guiado</h2>
                                 <p className="mt-1 text-sm leading-6 text-gray-500 dark:text-gray-400">
-                                    Reemplaza el uso guiado existente del aspirante seleccionado y recorre cada nivel desde el inicio, creando las cuatro actividades con conversaciones extensas.
+                                    Genera uso guiado para el aspirante seleccionado, creando las cuatro actividades de cada nivel con conversaciones extensas.
                                 </p>
 
                                 <form onSubmit={handleGenerateGuidedUsage} className="mt-5 space-y-4">
@@ -3075,6 +3109,18 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                                     {user.name || user.email || 'Usuario'}
                                                 </option>
                                             ))}
+                                        </select>
+                                    </label>
+
+                                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+                                        Modo de generacion
+                                        <select
+                                            value={guidedUsageForm.generationMode}
+                                            onChange={(event) => handleGuidedUsageFormChange('generationMode', event.target.value as GuidedUsageFormState['generationMode'])}
+                                            className="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                        >
+                                            <option value="replace">Reemplazar recorrido existente</option>
+                                            <option value="append">Continuar desde el ultimo nivel existente</option>
                                         </select>
                                     </label>
 
@@ -3109,9 +3155,9 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                                 onChange={(event) => handleGuidedUsageFormChange('levelCount', event.target.value)}
                                                 className="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
                                             >
-                                                <option value="5">Primeros 5 niveles</option>
-                                                <option value="10">Primeros 10 niveles</option>
-                                                <option value="20">Primeros 20 niveles</option>
+                                                <option value="5">5 niveles</option>
+                                                <option value="10">10 niveles</option>
+                                                <option value="20">20 niveles</option>
                                                 <option value="all">Todos los niveles guiados</option>
                                             </select>
                                         </label>
@@ -3131,7 +3177,9 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                     </div>
 
                                     <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-                                        Esta accion elimina chats, mensajes, progreso guiado y metricas tecnicas actuales del aspirante seleccionado antes de generar el nuevo recorrido. Cada nivel crea 4 chats: Leccion Magistral, Entrenamiento Practico, Oraculo y Prueba de Fuego.
+                                        {guidedUsageForm.generationMode === 'replace'
+                                            ? 'Esta accion elimina chats, mensajes, progreso guiado y metricas tecnicas actuales del aspirante seleccionado antes de generar el nuevo recorrido. Cada nivel crea 4 chats: Leccion Magistral, Entrenamiento Practico, Oraculo y Prueba de Fuego.'
+                                            : 'Esta accion conserva los chats, mensajes, progreso guiado y metricas tecnicas existentes. Los nuevos niveles se agregan a continuacion del ultimo nivel guiado ya registrado para el aspirante seleccionado.'}
                                     </div>
 
                                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -3154,7 +3202,7 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                 <h2 className="text-base font-bold text-gray-950 dark:text-white">Que se genera</h2>
                                 <div className="mt-4 space-y-3">
                                     {[
-                                        ['Progreso', 'Marca los niveles completados en user_progress desde el primero hasta el limite elegido.'],
+                                        ['Progreso', 'Marca los niveles completados en user_progress. En modo continuar, agrega niveles despues del ultimo registrado.'],
                                         ['Actividades', 'Por cada nivel recorre Leccion Magistral, Entrenamiento Practico, Oraculo y Prueba de Fuego.'],
                                         ['Chats y mensajes', 'Crea un chat por actividad. El asistente inicia la conversacion y luego se generan varios turnos usuario/asistente con el endpoint real de IA.'],
                                         ['Metricas tecnicas', 'Registra snapshots tecnicos asociados al uso de las actividades del aspirante.'],
@@ -3167,6 +3215,49 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                 </div>
                             </section>
                         </div>
+                        )}
+
+                        {activeAdminView === 'uxMetrics' && (
+                        <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                    <h2 className="text-base font-bold text-gray-950 dark:text-white">Generar medicion UX/UI</h2>
+                                    <p className="mt-1 text-sm leading-6 text-gray-500 dark:text-gray-400">
+                                        Registra una medicion perceptual para el usuario aspirante seleccionado y consulta su historial.
+                                    </p>
+                                </div>
+                                <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                    Usuario aspirante
+                                    <select
+                                        value={selectedUxUiMetricsUserId}
+                                        onChange={(event) => setSelectedUxUiMetricsUserId(event.target.value)}
+                                        className="mt-1 block min-w-64 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                    >
+                                        {regularUsers.map((user) => (
+                                            <option key={user.id} value={user.id}>
+                                                {user.name || user.email || 'Usuario'}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+                            </div>
+
+                            <div className="mt-6">
+                                {selectedUxUiMetricsUserId ? (
+                                    <UxUiMetricsHistory
+                                        userId={selectedUxUiMetricsUserId}
+                                        userName={selectedUxUiMetricsUser?.name || selectedUxUiMetricsUser?.email || 'Usuario'}
+                                        embedded
+                                        allowCreate
+                                        adminCreate
+                                    />
+                                ) : (
+                                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-5 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-950/60 dark:text-gray-300">
+                                        No hay usuarios aspirantes disponibles para generar mediciones UX/UI.
+                                    </div>
+                                )}
+                            </div>
+                        </section>
                         )}
 
                         {activeAdminView === 'simulations' && (
@@ -3495,31 +3586,18 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                                     <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                                                         {selectedHistory.completedGuidedLevelDetails.map((level) => (
                                                             <div key={level.id} className="rounded-md bg-white p-3 dark:bg-gray-900">
-                                                                <div className="flex items-start gap-2">
-                                                                    {level.completed ? (
-                                                                        <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                                                                    ) : (
-                                                                        <Activity className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 dark:text-blue-300" />
-                                                                    )}
-                                                                    <div className="min-w-0">
+                                                                <div className="space-y-2">
+                                                                    <div>
+                                                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Nivel {level.levelNumber}</p>
                                                                         <p className="text-sm font-semibold text-gray-950 dark:text-white">{level.name}</p>
-                                                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                                                            {level.worldName} - Nivel {level.levelNumber}
-                                                                        </p>
-                                                                        {level.activityTypes.length > 0 && (
-                                                                            <>
-                                                                                <div className="mt-2 flex flex-wrap gap-1">
-                                                                                    {level.activityTypes.map((activityType) => (
-                                                                                        <span key={activityType} className="rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-200">
-                                                                                            {activityType}
-                                                                                        </span>
-                                                                                    ))}
-                                                                                </div>
-                                                                                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                                                                    {level.chats} chats - {level.messages} mensajes - {formatDate(level.lastActivity)}
-                                                                                </p>
-                                                                            </>
-                                                                        )}
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Etapa {level.worldId || 'N/A'}</p>
+                                                                        <p className="text-xs text-gray-600 dark:text-gray-300">{level.worldName}</p>
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Fase {level.phaseNumber || 'N/A'}</p>
+                                                                        <p className="text-xs text-gray-600 dark:text-gray-300">{level.phaseName}</p>
                                                                     </div>
                                                                 </div>
                                                             </div>

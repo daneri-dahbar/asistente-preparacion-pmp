@@ -29,6 +29,18 @@ interface ChatResponse {
     firstChunkMs: number;
 }
 
+interface GuidedGeneratedMessage {
+    role: 'assistant' | 'user';
+    content: string;
+}
+
+interface ExistingGuidedContext {
+    progressRecord: { id: string; completed_levels?: string[]; stats?: Record<string, unknown> } | null;
+    completedLevelIds: string[];
+    nextLevelIndex: number;
+    lastActivity: Date | null;
+}
+
 const PB_URL = process.env.PB_URL || process.env.POCKETBASE_URL || process.env.NEXT_PUBLIC_POCKETBASE_URL || 'http://127.0.0.1:8090';
 const PB_ADMIN_EMAIL = process.env.PB_ADMIN_EMAIL || process.env.POCKETBASE_ADMIN_EMAIL;
 const PB_ADMIN_PASSWORD = process.env.PB_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD;
@@ -122,16 +134,109 @@ function buildGuidedLevels(): GuidedLevel[] {
     ));
 }
 
-function spreadDate(index: number, total: number, startDate: Date, endDate: Date) {
-    if (total <= 1) return new Date(startDate);
+function pseudoRandom(seed: number) {
+    const value = Math.sin(seed * 9301 + 49297) * 233280;
+    return value - Math.floor(value);
+}
 
-    const start = startDate.getTime();
-    const end = Math.max(start, endDate.getTime());
-    const ratio = index / (total - 1);
-    const base = start + (end - start) * ratio;
-    const minuteOffset = (index % 6) * 11 * 60 * 1000;
+function minutesBetween(min: number, max: number, seed: number) {
+    return Math.round(min + pseudoRandom(seed) * (max - min));
+}
 
-    return new Date(base + minuteOffset);
+function buildGuidedActivitySchedule(levelCount: number, activitiesPerLevel: number, startDate: Date, endDate: Date) {
+    const schedule: Date[] = [];
+    const minimumActivityGapMs = 24 * 60 * 1000;
+    const levelStartGapMs = 150 * 60 * 1000;
+    const totalLevels = Math.max(1, levelCount);
+    const rangeStart = startDate.getTime();
+    const rangeEnd = endDate.getTime();
+    const hasUsableRange = rangeEnd > rangeStart + levelStartGapMs * Math.max(1, totalLevels - 1);
+
+    let cursor = new Date(startDate);
+
+    for (let levelIndex = 0; levelIndex < levelCount; levelIndex += 1) {
+        const distributedLevelStart = hasUsableRange
+            ? new Date(rangeStart + ((rangeEnd - rangeStart) * levelIndex) / Math.max(1, totalLevels - 1))
+            : cursor;
+        const levelJitterMinutes = hasUsableRange ? minutesBetween(0, 65, levelIndex + 11) : 0;
+        const levelStart = new Date(Math.max(cursor.getTime(), distributedLevelStart.getTime() + levelJitterMinutes * 60 * 1000));
+        let activityCursor = new Date(levelStart);
+
+        for (let activityIndex = 0; activityIndex < activitiesPerLevel; activityIndex += 1) {
+            if (activityIndex > 0) {
+                const activityGapMinutes = minutesBetween(32, 74, levelIndex * 17 + activityIndex * 23);
+                activityCursor = new Date(activityCursor.getTime() + activityGapMinutes * 60 * 1000);
+            }
+
+            schedule.push(new Date(activityCursor));
+        }
+
+        const levelGapMinutes = minutesBetween(115, 310, levelIndex * 29 + 7);
+        const minimumNextLevel = activityCursor.getTime() + minimumActivityGapMs + levelGapMinutes * 60 * 1000;
+        cursor = new Date(minimumNextLevel);
+    }
+
+    return schedule;
+}
+
+function getLevelIndexById(levels: GuidedLevel[], levelId: string) {
+    return levels.findIndex((level) => level.id === levelId);
+}
+
+function getLevelIndexByMode(levels: GuidedLevel[], mode?: string) {
+    const [modePrefix, ...topicParts] = (mode || '').split(':');
+    if (!GUIDED_ACTIVITIES.some((activity) => activity.modePrefix === modePrefix)) return -1;
+
+    const topic = topicParts.join(':').trim();
+    if (!topic) return -1;
+
+    return levels.findIndex((level) => level.topic === topic);
+}
+
+function maxDateFromValues(values: Array<string | undefined | null>) {
+    return values.reduce<Date | null>((latest, value) => {
+        if (!value) return latest;
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return latest;
+        if (!latest || date.getTime() > latest.getTime()) return date;
+        return latest;
+    }, null);
+}
+
+async function getExistingGuidedContext(pb: PocketBase, userId: string, levels: GuidedLevel[]): Promise<ExistingGuidedContext> {
+    const progressRecords = await withPocketBaseRetry('list existing guided progress', () => (
+        pb.collection('user_progress').getFullList<{ id: string; completed_levels?: string[]; stats?: Record<string, unknown>; updated?: string; created?: string }>({
+            filter: `user="${userId}"`,
+            sort: '-updated',
+            requestKey: null,
+        })
+    )).catch(() => []);
+    const progressRecord = progressRecords[0] || null;
+    const completedLevelIds = Array.from(new Set(
+        progressRecords.flatMap((record) => Array.isArray(record.completed_levels) ? record.completed_levels : [])
+    ));
+    const progressMaxIndex = completedLevelIds.reduce((maxIndex, levelId) => (
+        Math.max(maxIndex, getLevelIndexById(levels, levelId))
+    ), -1);
+
+    const guidedChats = await withPocketBaseRetry('list existing guided chats', () => (
+        pb.collection('chats').getFullList<{ mode?: string; last_active?: string; updated?: string; created?: string }>({
+            filter: `user="${userId}"`,
+            fields: 'mode,last_active,updated,created',
+            requestKey: null,
+        })
+    )).catch(() => []);
+    const chatMaxIndex = guidedChats.reduce((maxIndex, chat) => (
+        Math.max(maxIndex, getLevelIndexByMode(levels, chat.mode))
+    ), -1);
+    const lastActivity = maxDateFromValues(guidedChats.flatMap((chat) => [chat.last_active, chat.updated, chat.created]));
+
+    return {
+        progressRecord,
+        completedLevelIds,
+        nextLevelIndex: Math.max(progressMaxIndex, chatMaxIndex) + 1,
+        lastActivity,
+    };
 }
 
 function buildStartMessage(activity: GuidedActivity, topic: string) {
@@ -184,6 +289,119 @@ function buildUserPrompt(activity: GuidedActivity, topic: string, turnIndex: num
 
     const prompts = promptSets[activity.key];
     return prompts[turnIndex] || prompts[prompts.length - 1];
+}
+
+function buildFullConversationPrompt(activity: GuidedActivity, topic: string, turnsPerActivity: number) {
+    const plannedUserMessages = Array.from({ length: turnsPerActivity }, (_, index) => (
+        `${index + 1}. ${buildUserPrompt(activity, topic, index)}`
+    )).join('\n');
+    const totalMessages = 1 + turnsPerActivity * 2;
+
+    return [
+        `Genera una conversacion historica simulada para la actividad "${activity.label}" sobre "${topic}" en una app de preparacion PMP.`,
+        `El asistente debe iniciar la conversacion como si respondiera al evento ${buildStartMessage(activity, topic)}.`,
+        `Luego deben alternarse exactamente ${turnsPerActivity} mensajes del usuario aspirante y ${turnsPerActivity} respuestas del asistente.`,
+        `La conversacion completa debe tener exactamente ${totalMessages} mensajes: assistant, user, assistant, user, assistant...`,
+        'Usa respuestas utiles, contextualizadas y suficientemente desarrolladas, pero sin extenderte de mas.',
+        'Respeta estos mensajes o intenciones del usuario aspirante, en este orden:',
+        plannedUserMessages,
+        'Devuelve solamente JSON valido, sin markdown ni texto adicional, con esta forma exacta:',
+        '{"messages":[{"role":"assistant","content":"..."},{"role":"user","content":"..."},{"role":"assistant","content":"..."}]}',
+    ].join('\n\n');
+}
+
+function getJsonCandidate(content: string) {
+    const trimmed = content.trim()
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```$/i, '')
+        .trim();
+
+    try {
+        JSON.parse(trimmed);
+        return trimmed;
+    } catch {
+        const firstBrace = trimmed.indexOf('{');
+        const lastBrace = trimmed.lastIndexOf('}');
+        if (firstBrace >= 0 && lastBrace > firstBrace) {
+            return trimmed.slice(firstBrace, lastBrace + 1);
+        }
+    }
+
+    return trimmed;
+}
+
+function fallbackAssistantMessage(activity: GuidedActivity, topic: string, turnIndex: number) {
+    const closings: Record<GuidedActivity['key'], string> = {
+        lesson: `Para estudiar ${topic}, conserva la idea central, un ejemplo situacional y una senal del enunciado que te indique cuando aplicarlo.`,
+        practice: `Tu respuesta mejora si explicitas el criterio de decision, el impacto en los interesados y el siguiente paso verificable.`,
+        oracle: `La clave para distinguir ${topic} es leer el contexto, identificar la necesidad dominante y descartar opciones que resuelven otro problema.`,
+        exam: `En una pregunta de examen, prioriza la opcion que preserve valor, comunicacion clara y alineacion con el enfoque del escenario.`,
+    };
+
+    return [
+        `Buen avance. En ${topic}, lo importante es razonar la situacion antes de elegir una herramienta o respuesta.`,
+        `Sobre tu intervencion ${turnIndex + 1}, la respuesta esperada debe conectar el concepto con una accion concreta del director del proyecto.`,
+        closings[activity.key],
+    ].join(' ');
+}
+
+function buildFallbackConversation(activity: GuidedActivity, topic: string, turnsPerActivity: number): GuidedGeneratedMessage[] {
+    const messages: GuidedGeneratedMessage[] = [{
+        role: 'assistant',
+        content: `${activity.label} iniciada para ${topic}. Vamos a trabajar el concepto con una conversacion guiada, ejemplos y retroalimentacion aplicada al examen PMP.`,
+    }];
+
+    for (let index = 0; index < turnsPerActivity; index += 1) {
+        messages.push({ role: 'user', content: buildUserPrompt(activity, topic, index) });
+        messages.push({ role: 'assistant', content: fallbackAssistantMessage(activity, topic, index) });
+    }
+
+    return messages;
+}
+
+function parseGeneratedConversation(content: string, activity: GuidedActivity, topic: string, turnsPerActivity: number): GuidedGeneratedMessage[] {
+    const expectedLength = 1 + turnsPerActivity * 2;
+
+    try {
+        const parsed = JSON.parse(getJsonCandidate(content)) as { messages?: Array<{ role?: unknown; content?: unknown }> };
+        const messages = Array.isArray(parsed.messages) ? parsed.messages : [];
+        const normalized = messages.map((message): GuidedGeneratedMessage | null => {
+            const role = message.role === 'assistant' || message.role === 'user' ? message.role : null;
+            const messageContent = typeof message.content === 'string' ? message.content.trim() : '';
+            if (!role || !messageContent) return null;
+            return { role, content: messageContent };
+        }).filter((message): message is GuidedGeneratedMessage => Boolean(message));
+
+        if (normalized.length !== expectedLength) {
+            throw new Error(`La conversacion generada tiene ${normalized.length} mensajes y se esperaban ${expectedLength}.`);
+        }
+
+        for (let index = 0; index < normalized.length; index += 1) {
+            const expectedRole = index % 2 === 0 ? 'assistant' : 'user';
+            if (normalized[index].role !== expectedRole) {
+                throw new Error(`Rol invalido en el mensaje ${index + 1}.`);
+            }
+        }
+
+        return normalized;
+    } catch (error) {
+        console.warn('No se pudo interpretar la conversacion guiada generada; se usa fallback local.', error);
+        return buildFallbackConversation(activity, topic, turnsPerActivity);
+    }
+}
+
+function getGuidedMessageTimestamp(activityDate: Date, messageIndex: number, firstChunkMs: number) {
+    if (messageIndex === 0) return new Date(activityDate);
+
+    const turnIndex = Math.floor((messageIndex - 1) / 2);
+    const turnBase = activityDate.getTime() + turnIndex * 7 * 60 * 1000;
+    const userTime = turnBase + 2 * 60 * 1000;
+
+    if (messageIndex % 2 === 1) {
+        return new Date(userTime);
+    }
+
+    return new Date(userTime + Math.max(45000, Math.round(firstChunkMs)));
 }
 
 async function authAsSuperuser(pb: PocketBase) {
@@ -325,64 +543,44 @@ async function createGuidedChat(pb: PocketBase, req: Request, params: {
         mode,
         last_active: formatPocketBaseDate(params.activityDate),
     }, { requestKey: null }));
-    const conversation: Array<{ role: string; content: string }> = [];
     let messagesCreated = 0;
     let assistantResponsesCreated = 0;
 
-    const startTimestamp = new Date(params.activityDate);
-    const openingMessages = [{ role: 'user', content: buildStartMessage(params.activity, params.level.topic) }];
-    const openingResponse = await callChatBackend(req, {
-        userId: params.userId,
-        chatId: chat.id,
-        mode,
-        messages: openingMessages,
-    });
-
-    await withPocketBaseRetry('create opening assistant message', () => pb.collection('messages').create({
-        content: openingResponse.content || `${params.activity.label} iniciada para ${params.level.topic}.`,
-        role: 'assistant',
-        user: params.userId,
-        chat: chat.id,
-        generated_at: formatPocketBaseDate(startTimestamp),
-    }, { requestKey: null }));
-    messagesCreated += 1;
-    assistantResponsesCreated += 1;
-    conversation.push({ role: 'assistant', content: openingResponse.content });
-
-    for (let interactionIndex = 0; interactionIndex < params.turnsPerActivity; interactionIndex += 1) {
-        const timestamp = new Date(params.activityDate.getTime() + interactionIndex * 7 * 60 * 1000);
-        const userTimestamp = new Date(timestamp.getTime() + 2 * 60 * 1000);
-        const prompt = buildUserPrompt(params.activity, params.level.topic, interactionIndex);
-
-        await withPocketBaseRetry('create user message', () => pb.collection('messages').create({
-            content: prompt,
-            role: 'user',
-            user: params.userId,
-            chat: chat.id,
-            generated_at: formatPocketBaseDate(userTimestamp),
-        }, { requestKey: null }));
-        messagesCreated += 1;
-        conversation.push({ role: 'user', content: prompt });
-        const requestMessages = [...conversation];
-
-        const response = await callChatBackend(req, {
+    let generatedResponse: ChatResponse = { content: '', chunkCount: 0, firstChunkMs: 0 };
+    try {
+        generatedResponse = await callChatBackend(req, {
             userId: params.userId,
             chatId: chat.id,
             mode,
-            messages: requestMessages,
+            messages: [{
+                role: 'user',
+                content: buildFullConversationPrompt(params.activity, params.level.topic, params.turnsPerActivity),
+            }],
         });
-        const assistantTimestamp = new Date(userTimestamp.getTime() + Math.max(500, response.firstChunkMs));
+    } catch (error) {
+        console.warn('No se pudo generar conversacion completa con IA; se usa fallback local.', error);
+    }
 
-        await withPocketBaseRetry('create assistant message', () => pb.collection('messages').create({
-            content: response.content || `Resumen guiado sobre ${params.level.topic}.`,
-            role: 'assistant',
+    const generatedConversation = parseGeneratedConversation(
+        generatedResponse.content,
+        params.activity,
+        params.level.topic,
+        params.turnsPerActivity,
+    );
+
+    for (let messageIndex = 0; messageIndex < generatedConversation.length; messageIndex += 1) {
+        const message = generatedConversation[messageIndex];
+        await withPocketBaseRetry(`create guided ${message.role} message`, () => pb.collection('messages').create({
+            content: message.content,
+            role: message.role,
             user: params.userId,
             chat: chat.id,
-            generated_at: formatPocketBaseDate(assistantTimestamp),
+            generated_at: formatPocketBaseDate(getGuidedMessageTimestamp(params.activityDate, messageIndex, generatedResponse.firstChunkMs)),
         }, { requestKey: null }));
         messagesCreated += 1;
-        assistantResponsesCreated += 1;
-        conversation.push({ role: 'assistant', content: response.content });
+        if (message.role === 'assistant') {
+            assistantResponsesCreated += 1;
+        }
     }
 
     await withPocketBaseRetry('update guided chat last_active', () => pb.collection('chats').update(chat.id, {
@@ -404,14 +602,13 @@ export async function POST(req: Request) {
         const body = await req.json();
         const userId = typeof body.userId === 'string' ? body.userId.trim() : '';
         const allLevels = buildGuidedLevels();
+        const generationMode = body.generationMode === 'append' ? 'append' : 'replace';
         const requestedLevelCount = body.levelCount === 'all'
             ? allLevels.length
             : clamp(Number(body.levelCount || 10), 1, allLevels.length);
         const turnsPerActivity = clamp(Number(body.interactionsPerLevel || 4), 3, 8);
         const startDate = parseDate(body.startDate, new Date());
         const endDate = parseDate(body.endDate, startDate);
-        const selectedLevels = allLevels.slice(0, requestedLevelCount);
-        const totalActivities = selectedLevels.length * GUIDED_ACTIVITIES.length;
 
         if (!userId) {
             return NextResponse.json({ error: 'Debes indicar un usuario.' }, { status: 400 });
@@ -430,12 +627,43 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'El modo guiado solo puede asociarse a usuarios aspirantes.' }, { status: 400 });
         }
 
-        const deleted = {
-            messages: await deleteUserRecords(pb, 'messages', userId),
-            chats: await deleteUserRecords(pb, 'chats', userId),
-            progress: await deleteUserRecords(pb, 'user_progress', userId),
-            technicalMetrics: await deleteUserRecords(pb, 'technical_metric_snapshots', userId),
-        };
+        const existingContext = generationMode === 'append'
+            ? await getExistingGuidedContext(pb, userId, allLevels)
+            : null;
+        const startLevelIndex = generationMode === 'append' ? existingContext?.nextLevelIndex || 0 : 0;
+        const availableLevelCount = Math.max(0, allLevels.length - startLevelIndex);
+        const effectiveLevelCount = body.levelCount === 'all'
+            ? availableLevelCount
+            : Math.min(requestedLevelCount, availableLevelCount);
+        const selectedLevels = allLevels.slice(startLevelIndex, startLevelIndex + effectiveLevelCount);
+        const totalActivities = selectedLevels.length * GUIDED_ACTIVITIES.length;
+
+        if (selectedLevels.length === 0) {
+            return NextResponse.json({ error: 'No hay nuevos niveles guiados disponibles para agregar a este usuario.' }, { status: 400 });
+        }
+
+        const minimumAppendStartDate = existingContext?.lastActivity
+            ? new Date(existingContext.lastActivity.getTime() + 3 * 60 * 60 * 1000)
+            : null;
+        const effectiveStartDate = minimumAppendStartDate && minimumAppendStartDate.getTime() > startDate.getTime()
+            ? minimumAppendStartDate
+            : startDate;
+        const effectiveEndDate = endDate.getTime() < effectiveStartDate.getTime() ? effectiveStartDate : endDate;
+        const activitySchedule = buildGuidedActivitySchedule(selectedLevels.length, GUIDED_ACTIVITIES.length, effectiveStartDate, effectiveEndDate);
+
+        const deleted = generationMode === 'replace'
+            ? {
+                messages: await deleteUserRecords(pb, 'messages', userId),
+                chats: await deleteUserRecords(pb, 'chats', userId),
+                progress: await deleteUserRecords(pb, 'user_progress', userId),
+                technicalMetrics: await deleteUserRecords(pb, 'technical_metric_snapshots', userId),
+            }
+            : {
+                messages: 0,
+                chats: 0,
+                progress: 0,
+                technicalMetrics: 0,
+            };
         let messagesCreated = 0;
         let assistantResponsesCreated = 0;
         let chatsCreated = 0;
@@ -443,7 +671,7 @@ export async function POST(req: Request) {
         for (let levelIndex = 0; levelIndex < selectedLevels.length; levelIndex += 1) {
             for (let activityIndex = 0; activityIndex < GUIDED_ACTIVITIES.length; activityIndex += 1) {
                 const globalActivityIndex = levelIndex * GUIDED_ACTIVITIES.length + activityIndex;
-                const activityDate = spreadDate(globalActivityIndex, totalActivities, startDate, endDate);
+                const activityDate = activitySchedule[globalActivityIndex] || startDate;
                 const result = await createGuidedChat(pb, req, {
                     userId,
                     level: selectedLevels[levelIndex],
@@ -459,17 +687,24 @@ export async function POST(req: Request) {
             }
         }
 
-        const progress = await withPocketBaseRetry('create user progress', () => pb.collection('user_progress').create({
+        const completedLevelIds = generationMode === 'append'
+            ? Array.from(new Set([...(existingContext?.completedLevelIds || []), ...selectedLevels.map((level) => level.id)]))
+            : selectedLevels.map((level) => level.id);
+        const progressPayload = {
             user: userId,
-            completed_levels: selectedLevels.map((level) => level.id),
+            completed_levels: completedLevelIds,
             stats: {
+                ...(existingContext?.progressRecord?.stats || {}),
                 accuracy: 'N/A',
-                total_xp: selectedLevels.length * 100,
+                total_xp: completedLevelIds.length * 100,
                 syntheticUsage: {
                     source: 'admin-guided-usage-generator',
-                    periodStart: formatPocketBaseDate(startDate),
-                    periodEnd: formatPocketBaseDate(endDate),
-                    guidedLevelsCompleted: selectedLevels.length,
+                    mode: generationMode,
+                    periodStart: formatPocketBaseDate(effectiveStartDate),
+                    periodEnd: formatPocketBaseDate(effectiveEndDate),
+                    guidedLevelsCompleted: completedLevelIds.length,
+                    generatedLevelsThisRun: selectedLevels.length,
+                    startLevelIndex,
                     activitiesPerLevel: GUIDED_ACTIVITIES.length,
                     turnsPerActivity,
                     chatSessions: chatsCreated,
@@ -478,7 +713,14 @@ export async function POST(req: Request) {
                     minutesStudied: chatsCreated * (turnsPerActivity + 1) * 4,
                 },
             },
-        }, { requestKey: null }));
+        };
+        const progress = generationMode === 'append' && existingContext?.progressRecord
+            ? await withPocketBaseRetry('update user progress', () => (
+                pb.collection('user_progress').update(existingContext.progressRecord!.id, progressPayload, { requestKey: null })
+            ))
+            : await withPocketBaseRetry('create user progress', () => (
+                pb.collection('user_progress').create(progressPayload, { requestKey: null })
+            ));
 
         return NextResponse.json({
             deleted,
@@ -489,6 +731,8 @@ export async function POST(req: Request) {
                 chats: chatsCreated,
                 messages: messagesCreated,
                 technicalMetricSnapshots: totalActivities,
+                mode: generationMode,
+                startLevelIndex,
             },
         });
     } catch (error) {
