@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import pb from '@/lib/pocketbase';
@@ -400,11 +400,11 @@ const EVALUATION_TECHNICAL_METRICS: EvaluationTechnicalMetric[] = [
 const EVALUATION_DIMENSIONS: EvaluationDimension[] = [
     {
         id: 'technology',
-        label: 'Tecnologia',
+        label: 'Tecnología',
         value: 'Sobresaliente',
         detail: 'stack moderno, baja latencia y buen rendimiento',
         reportSource: 'Capitulo 7.1 y Tabla 7.4 - Evaluacion tecnica del sistema',
-        summary: 'La aplicacion se evalua como tecnicamente robusta por su arquitectura web moderna, respuesta en streaming, persistencia eficiente y capacidad de escalar sin rediseños profundos.',
+        summary: 'La aplicacion se evalua como tecnicamente robusta por su arquitectura web moderna, respuesta en streaming, persistencia eficiente y capacidad de escalar sin rediseÃ±os profundos.',
         justification: [
             'La arquitectura modular separa responsabilidades entre interfaz, rutas server-side, proveedor de IA y PocketBase.',
             'La respuesta en streaming reduce la espera percibida y permite leer antes de finalizar la generacion.',
@@ -427,7 +427,7 @@ const EVALUATION_DIMENSIONS: EvaluationDimension[] = [
     },
     {
         id: 'pedagogy',
-        label: 'Pedagogia',
+        label: 'Aprendizaje',
         value: 'Notable',
         detail: 'alta adaptabilidad con limite en citas especificas',
         reportSource: 'Capitulos 6, 7.2 y 9.1.2 - Evaluacion pedagogica y de contenidos',
@@ -483,20 +483,20 @@ const EVALUATION_DIMENSIONS: EvaluationDimension[] = [
         id: 'ux-ui',
         label: 'UX/UI',
         value: 'Sobresaliente',
-        detail: 'diseño intuitivo y gamificacion efectiva',
+        detail: 'diseÃ±o intuitivo y gamificacion efectiva',
         reportSource: 'Capitulos 6.2, 6.5, 7.2.3 y Anexo D - UX, gamificacion y evaluacion heuristica',
         summary: 'La dimension UX/UI se evalua como sobresaliente porque la interfaz combina ruta guiada, niveles, historico, simulaciones y panel administrativo con evidencia de uso y feedback de usuarios.',
         justification: [
             'La ruta por mundos y niveles reduce incertidumbre inicial y convierte el estudio en metas alcanzables.',
-            'El diseño responsive mantiene legibilidad en escritorio y dispositivos moviles.',
+            'El diseÃ±o responsive mantiene legibilidad en escritorio y dispositivos moviles.',
             'La evaluacion heuristica reporta cumplimiento alto en visibilidad de estado, consistencia, prevencion de errores y reconocimiento antes que recuerdo.',
-            'Los instrumentos UX vinculan hallazgos, puntos de dolor y decisiones concretas de diseño centrado en usuarios.',
+            'Los instrumentos UX vinculan hallazgos, puntos de dolor y decisiones concretas de diseÃ±o centrado en usuarios.',
         ],
         evidence: [
             'Usuario A acumula 44 chats, 287 mensajes, 10 niveles completados y 10 simulaciones completadas durante la ventana observada.',
             'NPS promedio registrado: 9.',
             'Utilidad percibida promedio: 4.8/5 en el informe y datos actuales visibles en la aplicacion.',
-            'Facilidad de uso promedio reportada: 4.5/5, con registros de sesiones UX vinculadas a decisiones de diseño.',
+            'Facilidad de uso promedio reportada: 4.5/5, con registros de sesiones UX vinculadas a decisiones de diseÃ±o.',
         ],
         conclusion: 'La calificacion sobresaliente se justifica por una experiencia clara, motivadora, trazable y respaldada por feedback UX versionado.',
         simulatedMetrics: [
@@ -991,7 +991,7 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                     sort: '-session_date',
                     requestKey: null,
                 }).catch((collectionError) => {
-                    console.warn('No se pudieron cargar sesiones de investigación de usuarios:', collectionError);
+                    console.warn('No se pudieron cargar sesiones de investigaciÃ³n de usuarios:', collectionError);
                     return [];
                 }),
                 pb.collection('user_research_instruments').getFullList({
@@ -1629,7 +1629,7 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
             setIsResearchResultFormOpen(false);
         } catch (saveError) {
             console.error('Error saving research session:', saveError);
-            setResearchNotice('No se pudo guardar la sesión. Verifica la colección user_research_sessions.');
+            setResearchNotice('No se pudo guardar la sesiÃ³n. Verifica la colecciÃ³n user_research_sessions.');
         } finally {
             setIsSavingResearch(false);
         }
@@ -1708,7 +1708,7 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
 
     const metricCards = [
         { label: 'Usuarios', value: dashboard.regularUserCount, detail: 'rol usuario', icon: Users, tone: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-300' },
-        { label: 'Activos 7 días', value: dashboard.activeUsers, detail: 'con actividad reciente', icon: Activity, tone: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-300' },
+        { label: 'Activos 7 dÃ­as', value: dashboard.activeUsers, detail: 'con actividad reciente', icon: Activity, tone: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-300' },
         { label: 'Chats', value: dashboard.regularChats.length, detail: `${dashboard.regularMessages.length} mensajes`, icon: MessageSquare, tone: 'text-cyan-600 bg-cyan-50 dark:bg-cyan-900/20 dark:text-cyan-300' },
         { label: 'Simulaciones', value: dashboard.regularSimulations.length, detail: `${dashboard.completedSimulations} completadas`, icon: CheckCircle, tone: 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-300' },
         { label: 'Feedback UX', value: dashboard.regularResearchSessions.length, detail: `${researchInstruments.length} instrumentos`, icon: ClipboardList, tone: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-300' },
@@ -1965,12 +1965,12 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
             description: 'Evidencia trazable para mostrar al tribunal: muestra, simulacros, feedback UX y relacion con la hipotesis.',
         },
         evaluation: {
-            title: 'Evaluación',
-            description: 'Evaluación técnica, pedagógica, UX y de sostenibilidad según el informe final de la aplicación.',
+            title: 'Evaluación integral de la aplicación',
+            description: '',
         },
         users: {
             title: 'Usuarios',
-            description: 'Histórico de uso y evolución individual de los usuarios.',
+            description: 'HistÃ³rico de uso y evoluciÃ³n individual de los usuarios.',
         },
         cleanup: {
             title: 'Limpiar BD',
@@ -1985,7 +1985,7 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
             description: 'Crea intentos de examen asociados a usuarios con cantidad de preguntas y aciertos aproximados.',
         },
         research: {
-            title: 'Investigación UX',
+            title: 'InvestigaciÃ³n UX',
             description: 'Instrumentos, entrevistas, encuestas y feedback registrado.',
         },
     }[activeAdminView];
@@ -2051,7 +2051,9 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
             <div className="mx-auto w-full max-w-7xl space-y-6">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-950 dark:text-white md:text-3xl">{adminViewTitle.title}</h1>
-                    <p className="mt-2 max-w-2xl text-sm text-gray-500 dark:text-gray-400">{adminViewTitle.description}</p>
+                    {adminViewTitle.description && (
+                        <p className="mt-2 max-w-2xl text-sm text-gray-500 dark:text-gray-400">{adminViewTitle.description}</p>
+                    )}
                 </div>
 
                 {error && (
@@ -2900,42 +2902,22 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                             )}
                         </div>
                         ) : (
-                        <div className="space-y-6">
-                            <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                                    <div className="max-w-3xl">
-                                        <div className="inline-flex items-center gap-2 rounded-md bg-green-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-green-700 dark:bg-green-950/50 dark:text-green-200">
-                                            <CheckCircle className="h-4 w-4" />
-                                            Informe final
+                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                            {EVALUATION_DIMENSIONS.map((item) => (
+                                <button
+                                    key={item.id}
+                                    type="button"
+                                    onClick={() => setSelectedEvaluationDimensionId(item.id)}
+                                    className="group rounded-lg border border-gray-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-blue-800 dark:hover:bg-blue-950/30"
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p className="text-xl font-bold text-gray-950 dark:text-white">{item.label}</p>
                                         </div>
-                                        <h2 className="mt-4 text-xl font-bold text-gray-950 dark:text-white">Evaluacion integral de la aplicacion</h2>
-                                        <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
-                                            Sintesis operativa basada en <span className="font-semibold">output/informe_final_para_aplicacion.pdf</span>. La lectura combina validacion con usuarios, auditoria tecnica, usabilidad, seguridad, sostenibilidad y trazabilidad con la hipotesis del trabajo.
-                                        </p>
+                                        <ChevronRight className="mt-1 h-4 w-4 text-gray-400 transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-300" />
                                     </div>
-                                </div>
-
-                                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                                    {EVALUATION_DIMENSIONS.map((item) => (
-                                        <button
-                                            key={item.id}
-                                            type="button"
-                                            onClick={() => setSelectedEvaluationDimensionId(item.id)}
-                                            className="group rounded-lg border border-gray-200 bg-gray-50 p-4 text-left transition-colors hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300 dark:border-gray-800 dark:bg-gray-950/60 dark:hover:border-blue-800 dark:hover:bg-blue-950/30"
-                                        >
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div>
-                                                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{item.label}</p>
-                                                    <p className="mt-2 text-xl font-bold text-gray-950 dark:text-white">{item.value}</p>
-                                                    <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{item.detail}</p>
-                                                </div>
-                                                <ChevronRight className="mt-1 h-4 w-4 text-gray-400 transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-300" />
-                                            </div>
-                                        </button>
-                                    ))}
-                                </div>
-                            </section>
-
+                                </button>
+                            ))}
                         </div>
                         )
                         )
@@ -3358,11 +3340,11 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                         </button>
                                     )}
                                     <h2 className="text-base font-bold text-gray-950 dark:text-white">
-                                        {activeAdminView === 'research' ? 'Investigación UX por usuario' : 'Detalle de usuario'}
+                                        {activeAdminView === 'research' ? 'InvestigaciÃ³n UX por usuario' : 'Detalle de usuario'}
                                     </h2>
                                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                                         {activeAdminView === 'research'
-                                            ? 'Diseña instrumentos y carga relevamientos asociados al usuario seleccionado.'
+                                            ? 'DiseÃ±a instrumentos y carga relevamientos asociados al usuario seleccionado.'
                                             : 'Actividad, progreso y simulaciones del usuario seleccionado.'}
                                     </p>
                                 </div>
@@ -3614,7 +3596,7 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                     <div className="grid gap-6 xl:grid-cols-2">
                                         <form onSubmit={handleSaveInstrument} className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950/60">
                                             <div className="flex items-center justify-between gap-3">
-                                                <h3 className="text-sm font-bold text-gray-950 dark:text-white">Diseñar instrumento de relevamiento</h3>
+                                                <h3 className="text-sm font-bold text-gray-950 dark:text-white">DiseÃ±ar instrumento de relevamiento</h3>
                                                 <FileText className="h-5 w-5 text-blue-600 dark:text-blue-300" />
                                             </div>
 
@@ -3626,7 +3608,7 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                                         onChange={(event) => handleInstrumentFormChange('title', event.target.value)}
                                                         required
                                                         className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-                                                        placeholder="Ej.: Entrevista de adopción inicial"
+                                                        placeholder="Ej.: Entrevista de adopciÃ³n inicial"
                                                     />
                                                 </label>
                                                 <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
@@ -3637,10 +3619,10 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                                         className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                                                     >
                                                         <option>Entrevista semi-estructurada</option>
-                                                        <option>Guía de observación</option>
+                                                        <option>GuÃ­a de observaciÃ³n</option>
                                                         <option>Prueba de usabilidad</option>
                                                         <option>Encuesta post-prueba</option>
-                                                        <option>Revisión de prototipo</option>
+                                                        <option>RevisiÃ³n de prototipo</option>
                                                     </select>
                                                 </label>
                                             </div>
@@ -3691,13 +3673,13 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                                     />
                                                 </label>
                                                 <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                                                    Instrucciones de aplicación
+                                                    Instrucciones de aplicaciÃ³n
                                                     <textarea
                                                         value={instrumentForm.instructions}
                                                         onChange={(event) => handleInstrumentFormChange('instructions', event.target.value)}
                                                         rows={4}
                                                         className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-                                                        placeholder="Cómo aplicar, registrar y cerrar la sesión."
+                                                        placeholder="CÃ³mo aplicar, registrar y cerrar la sesiÃ³n."
                                                     />
                                                 </label>
                                             </div>
@@ -3735,7 +3717,7 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                             </div>
 
                                             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">{instrumentNotice || 'El instrumento quedará disponible para asociarlo a sesiones relevadas.'}</p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">{instrumentNotice || 'El instrumento quedarÃ¡ disponible para asociarlo a sesiones relevadas.'}</p>
                                                 <button
                                                     type="submit"
                                                     disabled={isSavingInstrument || !instrumentForm.title.trim()}
@@ -3803,7 +3785,7 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                         {isResearchResultFormOpen && (
                                         <form onSubmit={handleSaveResearchSession} className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950/60">
                                             <div className="flex items-center justify-between gap-3">
-                                                <h3 className="text-sm font-bold text-gray-950 dark:text-white">Cargar feedback de sesión</h3>
+                                                <h3 className="text-sm font-bold text-gray-950 dark:text-white">Cargar feedback de sesiÃ³n</h3>
                                                 <ClipboardList className="h-5 w-5 text-blue-600 dark:text-blue-300" />
                                             </div>
 
@@ -3842,14 +3824,14 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                                         <option>Entrevista semi-estructurada</option>
                                                         <option>Observacion de uso</option>
                                                         <option>Prueba de usabilidad</option>
-                                                        <option>Revisión de prototipo</option>
+                                                        <option>RevisiÃ³n de prototipo</option>
                                                         <option>Encuesta post-prueba</option>
                                                     </select>
                                                 </label>
                                             </div>
 
                                             <label className="mt-3 block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                                                Contexto de la sesión
+                                                Contexto de la sesiÃ³n
                                                 <textarea
                                                     value={researchForm.context}
                                                     onChange={(event) => handleResearchFormChange('context', event.target.value)}
@@ -3867,7 +3849,7 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                                     rows={3}
                                                     required
                                                     className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-                                                    placeholder="Comentario cualitativo, percepción de utilidad, confianza o fricciones."
+                                                    placeholder="Comentario cualitativo, percepciÃ³n de utilidad, confianza o fricciones."
                                                 />
                                             </label>
 
@@ -4076,7 +4058,7 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                             <th className="px-5 py-3 text-right font-semibold">Simulaciones</th>
                                             <th className="px-5 py-3 text-right font-semibold">Mejor score</th>
                                             <th className="px-5 py-3 text-left font-semibold">Ultima actividad</th>
-                                            <th className="px-5 py-3 text-right font-semibold">Histórico</th>
+                                            <th className="px-5 py-3 text-right font-semibold">HistÃ³rico</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">

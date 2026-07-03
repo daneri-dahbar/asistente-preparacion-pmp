@@ -265,7 +265,7 @@ export default function Sidebar({
                             onClick={onLogout}
                             className="text-xs text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 truncate transition-colors flex items-center gap-1"
                         >
-                            Cerrar SesiÃ³n
+                            Cerrar Sesión
                         </button>
                     </div>
                 )}
