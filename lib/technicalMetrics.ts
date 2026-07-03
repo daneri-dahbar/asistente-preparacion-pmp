@@ -224,7 +224,7 @@ export async function captureAspirantTechnicalMetrics(pb: PocketBaseLike, userId
         const result = ttftResult.value as ChatStreamingResult;
         metrics.ttft = metricOk(formatMilliseconds(result.firstChunkMs), Math.round(result.firstChunkMs), 'Prompt: Hola, sin system prompt ni contexto adicional.');
         metrics.streaming = metricOk(
-            result.chunkCount > 1 ? `Activo (${result.chunkCount} fragmentos)` : 'Respuesta unica',
+            'Streaming correcto',
             result.chunkCount,
             'Cantidad de fragmentos recibidos desde el stream del chat.'
         );
@@ -293,6 +293,13 @@ export function technicalMetricValuesFromSnapshot(snapshot?: TechnicalMetricSnap
         cls: snapshot.metrics?.cls?.value || (typeof snapshot.cls === 'number' ? snapshot.cls.toFixed(3) : undefined),
         bundle: snapshot.metrics?.bundle?.value || (typeof snapshot.bundle_kb === 'number' ? `${snapshot.bundle_kb} KB` : undefined),
         'pocketbase-latency': snapshot.metrics?.['pocketbase-latency']?.value || (typeof snapshot.pocketbase_latency_ms === 'number' ? formatMilliseconds(snapshot.pocketbase_latency_ms) : undefined),
-        streaming: snapshot.metrics?.streaming?.value || snapshot.streaming_label,
+        streaming: normalizeStreamingLabel(snapshot.metrics?.streaming?.value || snapshot.streaming_label),
     } as Record<string, string | undefined>;
+}
+
+function normalizeStreamingLabel(value?: string) {
+    if (!value) return value;
+    return value === 'Respuesta unica' || value === 'Respuesta única' || value.startsWith('Activo (')
+        ? 'Streaming correcto'
+        : value;
 }

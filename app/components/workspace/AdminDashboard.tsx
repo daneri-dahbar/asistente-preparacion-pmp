@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import pb from '@/lib/pocketbase';
-import { Activity, AlertCircle, ArrowLeft, CheckCircle, ChevronDown, ChevronRight, ClipboardCheck, ClipboardList, Clock, FileText, MessageSquare, RefreshCw, Save, Target, Trash2, Trophy, Users } from 'lucide-react';
+import { Activity, AlertCircle, ArrowLeft, CheckCircle, ChevronDown, ChevronRight, ClipboardCheck, ClipboardList, Clock, FileText, MessageSquare, Save, Target, Trash2, Trophy, Users } from 'lucide-react';
 import { WORLDS } from '@/lib/gameData';
 import TechnicalMetricsHistory from './TechnicalMetricsHistory';
 import UxUiMetricsHistory from './UxUiMetricsHistory';
@@ -198,6 +198,7 @@ export type AdminView = 'overview' | 'defense' | 'evaluation' | 'users' | 'clean
 interface EvaluationTechnicalMetric {
     id: string;
     label: string;
+    translation: string;
     value: string;
     target: string;
     status: string;
@@ -248,8 +249,9 @@ const EVALUATION_TECHNICAL_METRICS: EvaluationTechnicalMetric[] = [
     {
         id: 'ttft',
         label: 'Time to first token',
+        translation: 'Tiempo hasta el primer token',
         value: '380 ms',
-        target: 'objetivo menor a 800 ms',
+        target: 'Objetivo menor a 800 ms',
         status: 'Cumple',
         reportSource: 'Capitulo 7, Tabla 7.1 - Metricas criticas de rendimiento',
         summary: 'Mide cuanto tarda el usuario en ver la primera parte de la respuesta generada por IA.',
@@ -273,8 +275,9 @@ const EVALUATION_TECHNICAL_METRICS: EvaluationTechnicalMetric[] = [
     {
         id: 'lcp',
         label: 'Largest contentful paint',
+        translation: 'Pintado del contenido principal',
         value: '1.2 s',
-        target: 'objetivo menor a 2.5 s',
+        target: 'Objetivo mejor a 2.5 s',
         status: 'Cumple',
         reportSource: 'Capitulo 7, Tabla 7.1 - Metricas criticas de rendimiento',
         summary: `Mide el tiempo de carga del elemento visual principal de la pantalla objetivo: ${ASPIRANT_MAIN_SCREEN_LABEL}.`,
@@ -298,11 +301,12 @@ const EVALUATION_TECHNICAL_METRICS: EvaluationTechnicalMetric[] = [
     {
         id: 'cls',
         label: 'Cumulative layout shift',
+        translation: 'Cambio acumulado de diseño',
         value: '0.05',
-        target: 'objetivo menor a 0.1',
+        target: 'Objetivo menor a 0.1',
         status: 'Cumple',
         reportSource: 'Capitulo 7, Tabla 7.1 - Metricas criticas de rendimiento',
-        summary: 'Mide la estabilidad visual: cuanto se mueven los elementos mientras carga la interfaz.',
+        summary: 'Mide la estabilidad visual: cuanto se mueven los elementos mientras carga la interfaz. Es un indice adimensional, sin unidad fisica; cuanto mas cerca de 0, mas estable es la pantalla. Una pantalla estable mantiene botones, textos y paneles en su lugar mientras carga. Por ejemplo: si el usuario esta por tocar "Comenzar" y aparece una imagen que empuja el boton hacia abajo, eso aumenta el CLS.',
         evidence: [
             'El informe reporta un CLS de 0.05.',
             'El valor queda por debajo del umbral de 0.1.',
@@ -323,8 +327,9 @@ const EVALUATION_TECHNICAL_METRICS: EvaluationTechnicalMetric[] = [
     {
         id: 'bundle',
         label: 'Bundle inicial',
+        translation: 'Paquete inicial descargado',
         value: '120 KB',
-        target: 'objetivo menor a 200 KB',
+        target: 'Objetivo menor a 200 kb',
         status: 'Cumple',
         reportSource: 'Capitulo 7, Tabla 7.1 - Metricas criticas de rendimiento',
         summary: 'Mide el tamano inicial de JavaScript descargado para iniciar la aplicacion.',
@@ -348,8 +353,9 @@ const EVALUATION_TECHNICAL_METRICS: EvaluationTechnicalMetric[] = [
     {
         id: 'pocketbase-latency',
         label: 'Latencia PocketBase',
+        translation: 'Tiempo de respuesta de la base de datos',
         value: '<10 ms',
-        target: 'lectura simple, objetivo menor a 50 ms',
+        target: 'Lectura simple, objetivo menor a 50 ms',
         status: 'Cumple',
         reportSource: 'Capitulo 7, Tabla 7.1 - Metricas criticas de rendimiento',
         summary: 'Mide el tiempo de respuesta de la capa de datos en operaciones simples.',
@@ -373,8 +379,9 @@ const EVALUATION_TECHNICAL_METRICS: EvaluationTechnicalMetric[] = [
     {
         id: 'streaming',
         label: 'Respuesta streaming',
+        translation: 'Respuesta transmitida por fragmentos',
         value: 'Tiempo real',
-        target: 'lectura de IA sin espera completa',
+        target: '',
         status: 'Cumple',
         reportSource: 'Capitulo 7.1.1 - Rendimiento y experiencia de usuario',
         summary: 'Demuestra que la respuesta del asistente se muestra por fragmentos mientras se genera.',
@@ -878,7 +885,7 @@ function generateTechnicalMetricValues(previousValues: Record<string, string>, m
     const generators: Record<string, () => string> = {
         bundle: () => `${randomInteger(95, 185)} KB`,
         'pocketbase-latency': () => `${randomInteger(5, 45)} ms`,
-        streaming: () => `Activo (${randomInteger(3, 9)} fragmentos)`,
+        streaming: () => 'Streaming correcto',
     };
 
     return Object.fromEntries(EVALUATION_TECHNICAL_METRICS.map((metric) => {
@@ -957,8 +964,6 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
     const [liveMetricMeasurement, setLiveMetricMeasurement] = useState<LiveMetricMeasurement | null>(null);
     const [liveMetricPrompt, setLiveMetricPrompt] = useState('Explica en dos frases breves por que el streaming mejora la experiencia de estudio.');
     const [technicalMetricValues, setTechnicalMetricValues] = useState<Record<string, string>>({});
-    const [isUpdatingTechnicalMetrics, setIsUpdatingTechnicalMetrics] = useState(false);
-    const [technicalMetricsUpdatedAt, setTechnicalMetricsUpdatedAt] = useState<string | null>(null);
     const [researchForm, setResearchForm] = useState<ResearchFormState>(EMPTY_RESEARCH_FORM);
     const [instrumentForm, setInstrumentForm] = useState<InstrumentFormState>(EMPTY_INSTRUMENT_FORM);
     const [simulationForm, setSimulationForm] = useState<SimulationFormState>(EMPTY_SIMULATION_FORM);
@@ -1045,7 +1050,9 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
     }, []);
 
     useEffect(() => {
-        const selectableUsers = users.filter((user) => (user.role || 'usuario') === 'usuario');
+        const selectableUsers = users
+            .filter((user) => (user.role || 'usuario') === 'usuario')
+            .sort((a, b) => (a.name || a.email || '').localeCompare(b.name || b.email || '', 'es', { sensitivity: 'base' }));
         if (!selectableUsers.length) {
             setSelectedUserId('');
             return;
@@ -1057,7 +1064,9 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
     }, [users, selectedUserId]);
 
     useEffect(() => {
-        const selectableUsers = users.filter((user) => (user.role || 'usuario') === 'usuario');
+        const selectableUsers = users
+            .filter((user) => (user.role || 'usuario') === 'usuario')
+            .sort((a, b) => (a.name || a.email || '').localeCompare(b.name || b.email || '', 'es', { sensitivity: 'base' }));
         if (!selectableUsers.length) {
             setGuidedUsageForm((current) => ({ ...current, userId: '' }));
             return;
@@ -1071,7 +1080,9 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
     }, [users]);
 
     useEffect(() => {
-        const selectableUsers = users.filter((user) => (user.role || 'usuario') === 'usuario');
+        const selectableUsers = users
+            .filter((user) => (user.role || 'usuario') === 'usuario')
+            .sort((a, b) => (a.name || a.email || '').localeCompare(b.name || b.email || '', 'es', { sensitivity: 'base' }));
         if (!selectableUsers.length) {
             setSelectedTechnicalMetricsUserId('');
             return;
@@ -1086,7 +1097,9 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
     }, [users, technicalMetricSnapshots, selectedTechnicalMetricsUserId]);
 
     useEffect(() => {
-        const selectableUsers = users.filter((user) => (user.role || 'usuario') === 'usuario');
+        const selectableUsers = users
+            .filter((user) => (user.role || 'usuario') === 'usuario')
+            .sort((a, b) => (a.name || a.email || '').localeCompare(b.name || b.email || '', 'es', { sensitivity: 'base' }));
         if (!selectableUsers.length) {
             setSelectedUxUiMetricsUserId('');
             return;
@@ -1154,24 +1167,6 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
     const handleGuidedUsageFormChange = (field: keyof GuidedUsageFormState, value: string) => {
         setGuidedUsageNotice(null);
         setGuidedUsageForm((current) => ({ ...current, [field]: value }));
-    };
-
-    const handleUpdateTechnicalMetrics = async () => {
-        if (isUpdatingTechnicalMetrics) return;
-
-        setIsUpdatingTechnicalMetrics(true);
-        try {
-            await loadPlatformData();
-            setTechnicalMetricsUpdatedAt(new Date().toLocaleTimeString('es-AR', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-            }));
-        } catch (updateError) {
-            console.error('No se pudieron recargar las metricas tecnicas:', updateError);
-        } finally {
-            setIsUpdatingTechnicalMetrics(false);
-        }
     };
 
     const measureChatStreaming = async (prompt: string, options: { omitSystemPrompt?: boolean } = {}) => {
@@ -1268,7 +1263,7 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                 const result = await measureChatStreaming(liveMetricPrompt.trim() || 'Explica en dos frases breves por que el streaming mejora la experiencia de estudio.');
                 setLiveMetricMeasurement({
                     status: 'success',
-                    value: result.chunkCount > 1 ? 'Streaming activo' : 'Respuesta unica',
+                    value: 'Streaming correcto',
                     detail: 'Se verifica si la respuesta llega en fragmentos antes de completarse.',
                     measuredAt,
                     responseText: result.responseText,
@@ -1722,7 +1717,8 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
     const regularUsers = useMemo(
         () => dashboard.summaries
             .filter((summary) => (summary.user.role || 'usuario') === 'usuario')
-            .map((summary) => summary.user),
+            .map((summary) => summary.user)
+            .sort((a, b) => (a.name || a.email || '').localeCompare(b.name || b.email || '', 'es', { sensitivity: 'base' })),
         [dashboard.summaries],
     );
 
@@ -2005,10 +2001,12 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
         technicalMetrics: technicalMetricSnapshots.filter((snapshot) => snapshot.user === selectedCleanupUserId).length,
         researchSessions: researchSessions.filter((session) => session.user === selectedCleanupUserId).length,
     } : null;
-    const selectedTechnicalMetricSnapshot = technicalMetricSnapshots.find((snapshot) => snapshot.user === selectedTechnicalMetricsUserId) || null;
+    const selectedTechnicalMetricSnapshot = technicalMetricSnapshots
+        .filter((snapshot) => snapshot.user === selectedTechnicalMetricsUserId)
+        .sort((a, b) => new Date(b.measured_at || b.created || 0).getTime() - new Date(a.measured_at || a.created || 0).getTime())[0] || null;
     const selectedTechnicalMetricValues = technicalMetricValuesFromSnapshot(selectedTechnicalMetricSnapshot);
     const selectedEvaluationMetricValue = selectedEvaluationMetric
-        ? selectedTechnicalMetricValues[selectedEvaluationMetric.id] || technicalMetricValues[selectedEvaluationMetric.id] || selectedEvaluationMetric.value
+        ? selectedTechnicalMetricValues[selectedEvaluationMetric.id] || 'Sin medición'
         : '';
     const selectedEvaluationSimulationSeries = evaluationSimulationSeries.find((series) => series.user.id === selectedEvaluationChartUserId)
         || evaluationSimulationSeries[0]
@@ -2525,7 +2523,11 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                         ) : (
                         selectedEvaluationDimension ? (
                         <div className="space-y-6">
-                            <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                            <section className={`rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 ${
+                                selectedEvaluationDimension.id === 'pedagogy'
+                                    ? 'rounded-b-none border-b-0 pb-3'
+                                    : ''
+                            }`}>
                                 <button
                                     type="button"
                                     onClick={() => setSelectedEvaluationDimensionId('')}
@@ -2536,113 +2538,119 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                 </button>
 
                                 <div className="mt-5">
-                                    <div className="max-w-5xl">
-                                        <div className="inline-flex items-center gap-2 rounded-md bg-green-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-green-700 dark:bg-green-950/50 dark:text-green-200">
-                                            <CheckCircle className="h-4 w-4" />
-                                            {selectedEvaluationDimension.value}
-                                        </div>
-                                        <h2 className="mt-4 text-xl font-bold text-gray-950 dark:text-white">{selectedEvaluationDimension.label}</h2>
-                                        <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">{selectedEvaluationDimension.summary}</p>
-                                    </div>
-                                </div>
-                            </section>
-
-                            {selectedEvaluationDimension.id === 'technology' ? (
-                            <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                    <div>
-                                        <h3 className="text-base font-bold text-gray-950 dark:text-white">Metricas tecnicas del informe</h3>
-                                        <p className="mt-1 text-sm leading-6 text-gray-500 dark:text-gray-400">
-                                            Indicadores reales guardados cuando el usuario aspirante ingresa a su pantalla principal.
-                                        </p>
-                                    </div>
-                                    <div className="flex flex-col items-start gap-2 sm:items-end">
-                                        <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                                            Usuario aspirante
-                                            <select
-                                                value={selectedTechnicalMetricsUserId}
-                                                onChange={(event) => setSelectedTechnicalMetricsUserId(event.target.value)}
-                                                className="mt-1 block min-w-56 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
-                                            >
-                                                {users.filter((user) => (user.role || 'usuario') === 'usuario').map((user) => (
-                                                    <option key={user.id} value={user.id}>
-                                                        {user.name || user.email || 'Usuario'}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </label>
-                                        <button
-                                            type="button"
-                                            onClick={handleUpdateTechnicalMetrics}
-                                            disabled={isUpdatingTechnicalMetrics}
-                                            className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
-                                        >
-                                            <RefreshCw className={`h-4 w-4 ${isUpdatingTechnicalMetrics ? 'animate-spin' : ''}`} />
-                                            {isUpdatingTechnicalMetrics ? 'Actualizando...' : 'Recargar datos'}
-                                        </button>
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <span className="rounded-md bg-green-50 px-2 py-1 text-xs font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-200">
-                                                Cumple
-                                            </span>
-                                            {(selectedTechnicalMetricSnapshot?.measured_at || technicalMetricsUpdatedAt) && (
-                                                <span className="text-xs text-gray-500 dark:text-gray-400">
-                                                    Ultima medicion {selectedTechnicalMetricSnapshot?.measured_at
-                                                        ? new Date(selectedTechnicalMetricSnapshot.measured_at).toLocaleString('es-AR')
-                                                        : technicalMetricsUpdatedAt}
-                                                </span>
+                                    <div className={selectedEvaluationDimension.id === 'technology' || selectedEvaluationDimension.id === 'pedagogy' ? 'flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between' : 'max-w-5xl'}>
+                                        <div>
+                                            {selectedEvaluationDimension.id !== 'technology' && selectedEvaluationDimension.id !== 'pedagogy' && (
+                                                <div className="inline-flex items-center gap-2 rounded-md bg-green-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-green-700 dark:bg-green-950/50 dark:text-green-200">
+                                                    <CheckCircle className="h-4 w-4" />
+                                                    {selectedEvaluationDimension.value}
+                                                </div>
                                             )}
-                                            {isUpdatingTechnicalMetrics && (
-                                                <span className="text-xs font-medium text-blue-600 dark:text-blue-300">
-                                                    Consultando base de datos...
-                                                </span>
+                                            <h2 className={`${selectedEvaluationDimension.id === 'technology' || selectedEvaluationDimension.id === 'pedagogy' ? '' : 'mt-4 '}text-xl font-bold text-gray-950 dark:text-white`}>{selectedEvaluationDimension.label}</h2>
+                                            {selectedEvaluationDimension.id !== 'technology' && selectedEvaluationDimension.id !== 'pedagogy' && (
+                                                <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">{selectedEvaluationDimension.summary}</p>
+                                            )}
+                                            {selectedEvaluationDimension.id === 'pedagogy' && (
+                                                <div className="mt-5">
+                                                    <h3 className="text-base font-bold text-gray-950 dark:text-white">Progreso en simulaciones por usuario</h3>
+                                                    <p className="mt-1 text-sm leading-6 text-gray-500 dark:text-gray-400">
+                                                        Evolucion porcentual de los intentos completados, calculada sobre respuestas correctas y total de preguntas.
+                                                    </p>
+                                                </div>
                                             )}
                                         </div>
-                                    </div>
-                                </div>
 
-                                <div className="mt-5 space-y-3">
-                                    {EVALUATION_TECHNICAL_METRICS.map((metric) => (
-                                        <button
-                                            key={metric.id}
-                                            type="button"
-                                            onClick={() => setSelectedEvaluationMetricId(metric.id)}
-                                            disabled={isUpdatingTechnicalMetrics}
-                                            className={`group w-full rounded-lg border border-gray-200 bg-gray-50 p-4 text-left transition-colors hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-wait dark:border-gray-800 dark:bg-gray-950/60 dark:hover:border-blue-800 dark:hover:bg-blue-950/30 ${
-                                                isUpdatingTechnicalMetrics ? 'animate-pulse opacity-80' : ''
-                                            }`}
-                                        >
-                                            <div className="grid gap-4 md:grid-cols-[minmax(180px,0.8fr)_minmax(140px,0.45fr)_minmax(0,1.4fr)_auto] md:items-center">
-                                                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{metric.label}</p>
-                                                <div className="min-w-0">
-                                                    <p className="text-2xl font-bold text-gray-950 dark:text-white">{selectedTechnicalMetricValues[metric.id] || technicalMetricValues[metric.id] || metric.value}</p>
-                                                    <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{metric.target}</p>
-                                                </div>
-                                                <div className="rounded-md bg-white p-3 dark:bg-gray-900">
-                                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-300">Que mide</p>
-                                                    <p className="mt-1 text-xs leading-5 text-gray-600 dark:text-gray-300">{metric.summary}</p>
-                                                    {metric.id === 'lcp' && (
-                                                        <p className="mt-2 text-xs font-semibold leading-5 text-gray-700 dark:text-gray-200">
-                                                            Pantalla medida: principal del usuario aspirante.
-                                                        </p>
-                                                    )}
-                                                </div>
-                                                <ChevronRight className="hidden h-4 w-4 text-gray-400 transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-300 md:block" />
+                                        {selectedEvaluationDimension.id === 'technology' && (
+                                            <div className="flex flex-col items-start sm:items-end">
+                                                <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                                    Usuario aspirante
+                                                    <select
+                                                        value={selectedTechnicalMetricsUserId}
+                                                        onChange={(event) => setSelectedTechnicalMetricsUserId(event.target.value)}
+                                                        className="mt-1 block min-w-56 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                                    >
+                                                        {regularUsers.map((user) => (
+                                                            <option key={user.id} value={user.id}>
+                                                                {user.name || user.email || 'Usuario'}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </label>
                                             </div>
-                                        </button>
-                                    ))}
-                                </div>
+                                        )}
 
-                                {selectedTechnicalMetricsUserId && (
-                                    <div className="mt-6">
-                                        <TechnicalMetricsHistory
-                                            userId={selectedTechnicalMetricsUserId}
-                                            userName={selectedTechnicalMetricsUser?.name || selectedTechnicalMetricsUser?.email || 'Usuario'}
-                                            embedded
-                                        />
+                                        {selectedEvaluationDimension.id === 'pedagogy' && (
+                                            <div className="w-full max-w-sm">
+                                                {evaluationSimulationSeries.length === 0 ? (
+                                                    <span className="rounded-md bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">Sin usuarios</span>
+                                                ) : (
+                                                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                                        Usuario
+                                                        <select
+                                                            value={selectedEvaluationSimulationSeries?.user.id || ''}
+                                                            onChange={(event) => setSelectedEvaluationChartUserId(event.target.value)}
+                                                            className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                                        >
+                                                            {evaluationSimulationSeries.map((series) => (
+                                                                <option key={series.user.id} value={series.user.id}>
+                                                                    {series.user.name || series.user.email || 'Usuario'}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </label>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
-                                )}
+
+                                    {selectedEvaluationDimension.id === 'technology' && (
+                                        <div className="mt-5 space-y-5">
+                                            <div className="space-y-3">
+                                                {EVALUATION_TECHNICAL_METRICS.map((metric) => (
+                                                    <div
+                                                        key={metric.id}
+                                                        className="w-full rounded-lg border border-gray-200 bg-gray-50 p-4 text-left dark:border-gray-800 dark:bg-gray-950/60"
+                                                    >
+                                                        <div className="grid gap-4 md:grid-cols-[minmax(180px,0.8fr)_minmax(140px,0.45fr)_minmax(0,1.4fr)] md:items-center">
+                                                            <div>
+                                                                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{metric.label}</p>
+                                                                <p className="mt-1 text-xs normal-case tracking-normal text-gray-400 dark:text-gray-500">{metric.translation}</p>
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <p className="text-2xl font-bold text-gray-950 dark:text-white">{selectedTechnicalMetricValues[metric.id] || 'Sin medición'}</p>
+                                                                {metric.target && (
+                                                                    <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{metric.target}</p>
+                                                                )}
+                                                            </div>
+                                                            <div className="rounded-md bg-white p-3 dark:bg-gray-900">
+                                                                <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-300">Que mide</p>
+                                                                <p className="mt-1 text-xs leading-5 text-gray-600 dark:text-gray-300">{metric.summary}</p>
+                                                                {metric.id === 'lcp' && (
+                                                                    <p className="mt-2 text-xs font-semibold leading-5 text-gray-700 dark:text-gray-200">
+                                                                        Pantalla medida: principal del usuario aspirante.
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            {selectedTechnicalMetricsUserId && (
+                                                <div>
+                                                    <TechnicalMetricsHistory
+                                                        userId={selectedTechnicalMetricsUserId}
+                                                        userName={selectedTechnicalMetricsUser?.name || selectedTechnicalMetricsUser?.email || 'Usuario'}
+                                                        embedded
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             </section>
-                            ) : selectedEvaluationDimension.id === 'business' ? (
+
+                            {selectedEvaluationDimension.id === 'business' ? (
                             <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
                                 <h3 className="text-base font-bold text-gray-950 dark:text-white">Evaluacion de negocio del informe</h3>
                                 <p className="mt-1 text-sm leading-6 text-gray-500 dark:text-gray-400">
@@ -2678,7 +2686,7 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                             onChange={(event) => setSelectedUxUiMetricsUserId(event.target.value)}
                                             className="mt-1 block min-w-56 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
                                         >
-                                            {users.filter((user) => (user.role || 'usuario') === 'usuario').map((user) => (
+                                            {regularUsers.map((user) => (
                                                 <option key={user.id} value={user.id}>
                                                     {user.name || user.email || 'Usuario'}
                                                 </option>
@@ -2701,38 +2709,44 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                     )}
                                 </div>
                             </section>
-                            ) : (
-                            <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                                    <div>
-                                        <h3 className="text-base font-bold text-gray-950 dark:text-white">Progreso en simulaciones por usuario</h3>
-                                        <p className="mt-1 text-sm leading-6 text-gray-500 dark:text-gray-400">
-                                            Evolucion porcentual de los intentos completados, calculada sobre respuestas correctas y total de preguntas.
-                                        </p>
+                            ) : selectedEvaluationDimension.id === 'technology' ? null : (
+                            <section className={`rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 ${
+                                selectedEvaluationDimension.id === 'pedagogy'
+                                    ? '-mt-6 rounded-t-none border-t-0 pt-3'
+                                    : ''
+                            }`}>
+                                {selectedEvaluationDimension.id !== 'pedagogy' && (
+                                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                        <div>
+                                            <h3 className="text-base font-bold text-gray-950 dark:text-white">Progreso en simulaciones por usuario</h3>
+                                            <p className="mt-1 text-sm leading-6 text-gray-500 dark:text-gray-400">
+                                                Evolucion porcentual de los intentos completados, calculada sobre respuestas correctas y total de preguntas.
+                                            </p>
+                                        </div>
+                                        <div className="w-full max-w-sm">
+                                            {evaluationSimulationSeries.length === 0 ? (
+                                                <span className="rounded-md bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">Sin usuarios</span>
+                                            ) : (
+                                                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                                    Usuario
+                                                    <select
+                                                        value={selectedEvaluationSimulationSeries?.user.id || ''}
+                                                        onChange={(event) => setSelectedEvaluationChartUserId(event.target.value)}
+                                                        className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                                    >
+                                                        {evaluationSimulationSeries.map((series) => (
+                                                            <option key={series.user.id} value={series.user.id}>
+                                                                {series.user.name || series.user.email || 'Usuario'}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </label>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="w-full max-w-sm">
-                                        {evaluationSimulationSeries.length === 0 ? (
-                                            <span className="rounded-md bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">Sin usuarios</span>
-                                        ) : (
-                                            <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                                                Usuario
-                                                <select
-                                                    value={selectedEvaluationSimulationSeries?.user.id || ''}
-                                                    onChange={(event) => setSelectedEvaluationChartUserId(event.target.value)}
-                                                    className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
-                                                >
-                                                    {evaluationSimulationSeries.map((series) => (
-                                                        <option key={series.user.id} value={series.user.id}>
-                                                            {series.user.name || series.user.email || 'Usuario'}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </label>
-                                        )}
-                                    </div>
-                                </div>
+                                )}
 
-                                <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
+                                <div className={`${selectedEvaluationDimension.id === 'pedagogy' ? '' : 'mt-5 '}grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]`}>
                                     <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950/60">
                                         {evaluationChartPoints.length === 0 ? (
                                             <div className="flex min-h-[260px] items-center justify-center text-center text-sm text-gray-500 dark:text-gray-400">
@@ -3056,7 +3070,7 @@ export default function AdminDashboard({ activeAdminView }: AdminDashboardProps)
                                             className="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
                                             required
                                         >
-                                            {users.filter((user) => (user.role || 'usuario') === 'usuario').map((user) => (
+                                            {regularUsers.map((user) => (
                                                 <option key={user.id} value={user.id}>
                                                     {user.name || user.email || 'Usuario'}
                                                 </option>

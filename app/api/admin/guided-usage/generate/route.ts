@@ -252,7 +252,7 @@ async function createTechnicalSnapshot(pb: PocketBase, userId: string, measuredA
         bundle_kb: bundle,
         pocketbase_latency_ms: latency,
         streaming_chunks: streamingChunks,
-        streaming_label: `Activo (${streamingChunks} fragmentos)`,
+        streaming_label: 'Streaming correcto',
         metrics: {
             source: 'Generador admin de modo guiado',
             ttft: { value: `${ttft} ms`, raw: ttft, status: 'ok' },
@@ -260,7 +260,7 @@ async function createTechnicalSnapshot(pb: PocketBase, userId: string, measuredA
             cls: { value: cls.toFixed(3), raw: cls, status: 'ok' },
             bundle: { value: `${bundle} KB`, raw: bundle, status: 'ok' },
             'pocketbase-latency': { value: `${latency} ms`, raw: latency, status: 'ok' },
-            streaming: { value: `Activo (${streamingChunks} fragmentos)`, raw: streamingChunks, status: 'ok' },
+            streaming: { value: 'Streaming correcto', raw: streamingChunks, status: 'ok' },
         },
         user_agent: 'admin-guided-usage-generator',
     }, { requestKey: null }));
